@@ -881,7 +881,7 @@ class SendLayer(YowInterfaceLayer):
 
         self.ackQueue.append(messageEntity.getId())
         self.logger.info("Send Msg (ID=%s)" % messageEntity.getId())
-        #typing 状态只发给第一个接收方
+
         target = Jid.normalize(to.split(",")[0])
         if target.endswith("@g.us"):
             entity = OutgoingChatstateProtocolEntity(ChatstateProtocolEntity.STATE_TYPING, target,Jid.normalize(self.bot.botId))
@@ -903,7 +903,7 @@ class SendLayer(YowInterfaceLayer):
             self.ctxMap[options["ctxId"]]["msgId"] = messageEntity.getId()
             self.ctxMap[options["ctxId"]]["event"].set()            
         
-        return messageEntity.getId()        #成功发送，会返回消息ID
+        return messageEntity.getId()        
     
     def getContextValue(self,ctxId,key):
         if ctxId not in self.ctxMap:
@@ -941,8 +941,7 @@ class SendLayer(YowInterfaceLayer):
             ctxId = str(uuid.uuid4())            
             self.ctxMap[ctxId] = {"event":threading.Event()}
             options["ctxId"] = ctxId                        
-            self.assureContactsAndSend(cmdParams,options,send_func=self.sendMediaMsgDirect,redo_func=self.sendMediaMsg)            
-            #等待消息ID的返回       
+            self.assureContactsAndSend(cmdParams,options,send_func=self.sendMediaMsgDirect,redo_func=self.sendMediaMsg)                        
                  
             ret = self.ctxMap[ctxId]["event"].wait(int(options["waitMsgId"]))            
             if not ret:                
@@ -1019,7 +1018,7 @@ class SendLayer(YowInterfaceLayer):
                     self.ctxMap[options["ctxId"]]["msgId"] = entity.getId()
                     self.ctxMap[options["ctxId"]]["event"].set()            
 
-                return entity.getId()        #成功发送，会返回消息ID                
+                return entity.getId()                   
             except:
                 print(traceback.format_exc())
                 logger.error("send media msg with exception")
@@ -1324,27 +1323,3 @@ class SendLayer(YowInterfaceLayer):
         entity = LeaveGroupsIqProtocolEntity([Jid.normalize(groupJid)])
         self._sendIq(entity, on_success, on_error)
         return entity.getId()
-    
-    def resetSync(self,params,options):
-        #清理所有同步信息
-        entity = AppSyncResetIqProtocolEntity()
-        self.toLower(entity)
-
-    def generateAppStateSyncKeys(self,n):
-        profile = self.getStack().getProp("profile")        
-        keys = []
-        for i in range(0,10):
-            key = AppStateSyncKeyAttribute(
-                key_id= AppStateSyncKeyIdAttribute(key_id=random.randint(10000,20000).to_bytes(6,'big')),
-                key_data=AppStateSyncKeyDataAttribute(
-                    key_data=Curve.generateKeyPair().publicKey.serialize()[1:],
-                    fingerprint=AppStateSyncKeyFingerprintAttribute(
-                       raw_id = random.randint(10000,2000000000),
-                       current_index=i,
-                       device_indexes=profile.config.device_list
-                    ),
-                    timestamp=int(time.time())
-                )
-            )
-            keys.append(key)        
-        return keys        

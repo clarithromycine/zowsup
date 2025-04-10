@@ -8,10 +8,12 @@ from yowsup.layers.protocol_messages.protocolentities.attributes.attributes_send
 from yowsup.layers.protocol_messages.protocolentities.attributes.attributes_protocol import ProtocolAttributes
 from yowsup.layers.protocol_messages.protocolentities.attributes.attributes_message_key import MessageKeyAttributes
 
+from yowsup.layers.protocol_historysync.protocolentities.attributes.attributes_initial_security_notification_setting_sync import InitialSecurityNotificationSettingSyncAttribute
+from yowsup.layers.protocol_historysync.protocolentities.attributes.attributes_history_sync_notification import HistorySyncNotificationAttribute
+
 class AttributesConverter(object):
 
     __instance = None
-    
 
     @classmethod
     def get(cls):
@@ -749,12 +751,7 @@ class AttributesConverter(object):
                         
         if contextinfo_attributes.business_message_forward_info is not None:
             cxt_info.business_message_forward_info.MergeFrom(self.business_message_forward_info_to_proto(contextinfo_attributes.business_message_forward_info))
-        '''
-        if contextinfo_attributes.edit_version is not None:
-            cxt_info.edit_version = contextinfo_attributes.edit_version
-        if contextinfo_attributes.revoke_message is not None:
-            cxt_info.revoke_message = contextinfo_attributes.revoke_message
-        '''
+
 
         if contextinfo_attributes.entry_point_conversion_source is not None:
             cxt_info.entry_point_conversion_source = contextinfo_attributes.entry_point_conversion_source
@@ -776,8 +773,8 @@ class AttributesConverter(object):
             if proto.HasField("quoted_message") else None,
             remote_jid=proto.remote_jid if proto.HasField("remote_jid") else None,
             mentioned_jid=proto.mentioned_jid if len(proto.mentioned_jid) else [],            
-            #edit_version=proto.edit_version if proto.HasField("edit_version") else None,    #该字段已取消
-            #revoke_message=proto.revoke_message if proto.HasField("revoke_message") else None #该字段已取消
+            #edit_version=proto.edit_version if proto.HasField("edit_version") else None,    #deprecated
+            #revoke_message=proto.revoke_message if proto.HasField("revoke_message") else None #deprecated
             edit_version = None,
             revoke_message = None,
             entry_point_conversion_source = proto.entry_point_conversion_source if proto.HasField("entry_point_conversion_source") else None,
@@ -808,14 +805,12 @@ class AttributesConverter(object):
         message = e2e_pb2.Message()
         mctx = e2e_pb2.MessageContextInfo()
 
-
         mctx.message_secret = os.urandom(32)
         mctx.device_list_metadata.sender_timestamp = int(time.time())
         mctx.device_list_metadata_version = 2
         #mctx.device_list_metadata.sender_account_type = 0
         #mctx.device_list_metadata.receiver_account_type = 0
         
-
         message.message_context_info.MergeFrom(mctx)
 
         if message_attributes.conversation:
@@ -855,7 +850,6 @@ class AttributesConverter(object):
 
         if message_attributes.product:
             message.product_message.MergeFrom(self.product_to_proto(message_attributes.product))
-
         
         if message_attributes.interactive:
             message.interactive_message.MergeFrom(self.interactive_to_proto(message_attributes.interactive))
@@ -867,15 +861,12 @@ class AttributesConverter(object):
             
         if message_attributes.protocol:
             message.protocol_message.MergeFrom(self.protocol_to_proto(message_attributes.protocol))
-
-
+        
         return message
 
     def proto_to_message(self, proto,from_jid=None,message_db=None):
 
-        # from_jid message_secret 两个参数，目前只在pollupdate里面用到，到时候再优化
-        
-        
+        # from_jid message_secret 两个参数，目前只在pollupdate里面用到，到时候再优化                    
         if proto.HasField("device_sent_message"):            
             proto = proto.device_sent_message.message            
 
@@ -890,7 +881,6 @@ class AttributesConverter(object):
 
         if proto.HasField("lottie_sticker_message"):
             proto = proto.lottie_sticker_message.message
-
             
         conversation = proto.conversation if proto.conversation else None
         image = self.proto_to_image(proto.image_message) if proto.HasField("image_message") else None

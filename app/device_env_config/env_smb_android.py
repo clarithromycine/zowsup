@@ -6,7 +6,7 @@ from .env_tools import EnvTools
 
 class EnvSmbAndroid(object):
     def __init__(self,
-                 version = "2.25.1.27",                 
+                 version = "2.25.11.4",                 
                  osVersion = "11.0.0",
                  deviceName = "Mi11 Pro 5G",
                  buildVersion = "Mi9 Pro 5G-user 9.0.0 R16AA WISIGHT0001 release-keys",
@@ -193,8 +193,8 @@ class EnvSmbAndroid(object):
         #         
         _KEY = "VROA1coOL6M5ywTDPnPB/6CwjpIl2UjqEbIDpuf4TtgbPMj9sEhhi3gqtaG1PM/Jy4VODs6UQE7SMLcqzf/XVQ=="                
 
-        self.version="2.25.1.27"
-        _MD5_CLASSES = "CCpr6hFLYc++z2HrhcwSNg=="
+        self.version="2.25.11.4"
+        _MD5_CLASSES = "4V6ZAkIufZ2IoDp+oc0NGg=="
         return EnvTools.getAndroidToken(self,phoneNumber,_KEY,_MD5_CLASSES)
     
     def getUserAgent(self):

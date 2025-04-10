@@ -1,7 +1,5 @@
 from .waresponseparser import ResponseParser
 
-
-import sys
 import logging
 from axolotl.ecc.curve import Curve
 from yowsup.common.tools import WATools
@@ -13,53 +11,10 @@ import base64
 import requests
 import uuid
 
-from requests.adapters import HTTPAdapter
-
-import ssl
-
-from common.utils import Utils
-from requests.packages.urllib3.util.ssl_ import create_urllib3_context
-from http import client as httplib
 from urllib.parse import quote as urllib_quote
 
 logger = logging.getLogger(__name__)
 
-#ORIGIN_CIPHERS = (
-#    'AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:AES256-SHA'
-#)
-
-
-ORIGIN_CIPHERS = "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_DHE_RSA_WITH_AES_256_GCM_SHA384:TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256:TLS_DHE_DSS_WITH_AES_256_GCM_SHA384:TLS_DHE_RSA_WITH_AES_128_GCM_SHA256:TLS_DHE_DSS_WITH_AES_128_GCM_SHA256:TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384:TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384:TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:TLS_DHE_RSA_WITH_AES_256_CBC_SHA256:TLS_DHE_DSS_WITH_AES_256_CBC_SHA256:TLS_DHE_RSA_WITH_AES_128_CBC_SHA256:TLS_DHE_DSS_WITH_AES_128_CBC_SHA256:TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:TLS_DHE_RSA_WITH_AES_256_CBC_SHA:TLS_DHE_DSS_WITH_AES_256_CBC_SHA:TLS_DHE_RSA_WITH_AES_128_CBC_SHA:TLS_DHE_DSS_WITH_AES_128_CBC_SHA:TLS_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_128_GCM_SHA256:TLS_RSA_WITH_AES_256_CBC_SHA256:TLS_RSA_WITH_AES_128_CBC_SHA256:TLS_RSA_WITH_AES_256_CBC_SHA:TLS_RSA_WITH_AES_128_CBC_SHA:TLS_EMPTY_RENEGOTIATION_INFO_SCSV"
-
-IOS_CIPHERS = "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:TLS_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_128_GCM_SHA256:TLS_RSA_WITH_AES_256_CBC_SHA:TLS_RSA_WITH_AES_128_CBC_SHA:TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA:TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA:TLS_RSA_WITH_3DES_EDE_CBC_SHA"
-
-ANDROID_CIPHERS = "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:TLS_RSA_WITH_AES_128_GCM_SHA256:TLS_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_128_CBC_SHA:TLS_RSA_WITH_AES_256_CBC_SHA"
-
-class TlsAdapter(HTTPAdapter):
-
-    def __init__(self, *args, **kwargs):
-        
-        '''
-        ciphers = ORIGIN_CIPHERS.split(':')        
-        ss = int(len(ciphers)*random.randint(75,90)/100.0)
-        sample_ciphers = random.sample(ciphers,ss)
-        random.shuffle(sample_ciphers)                     
-        self.CIPHERS = ':'.join(sample_ciphers) #+ ':!aNULL:!eNULL:!MD5'  
-        '''      
-        
-        self.CIPHERS = IOS_CIPHERS
-        super().__init__(*args, **kwargs)
-
-    def init_poolmanager(self, *args, **kwargs):
-        context = create_urllib3_context()
-        kwargs['ssl_context'] = context
-        return super(TlsAdapter, self).init_poolmanager(*args, **kwargs)
-    
-    def proxy_manager_for(self, *args, **kwargs):
-        context = create_urllib3_context()
-        kwargs['ssl_context'] = context
-        
-        return super(TlsAdapter, self).proxy_manager_for(*args, **kwargs)
     
 class WARequest(object):
     OK = 200
@@ -70,8 +25,7 @@ class WARequest(object):
             111, 18, 37, 18, 48, 45
         ])
     )
-
-    TLS_ADAPTER = TlsAdapter(ssl.PROTOCOL_TLS|ssl.OP_NO_TLSv1_1)
+    
 
 
     def __init__(self, config_or_profile=None,env=None):
@@ -321,8 +275,7 @@ class WARequest(object):
         rawpath = path
         path = path + "?" + params if reqType == "GET" and params else path
         session = requests.Session()   
-        if WARequest.TLS_ADAPTER is not None:     
-            session.mount("https://", WARequest.TLS_ADAPTER)
+
         if proxy is not None:
             logger.debug("PROXY REQUEST TO %s" % rawpath)
             proxies = {
