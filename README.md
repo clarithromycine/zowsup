@@ -34,8 +34,10 @@ Since the original yowsup project has not been maintained for a long time, we fo
  * Installation 
 
 ```
- pip install -r requirements.txt
-
+ pip install poetry
+ poetry install
+ poetry self add poetry-plugin-shell
+ poetry shell
 ```
  * Basic configuration
 
