@@ -94,8 +94,6 @@ if __name__ == "__main__":
     
     params,options = Utils.cmdLineParser(sys.argv)
     
-    print(options)
-
 
     Main().run(params,options)    
     
