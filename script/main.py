@@ -93,6 +93,8 @@ if __name__ == "__main__":
         sys.exit(0)
     
     params,options = Utils.cmdLineParser(sys.argv)
+    
+    print(options)
 
 
     Main().run(params,options)    

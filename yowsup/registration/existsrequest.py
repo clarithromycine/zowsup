@@ -16,9 +16,11 @@ class WAExistsRequest(WARequest):
 
         self.url = "v.whatsapp.net/v2/exist"
 
-        self.pvars = ["status", "reason", "sms_length", "voice_length", "result","param", "login", "type",
+        self.pvars = ["status", "reason", "sms_length", 
+                      "voice_length", "result","param", "login", "type",
                       "chat_dns_domain", "edge_routing_info"
                     ]
 
         self.setParser(JSONResponseParser())
         self.addParam("token", YowsupEnv.getCurrent().getToken(self._p_in))
+

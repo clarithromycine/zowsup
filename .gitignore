@@ -9,3 +9,9 @@ build
 .idea
 .tox
 config.conf
+
+*.txt
+
+.venv
+
+venv

@@ -3,6 +3,7 @@ sys.path.append(os.getcwd())
 
 # coding=UTF-8
 import logging
+from common.utils import Utils
 
 from yowsup.stacks import YowStackBuilder
 from yowsup.layers import YowLayerEvent
@@ -276,7 +277,9 @@ class YowBot:
     '''
     
     @BotCmd("send","send message to peer")
-    def sendMsg(self,params,options):                 
+    def sendMsg(self,params,options):           
+        print(params)      
+        print("AQUI ENVIA A MENSAGEM")
         return self.sendLayer.sendMsg(params,options)     
 
     @BotCmd("sendmedia","send media message to  peer")
@@ -378,12 +381,28 @@ if __name__ == "__main__":
 
     # default-env  android,direct
     env = BotEnv(
-        deviceEnv = DeviceEnv("android",random=True), 
+        deviceEnv = DeviceEnv("smb_android",random=True), 
         networkEnv = NetworkEnv(NetworkEnv.TYPE_DIRECT)
     )
 
-    bot = YowBot(botId="212719800440",env=env)
+    options = {'env': 'smb_android', 'debug': True, 'send': True}
 
+    bot = YowBot(bot_id="556291048628",env=env)
+    # Utils.init_log(logging.DEBUG,"log.log")
+    
+    
+    def start():
+        
+        print("LOGIN")
+        if bot.waitLogin():
+            print("LOGIN SUCCESS")
+            
+            bot.sendMsg(params=("5598985700260","teste"),options=options)
+        else:
+            print("NOT LOGIN")
+        print("RUNNING")
+            
+    threading.Thread(target=start,daemon=True).start()
     bot.run()
     
 
