@@ -5,7 +5,8 @@ import os
 from .eckeypair import ECKeyPair
 from ..invalidkeyexception import InvalidKeyException
 
-import axolotl_curve25519 as _curve
+# 使用cryptography适配层替代python-axolotl-curve25519
+from .crypto_adapter import CryptographyAdapter as _curve
 
 
 class Curve:

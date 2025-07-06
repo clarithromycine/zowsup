@@ -1,148 +1,165 @@
 # zowsup
 
-zowsup is a python whatsapp-protocol project based on [yowsup](https://github.com/tgalal/yowsup/).
+zowsup 是一个基于 [yowsup](https://github.com/tgalal/yowsup/) 的 Python WhatsApp 协议项目。
 
-Since the original yowsup project has not been maintained for a long time, we forked yowsup and some associated projects(axolotl, consonance) and intergrated into an All-In-One Project and keep updating with latest version of Whatsapp.
-
-```
-- ZOWSUP VERSION : 0.6.1
-
-- UPDATE TIME : 2025-07-06
-
-- WHATSAPP VERSION : 
-    2.25.18.80(Android) 
-    2.25.18.82(SMB Android) 
-    2.25.5.74(iOS) 
-    2.25.5.74(SMB iOS) 
+由于原始的 yowsup 项目长期未维护，我们 fork 了 yowsup 及其相关项目（axolotl、consonance），并将其整合为一个一体化项目，持续更新以支持最新版本的 WhatsApp。
 
 ```
+- ZOWSUP 版本 : 0.6.1
+
+- 更新时间 : 2025-07-06
+
+- WHATSAPP 版本 :
+    2.25.18.80(Android)
+    2.25.18.82(SMB Android)
+    2.25.5.74(iOS)
+    2.25.5.74(SMB iOS)
+
+```
 
 
-## Discussion Groups
- * telegram:  [zowsup](https://t.me/+au1dTQz7jyU0YjU5)
+## 讨论群组
+ * Telegram:  [zowsup](https://t.me/+au1dTQz7jyU0YjU5)
 
 
-## What's New 0.6.0
- * new commands mdlink and mdremove
- * linkcode for companion device registration
+## 0.6.0 版本新功能
+ * 新增 mdlink 和 mdremove 命令
+ * 支持配套设备注册的链接码功能
 
-## What's New 0.5.0
- * Latest version(6.3) of noise-protocol and token-dictionary
- * Multi-Environment support (android,smb_android,ios,smb_ios)
- * Multi-Device protocol support
- * Display a QR to Login as a companion device 
- * 6-parts account support (import / export )
- * Proxy support
- * Threading command architecture 
- * Bubbling up all the config variables to the top layer ( app and conf folder)
- * Mass of WA-protocol updates
- 
-## Subsequent update promise
- * Critical protocol update
- * Version update with latest WhatsApp 
- 
+## 0.5.0 版本新功能
+ * 最新版本(6.3)的 noise-protocol 和 token-dictionary
+ * 多环境支持 (android、smb_android、ios、smb_ios)
+ * 多设备协议支持
+ * 显示二维码以作为配套设备登录
+ * 6部分账户支持（导入/导出）
+ * 代理支持
+ * 线程化命令架构
+ * 将所有配置变量提升到顶层（app 和 conf 文件夹）
+ * 大量 WA 协议更新
 
-## Quick start for the project
+## 后续更新承诺
+ * 关键协议更新
+ * 与最新 WhatsApp 版本同步更新
 
- * Installation 
+
+## 项目快速开始
+
+ * 安装依赖
 
 ```
  pip install -r requirements.txt
 
 ```
- * Basic configuration
+ * 基础配置
 
 ```
-copy ./conf/config.conf.example to ./conf/config.conf and modify variables in config.conf according to your system
+复制 ./conf/config.conf.example 到 ./conf/config.conf 并根据您的系统修改 config.conf 中的变量
 
-ACCOUNT_PATH=/data/account/               #location you store the account data
-DOWNLOAD_PATH=/data/tmp/                  #download path
-UPLOAD_PATH=/data/tmp/                    #upload path
-LOG_PATH=/data/log/                       #log path
-DEFAULT_ENV=android                       #default environment
-
-```
-
- * Import account from 6-parts-account-data
-
-```
- python script/import6.py [6-parts-account-data] --env android             # env : android/smb_android/ios/smb_ios is available
+ACCOUNT_PATH=/data/account/               #存储账户数据的位置
+DOWNLOAD_PATH=/data/tmp/                  #下载路径
+UPLOAD_PATH=/data/tmp/                    #上传路径
+LOG_PATH=/data/log/                       #日志路径
+DEFAULT_ENV=android                       #默认环境
 
 ```
 
- * Export accounts to 6-parts-account-data
- 
-```
- python script/export6.py [account-number]
+ * 从6部分账户数据导入账户
 
 ```
-
- * Run
-
-```
- python script/main.py [account-number] --env android                        # env : android/smb_android/ios/smb_ios is available
+ python script/import6.py [6部分账户数据] --env android             # env : android/smb_android/ios/smb_ios 可用
 
 ```
 
-* Register as a companion device
+ * 导出账户为6部分账户数据
 
 ```
- [QRCODE]
- python script/regwithscan.py 
-
- [LINKCODE]
- python script/regwithlinkcode.py [account-number]
+ python script/export6.py [账户号码]
 
 ```
 
-* Basic commands
+ * 运行
 
 ```
-main.py [account-number] [command] [commandParams]
+ python script/main.py [账户号码] --env android                        # env : android/smb_android/ios/smb_ios 可用
 
-[command]                     |   [description]
+```
+
+* 注册为配套设备
+
+```
+ [二维码方式]
+ python script/regwithscan.py
+
+ [链接码方式]
+ python script/regwithlinkcode.py [账户号码]
+
+```
+
+* 基本命令
+
+```
+main.py [账户号码] [命令] [命令参数]
+
+[命令]                        |   [描述]
 ----------------------------------------------------------------------------
-account.getavatar             | get account avatar
-account.getemail              | get account email
-account.init                  | initialize the account (for the 1st login)
-account.set2fa                | set account 2fa
-account.setavatar             | set account avatar
-account.setemail              | set account email
-account.setname               | set account name
-account.verifyemail           | request email verification
-account.verifyemailcode       | verify email code
-contact.getavatar             | get account avatar
-contact.sync                  | sync contacts
-contact.trust                 | trust contact
-group.add                     | add member(s) to group
-group.approve                 | approve participants to join the group
-group.create                  | create a group
-group.demote                  | demote group member(s) from admin
-group.getinvite               | get the invite code of group
-group.info                    | show group information
-group.join                    | join group with an invite code
-group.leave                   | leave group
-group.promote                 | promote group member(s) to admin
-group.remove                  | remove a member from group
-group.seticon                 | set icon for group
-md.link                       | link to companion device with qrcode-str
-md.remove                     | remove companion device(s)
-msg.edit                      | edit message
-msg.revoke                    | revoke message
-msg.send                      | send message
-msg.sendmedia                 | send media message
+account.getavatar             | 获取账户头像
+account.getemail              | 获取账户邮箱
+account.init                  | 初始化账户（首次登录）
+account.set2fa                | 设置账户双重验证
+account.setavatar             | 设置账户头像
+account.setemail              | 设置账户邮箱
+account.setname               | 设置账户名称
+account.verifyemail           | 请求邮箱验证
+account.verifyemailcode       | 验证邮箱验证码
+contact.getavatar             | 获取联系人头像
+contact.sync                  | 同步联系人
+contact.trust                 | 信任联系人
+group.add                     | 添加成员到群组
+group.approve                 | 批准参与者加入群组
+group.create                  | 创建群组
+group.demote                  | 将群组成员从管理员降级
+group.getinvite               | 获取群组邀请码
+group.info                    | 显示群组信息
+group.join                    | 使用邀请码加入群组
+group.leave                   | 离开群组
+group.promote                 | 将群组成员提升为管理员
+group.remove                  | 从群组移除成员
+group.seticon                 | 设置群组图标
+md.link                       | 使用二维码字符串链接到配套设备
+md.remove                     | 移除配套设备
+msg.edit                      | 编辑消息
+msg.revoke                    | 撤回消息
+msg.send                      | 发送消息
+msg.sendmedia                 | 发送媒体消息
 ----------------------------------------------------------------------------
 ```
 
 
- * Proxy 
+ * 代理设置
 
 ```
- python script/main.py [account-number] --proxy "host:port:username:password"  
+ python script/main.py [账户号码] --proxy "主机:端口:用户名:密码"
 
- dynamic [location] and [session_id] replacement in the proxy string is supported 
+ 支持在代理字符串中动态替换 [location] 和 [session_id]
 
 ```
+
+
+## 技术更新说明
+
+### 🔧 加密库迁移 (2025-07-06)
+本项目已成功从 `python-axolotl-curve25519` 迁移到现代的 `cryptography` 库：
+
+* ✅ **性能提升**: 使用行业标准的 cryptography 库，性能更优
+* ✅ **安全增强**: 获得定期安全更新和最新加密标准支持
+* ✅ **兼容性**: 完全向后兼容，无需修改现有代码
+* ✅ **稳定性**: 解决了在新版 macOS 上的编译问题
+
+### 🛠️ 开发者说明
+如果您是开发者，所有 Curve25519 相关的加密操作现在都通过 `axolotl/ecc/crypto_adapter.py` 适配层处理，确保了：
+- X25519 密钥协商的完整支持
+- Ed25519 数字签名的完整支持
+- 与原有 API 的 100% 兼容性
 
 
 

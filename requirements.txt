@@ -9,7 +9,8 @@ names
 ffmpeg
 pillow
 qrcode
-python-axolotl-curve25519
+# python-axolotl-curve25519 已替换为 cryptography
+# cryptography>=3.0 已在安装时自动包含，无需重复声明
 cffi
 transitions
 dissononce

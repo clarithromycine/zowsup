@@ -1,6 +1,6 @@
 from dissononce.dh.x25519.x25519 import PublicKey
 from ..proto import wa5_pb2,cert_pb2
-import axolotl_curve25519 as curve
+# 移除未使用的 axolotl_curve25519 导入
 import logging
 import time
 
