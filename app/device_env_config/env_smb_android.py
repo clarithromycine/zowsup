@@ -22,8 +22,8 @@ class EnvSmbAndroid(object):
         self.deviceModelType = deviceModelType
         self.isAxolotlEnable = isAxolotlEnable
 
-        self.version = "2.25.23.82"
-        self.md5Classes = "0TrxGTrYriZQCHq1gS8ZbQ=="
+        self.version = "2.25.26.74"
+        self.md5Classes = "cEofmPVBrJoAVPXwB1yqnA=="
         self.key = "VROA1coOL6M5ywTDPnPB/6CwjpIl2UjqEbIDpuf4TtgbPMj9sEhhi3gqtaG1PM/Jy4VODs6UQE7SMLcqzf/XVQ=="   
 
 
