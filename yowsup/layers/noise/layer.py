@@ -75,7 +75,7 @@ class YowNoiseLayer(YowLayer):
                 self._profile.write_config(config)
             '''
 
-            passive = True
+            passive = False
             
             #这个client_cofig 的结构是consonance里面的         
             client_config = ClientConfig(          
