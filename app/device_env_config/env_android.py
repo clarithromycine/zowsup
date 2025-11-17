@@ -20,10 +20,11 @@ class EnvAndroid(object):
         self.deviceModelType = deviceModelType
         self.isAxolotlEnable = isAxolotlEnable
 
-        self.version = "2.25.30.73"
-        self.md5Classes = "ztQKWU2qxRu8dJYJAGJqEw=="
-        self.key = "RFObk0NHtvEmCSluaRRbWDCd+U7QqKWi2UB4qOr/hwE+PZWmlkSqG5JGRlMsJ5+LzShVq1XyyLwWk623gAyI/w=="   
-
+        self.version = "2.25.29.75"
+        self.md5Classes = "LbWnpP3i5rQL7JrSUWFOTg=="
+        #self.key = "RFObk0NHtvEmCSluaRRbWDCd+U7QqKWi2UB4qOr/hwE+PZWmlkSqG5JGRlMsJ5+LzShVq1XyyLwWk623gAyI/w=="   
+        self.key = "sdvJhddpcZ+tuNfeaKAEhS+L3M1rg7jC3ka49uKKKbOnggnuN2gUAZLlhItnagVE7d0SPOTPPplfGOowd6240Q=="
+        
     @staticmethod
     def randomEnv():
         MANUFACTURER = ["Huawei","Xiaomi","Samsung","Vivo","Google"]

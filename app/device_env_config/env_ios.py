@@ -41,7 +41,7 @@ class EnvIos(object):
   
 
     def __init__(self,                 
-                 version = "2.25.19.5",          
+                 version = "2.25.32.77",          
                  osVersion = "17.2.1",
                  deviceName = "iPhone_15_Pro_Max",
                  manufacturer = "Apple",                 

@@ -21,11 +21,11 @@ class EnvSmbAndroid(object):
         self.manufacturer = manufacturer
         self.deviceModelType = deviceModelType
         self.isAxolotlEnable = isAxolotlEnable
-
-        self.version = "2.25.26.74"
-        self.md5Classes = "cEofmPVBrJoAVPXwB1yqnA=="
-        self.key = "VROA1coOL6M5ywTDPnPB/6CwjpIl2UjqEbIDpuf4TtgbPMj9sEhhi3gqtaG1PM/Jy4VODs6UQE7SMLcqzf/XVQ=="   
-
+        
+        self.version = "2.25.32.75"
+        self.md5Classes = "tscTjVmBD1zyO/7tYTYlKQ=="
+        #self.key = "VROA1coOL6M5ywTDPnPB/6CwjpIl2UjqEbIDpuf4TtgbPMj9sEhhi3gqtaG1PM/Jy4VODs6UQE7SMLcqzf/XVQ=="   
+        self.key = "wt9VMkXhC2ODULqh718Itr60VOm9tYtDWKmVD+48S96rbE9zYW0K0L+6Y82FKtRku9juFnml6nDUAMxHHf0c2A=="
 
     def __str__(self):
         return "%d-%s-%s" % (self.platform,self.osName,self.version)
