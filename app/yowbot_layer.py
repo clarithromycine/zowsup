@@ -1658,6 +1658,37 @@ class SendLayer(YowInterfaceLayer):
             MessageMetaAttributes(id=self.bot.idType,recipient=Jid.normalize(cmdParams[0]),timestamp=int(time.time())))
         self.toLower(entity)
         return entity.getId()
+    
+
+    def integrityCheck(self,cmdParams,options):        
+
+        def on_success(entity, original_iq_entity):   
+            if isinstance(entity,WmexResultIqProtocolEntity):       
+                self.setCmdResult(entity.getId(), entity.result_obj)
+
+        def on_error(entity, original_iq):                        
+            self.logger.info("integrityCheck error")        
+
+        user_ids = cmdParams[0].split(",")        
+        jids = []
+        for id in user_ids:
+            jids.append({"jid":Jid.normalize(id)})
+
+        query=  {
+            "variables":{         
+                "input":{
+                    "query_input":jids,
+                    "telemetry":{
+                        "context":"INTERACTIVE"
+                    }                    
+                }
+            }
+        }
+        
+        entity = WmexQueryIqProtocolEntity(query_name="BizIntegrityQuery",query_obj=query)            
+        self._sendIq(entity, on_success, on_error)        
+
+        return entity.getId()  
 
     def generateAppStateSyncKeys(self,n):
         profile = self.getStack().getProp("profile")        

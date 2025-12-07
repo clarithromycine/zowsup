@@ -423,6 +423,10 @@ class YowBot:
     @BotCmd("md.inputcode","input pair code for companion pairing")
     def inputPairingCode(self,params,options):
         return self.sendLayer.inputPairingCode(params,options)
+    
+    @BotCmd("misc.bizintegrity","check business account integrity")
+    def integrityCheck(self,params,options):        
+        return self.sendLayer.integrityCheck(params,options)   
                       
 if __name__ == "__main__":    
     
