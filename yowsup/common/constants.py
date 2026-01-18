@@ -1,6 +1,6 @@
 class YowConstants:
     DOMAIN       = "s.whatsapp.net"
-    '''
+    
     ENDPOINTS     = (      
 
         ("g.whatsapp.net", 443),  
@@ -41,6 +41,7 @@ class YowConstants:
         ("e15.whatsapp.net", 5222),
         ("e16.whatsapp.net", 5222), 
     )
+    '''
 
     WHATSAPP_SERVER = "s.whatsapp.net"
     WHATSAPP_GROUP_SERVER = "g.us"
