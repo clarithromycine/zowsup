@@ -107,7 +107,7 @@ class AsyncioConnectionDispatcher(YowConnectionDispatcher):
             self._reader = reader
             self._writer = writer
             self._connected = True
-            logger.info("Connected to %s:%d", *host)
+            logger.debug("Connected to %s:%d", *host)
             await self.connectionCallbacks.onConnected()
             # Start the read loop as a background task
             self._read_task = asyncio.ensure_future(self._read_loop())

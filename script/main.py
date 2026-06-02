@@ -54,17 +54,13 @@ class Main(ConsoleMain):
 
             info = None        
             if "env" not in options:           
-
                 profile = YowProfile(SysVar.ACCOUNT_PATH+botId)
                 if profile.config.os_name is not None:
-                    logger.info("Local Profile found")
                     self.env.deviceEnv = DeviceEnv(SysVar.ENV_NAME_MAPPING.get(profile.config.os_name, "android"))
                 else:
                     pass  
 
-            logger.info("ENV=%s",self.env.deviceEnv.getOSName())                
-            logger.info("BotId=%s" % botId)        
-            logger.info("RegType=%s" % (info["regType"] if info is not None else "1"))
+            logger.info("ENV={}, BotId={}, RegType={}".format(self.env.deviceEnv.getOSName(), botId, info["regType"] if info is not None else "1"))                
 
 
  
@@ -79,11 +75,11 @@ class Main(ConsoleMain):
         # Always start InteractiveThread, it handles both account init and commands
         if len(params) <= 1 or botId is None:
             # Interactive mode: either no params, only account param, or no account
-            logger.info(f"Starting interactive mode - botId={botId}, params={params}")
+            logger.debug(f"Starting interactive mode - botId={botId}, params={params}")
             interactive_thread = InteractiveThread(wabot, self.env, self)
             logger.debug("InteractiveThread created, starting...")
             interactive_thread.run()
-            logger.info("InteractiveThread started, waiting for completion...")
+            logger.debug("InteractiveThread started, waiting for completion...")
             # Wait for the interactive thread to complete (user exits)
             # Use timeout loop to allow Ctrl+C to be responsive even during connection
             try:

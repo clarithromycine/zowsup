@@ -502,7 +502,7 @@ class InteractiveThread:
             # Load profile to get environment settings
             profile = YowProfile(SysVar.ACCOUNT_PATH + account_num)
             if profile.config.os_name is not None:
-                self.logger.info(f"Local Profile found - OS: {profile.config.os_name}")
+                self.logger.debug(f"Local Profile found - OS: {profile.config.os_name}")
                 if self.env:
                     self.env.deviceEnv = DeviceEnv(SysVar.ENV_NAME_MAPPING.get(profile.config.os_name, "android"))
             
