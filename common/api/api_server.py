@@ -80,7 +80,7 @@ class ApiServer:
         self.flask.route('/apis', methods=['GET','POST'])(self.listApi)    
         self.flask.route('/<path:apiname>', methods=['POST'])(self.objCall)
         self.flask.run(host=host,port=port,debug=debug,use_reloader=False)       
-        #浠ヤ笅閮ㄥ垎锛岀ǔ瀹氫箣鍚庡彲浠ユ浛鎹㈡帀涓婁竴鍙elf.flask.run, 澧炲己绋冲畾鎬у拰骞跺彂
+
         #self.server = WSGIServer((host, port), self.flask)
         #self.server.serve_forever()        
     
