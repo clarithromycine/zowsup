@@ -269,12 +269,8 @@ message Message {
   message ProtocolMessage {
     enum Type {
       REVOKE = 0;
-      // PAYMENTS_DECLINE_REQUEST = 1; deprecated 2018-08-17
-      // MD_PLACEHOLDER_UPDATE = 2; removed 2019/4/19; multidevice downgraded message placeholder update
       EPHEMERAL_SETTING = 3;
       EPHEMERAL_SYNC_RESPONSE = 4;
-      // HISTORY_SYNC_NOTIFICATION is used for sending multidevice history sync payload
-      // encryption keys and hash to companion
       HISTORY_SYNC_NOTIFICATION = 5;
       APP_STATE_SYNC_KEY_SHARE = 6;
       APP_STATE_SYNC_KEY_REQUEST = 7;
@@ -1173,58 +1169,568 @@ message Message {
   optional HighlyStructuredMessage highly_structured_message = 14;
   optional SenderKeyDistributionMessage fast_ratchet_key_sender_key_distribution_message = 15;
   optional SendPaymentMessage send_payment_message = 16;
-  // optional RequestPaymentMessage request_payment_message = 17; removed 2018-06-21
   optional LiveLocationMessage live_location_message = 18;
-  // optional StickerMessage sticker_message = 19; removed 2018-01-23 due to a bug in Android 2.18.9 dropping sticker messages
-  // optional StickerMessage sticker_message = 20; removed 2018-10-02 due to Android not wanting to ship a separate protobuf for prod
-  // optional RequestPaymentMessage request_payment_message = 21; removed 2018-8-17
   optional RequestPaymentMessage request_payment_message = 22;
   optional DeclinePaymentRequestMessage decline_payment_request_message = 23;
   optional CancelPaymentRequestMessage cancel_payment_request_message = 24;
   optional TemplateMessage template_message = 25;
   optional StickerMessage sticker_message = 26;
-  // optional ProductMessage product_message = 27; removed 2019-04-23 incrementing proto for launch
   optional GroupInviteMessage group_invite_message = 28;
   optional TemplateButtonReplyMessage template_button_reply_message = 29;
   optional ProductMessage product_message = 30;
   optional DeviceSentMessage device_sent_message = 31;
-  // optional DeviceSyncMessage device_sync_message = 32; removed 2020-03-24 due not being used
-  // optional FutureProofMessage view_once_message = 33; removed 2020-8-24 because Android forgot to check for this field in numFieldsOnE2eMessage
-  // optional OrderMessage order_message = 34; removed 2020-8-24 because Android wrongly used '34' for message_context_info
-  optional MessageContextInfo message_context_info = 35; // presence of field should never trigger futureproofing, not currently
-                                                       // supported by all public clients so it cannot be used yet
-  optional ListMessage list_message = 36; // See list_message.md
-  optional FutureProofMessage view_once_message = 37; // See view_once_media.md
-  optional OrderMessage order_message = 38; //if you change OrderMessage object, please also update receive_order_message and send_order_message xmls in whatsapp-smax-mocks submodule
-  optional ListResponseMessage list_response_message = 39; // See list_message.md
-  optional FutureProofMessage ephemeral_message = 40; // see ephemeral_messages.md
-  // optional InvoiceMessage invoice_message = 41; // see doc/invoice/rfc_invoice_indonesia_mvp/rfc_invoice_indonesia_mvp.md - removed 2022-05-25 due not being used
-  optional ButtonsMessage buttons_message = 42; // See buttons_message.md
-  optional ButtonsResponseMessage buttons_response_message = 43; // See buttons_message.md
-  optional PaymentInviteMessage payment_invite_message = 44; // See payment_invite_message.md
+  optional MessageContextInfo message_context_info = 35;                                                       
+  optional ListMessage list_message = 36; 
+  optional FutureProofMessage view_once_message = 37; 
+  optional OrderMessage order_message = 38;
+  optional ListResponseMessage list_response_message = 39; 
+  optional FutureProofMessage ephemeral_message = 40; 
+  optional InvoiceMessage invoice_message = 41; 
+  optional ButtonsMessage buttons_message = 42; 
+  optional ButtonsResponseMessage buttons_response_message = 43; 
+  optional PaymentInviteMessage payment_invite_message = 44; 
   optional InteractiveMessage interactive_message = 45;
   optional ReactionMessage reaction_message = 46;
+  optional StickerSyncRMRMessage stickerSyncRmrMessage = 47;
   optional InteractiveResponseMessage interactive_response_message = 48; // See interactive_message.md
   optional PollCreationMessage poll_creation_message = 49;
   optional PollUpdateMessage poll_update_message = 50;
   optional KeepInChatMessage keep_in_chat_message = 51;
   optional FutureProofMessage document_with_caption_message = 53;
+  optional RequestPhoneNumberMessage requestPhoneNumberMessage = 54;
   optional FutureProofMessage view_once_message_v2 = 55;
+	optional EncReactionMessage encReactionMessage = 56;
+	optional FutureProofMessage editedMessage = 58;  
+  optional FutureProofMessage viewOnceMessageV2Extension = 59;
   optional PollCreationMessage pollCreationMessageV2 = 60;
+	optional ScheduledCallCreationMessage scheduledCallCreationMessage = 61;
+	optional FutureProofMessage groupMentionedMessage = 62;
+	optional PinInChatMessage pinInChatMessage = 63;  
   optional PollCreationMessage pollCreationMessageV3 = 64;
+  optional ScheduledCallEditMessage scheduledCallEditMessage = 65;
+	optional VideoMessage ptvMessage = 66;
+	optional FutureProofMessage botInvokeMessage = 67;
+	optional CallLogMessage callLogMesssage = 69;
+	optional MessageHistoryBundle messageHistoryBundle = 70;
+	optional EncCommentMessage encCommentMessage = 71;
+	optional BCallMessage bcallMessage = 72;  
   optional FutureProofMessage lottie_sticker_message  = 74;
+  optional EventMessage eventMessage = 75;
+	optional EncEventResponseMessage encEventResponseMessage = 76;
+	optional CommentMessage commentMessage = 77;
+	optional NewsletterAdminInviteMessage newsletterAdminInviteMessage = 78;
+	optional PlaceholderMessage placeholderMessage = 80;  
   optional SecretEncryptedMessage secretEncryptedMessage = 82;
+	optional AlbumMessage albumMessage = 83;
+	optional FutureProofMessage eventCoverImage = 85;
+	optional StickerPackMessage stickerPackMessage = 86;
+	optional FutureProofMessage statusMentionMessage = 87;
+	optional PollResultSnapshotMessage pollResultSnapshotMessage = 88;  
 	optional FutureProofMessage pollCreationOptionImageMessage = 90;
 	optional FutureProofMessage associatedChildMessage = 91;
 	optional FutureProofMessage groupStatusMentionMessage = 92;
-	optional FutureProofMessage pollCreationMessageV4 = 93;
-	optional FutureProofMessage pollCreationMessageV5 = 94;
+	optional FutureProofMessage pollCreationMessageV4 = 93;	
 	optional FutureProofMessage statusAddYours = 95;
 	optional FutureProofMessage groupStatusMessage = 96;
+	optional AIRichResponseMessage richResponseMessage = 97;
+	optional StatusNotificationMessage statusNotificationMessage = 98;  
 	optional FutureProofMessage limitSharingMessage = 99;
-	optional FutureProofMessage botTaskMessage = 100;
+	optional FutureProofMessage botTaskMessage = 100;	
 	optional FutureProofMessage questionMessage = 101;
+	optional MessageHistoryNotice messageHistoryNotice = 102;
+	optional FutureProofMessage groupStatusMessageV2 = 103;
+	optional FutureProofMessage botForwardedMessage = 104;
+	optional StatusQuestionAnswerMessage statusQuestionAnswerMessage = 105;
+	optional FutureProofMessage questionReplyMessage = 106;
+	optional QuestionResponseMessage questionResponseMessage = 107;
+	optional StatusQuotedMessage statusQuotedMessage = 109;
+	optional StatusStickerInteractionMessage statusStickerInteractionMessage = 110;
+	optional PollCreationMessage pollCreationMessageV5 = 111;
+	optional NewsletterFollowerInviteMessage newsletterFollowerInviteMessageV2 = 113;
+	optional PollResultSnapshotMessage pollResultSnapshotMessageV3 = 115;
+	optional FutureProofMessage newsletterAdminProfileMessage = 116;  
 
+}
+
+message LocationMessage {
+	optional double degreesLatitude = 1;
+	optional double degreesLongitude = 2;
+	optional string name = 3;
+	optional string address = 4;
+	optional string URL = 5;
+	optional bool isLive = 6;
+	optional uint32 accuracyInMeters = 7;
+	optional float speedInMps = 8;
+	optional uint32 degreesClockwiseFromMagneticNorth = 9;
+	optional string comment = 11;
+	optional bytes JPEGThumbnail = 16;
+	optional ContextInfo contextInfo = 17;
+}
+
+message ScheduledCallCreationMessage {
+	enum CallType {
+		UNKNOWN = 0;
+		VOICE = 1;
+		VIDEO = 2;
+	}
+
+	optional int64 scheduledTimestampMS = 1;
+	optional CallType callType = 2;
+	optional string title = 3;
+}
+
+message EncReactionMessage {
+	optional MessageKey targetMessageKey = 1;
+	optional bytes encPayload = 2;
+	optional bytes encIV = 3;
+}
+
+message StickerSyncRMRMessage {
+	repeated string filehash = 1;
+	optional string rmrSource = 2;
+	optional int64 requestTimestamp = 3;
+}
+
+message InvoiceMessage {
+	enum AttachmentType {
+		IMAGE = 0;
+		PDF = 1;
+	}
+
+	optional string note = 1;
+	optional string token = 2;
+	optional AttachmentType attachmentType = 3;
+	optional string attachmentMimetype = 4;
+	optional bytes attachmentMediaKey = 5;
+	optional int64 attachmentMediaKeyTimestamp = 6;
+	optional bytes attachmentFileSHA256 = 7;
+	optional bytes attachmentFileEncSHA256 = 8;
+	optional string attachmentDirectPath = 9;
+	optional bytes attachmentJPEGThumbnail = 10;
+}
+
+message RequestPhoneNumberMessage {
+	optional ContextInfo contextInfo = 1;
+}
+
+message ScheduledCallEditMessage {
+	enum EditType {
+		UNKNOWN = 0;
+		CANCEL = 1;
+	}
+
+	optional MessageKey key = 1;
+	optional EditType editType = 2;
+}
+
+message PinInChatMessage {
+	enum Type {
+		UNKNOWN_TYPE = 0;
+		PIN_FOR_ALL = 1;
+		UNPIN_FOR_ALL = 2;
+	}
+
+	optional MessageKey key = 1;
+	optional Type type = 2;
+	optional int64 senderTimestampMS = 3;
+}
+
+message CallLogMessage {
+	enum CallOutcome {
+		CONNECTED = 0;
+		MISSED = 1;
+		FAILED = 2;
+		REJECTED = 3;
+		ACCEPTED_ELSEWHERE = 4;
+		ONGOING = 5;
+		SILENCED_BY_DND = 6;
+		SILENCED_UNKNOWN_CALLER = 7;
+	}
+
+	enum CallType {
+		REGULAR = 0;
+		SCHEDULED_CALL = 1;
+		VOICE_CHAT = 2;
+	}
+
+	message CallParticipant {
+		optional string JID = 1;
+		optional CallOutcome callOutcome = 2;
+	}
+
+	optional bool isVideo = 1;
+	optional CallOutcome callOutcome = 2;
+	optional int64 durationSecs = 3;
+	optional CallType callType = 4;
+	repeated CallParticipant participants = 5;
+}
+
+message MessageHistoryBundle {
+	optional string mimetype = 1;
+	optional bytes fileSHA256 = 2;
+	optional bytes mediaKey = 3;
+	optional bytes fileEncSHA256 = 4;
+	optional string directPath = 5;
+	optional int64 mediaKeyTimestamp = 6;
+	optional ContextInfo contextInfo = 7;
+	optional MessageHistoryMetadata messageHistoryMetadata = 8;
+}
+
+message BCallMessage {
+	enum MediaType {
+		UNKNOWN = 0;
+		AUDIO = 1;
+		VIDEO = 2;
+	}
+
+	optional string sessionID = 1;
+	optional MediaType mediaType = 2;
+	optional bytes masterKey = 3;
+	optional string caption = 4;
+}
+
+message EventMessage {
+	optional ContextInfo contextInfo = 1;
+	optional bool isCanceled = 2;
+	optional string name = 3;
+	optional string description = 4;
+	optional LocationMessage location = 5;
+	optional string joinLink = 6;
+	optional int64 startTime = 7;
+	optional int64 endTime = 8;
+	optional bool extraGuestsAllowed = 9;
+	optional bool isScheduleCall = 10;
+	optional bool hasReminder = 11;
+	optional int64 reminderOffsetSec = 12;
+}
+
+message EncEventResponseMessage {
+	optional MessageKey eventCreationMessageKey = 1;
+	optional bytes encPayload = 2;
+	optional bytes encIV = 3;
+}
+
+
+message CommentMessage {
+	optional Message message = 1;
+	optional MessageKey targetMessageKey = 2;
+}
+
+message EncCommentMessage {
+	optional MessageKey targetMessageKey = 1;
+	optional bytes encPayload = 2;
+	optional bytes encIV = 3;
+}
+
+message PlaceholderMessage {
+	enum PlaceholderType {
+		MASK_LINKED_DEVICES = 0;
+	}
+
+	optional PlaceholderType type = 1;
+}
+
+
+message NewsletterAdminInviteMessage {
+	optional string newsletterJID = 1;
+	optional string newsletterName = 2;
+	optional bytes JPEGThumbnail = 3;
+	optional string caption = 4;
+	optional int64 inviteExpiration = 5;
+	optional ContextInfo contextInfo = 6;
+}
+
+message AlbumMessage {
+	optional uint32 expectedImageCount = 2;
+	optional uint32 expectedVideoCount = 3;
+	optional ContextInfo contextInfo = 17;
+}
+
+
+message StickerPackMessage {
+	enum StickerPackOrigin {
+		FIRST_PARTY = 0;
+		THIRD_PARTY = 1;
+		USER_CREATED = 2;
+	}
+
+	message Sticker {
+		optional string fileName = 1;
+		optional bool isAnimated = 2;
+		repeated string emojis = 3;
+		optional string accessibilityLabel = 4;
+		optional bool isLottie = 5;
+		optional string mimetype = 6;
+	}
+
+	optional string stickerPackID = 1;
+	optional string name = 2;
+	optional string publisher = 3;
+	repeated Sticker stickers = 4;
+	optional uint64 fileLength = 5;
+	optional bytes fileSHA256 = 6;
+	optional bytes fileEncSHA256 = 7;
+	optional bytes mediaKey = 8;
+	optional string directPath = 9;
+	optional string caption = 10;
+	optional ContextInfo contextInfo = 11;
+	optional string packDescription = 12;
+	optional int64 mediaKeyTimestamp = 13;
+	optional string trayIconFileName = 14;
+	optional string thumbnailDirectPath = 15;
+	optional bytes thumbnailSHA256 = 16;
+	optional bytes thumbnailEncSHA256 = 17;
+	optional uint32 thumbnailHeight = 18;
+	optional uint32 thumbnailWidth = 19;
+	optional string imageDataHash = 20;
+	optional uint64 stickerPackSize = 21;
+	optional StickerPackOrigin stickerPackOrigin = 22;
+}
+
+message AIRichResponseUnifiedResponse {
+	optional bytes data = 1;
+}
+
+message AIRichResponseImageURL {
+	optional string imagePreviewURL = 1;
+	optional string imageHighResURL = 2;
+	optional string sourceURL = 3;
+}
+
+message AIRichResponseGridImageMetadata {
+	optional AIRichResponseImageURL gridImageURL = 1;
+	repeated AIRichResponseImageURL imageURLs = 2;
+}
+
+message AIRichResponseInlineImageMetadata {
+	enum AIRichResponseImageAlignment {
+		AI_RICH_RESPONSE_IMAGE_LAYOUT_LEADING_ALIGNED = 0;
+		AI_RICH_RESPONSE_IMAGE_LAYOUT_TRAILING_ALIGNED = 1;
+		AI_RICH_RESPONSE_IMAGE_LAYOUT_CENTER_ALIGNED = 2;
+	}
+
+	optional AIRichResponseImageURL imageURL = 1;
+	optional string imageText = 2;
+	optional AIRichResponseImageAlignment alignment = 3;
+	optional string tapLinkURL = 4;
+}
+
+message AIRichResponseSubMessage {
+  enum AIRichResponseSubMessageType {
+    AI_RICH_RESPONSE_UNKNOWN = 0;
+    AI_RICH_RESPONSE_GRID_IMAGE = 1;
+    AI_RICH_RESPONSE_TEXT = 2;
+    AI_RICH_RESPONSE_INLINE_IMAGE = 3;
+    AI_RICH_RESPONSE_TABLE = 4;
+    AI_RICH_RESPONSE_CODE = 5;
+    AI_RICH_RESPONSE_DYNAMIC = 6;
+    AI_RICH_RESPONSE_MAP = 7;
+    AI_RICH_RESPONSE_LATEX = 8;
+    AI_RICH_RESPONSE_CONTENT_ITEMS = 9;
+  }    
+	optional AIRichResponseSubMessageType messageType = 1;
+	optional AIRichResponseGridImageMetadata gridImageMetadata = 2;
+	optional string messageText = 3;
+	optional AIRichResponseInlineImageMetadata imageMetadata = 4;
+	optional AIRichResponseCodeMetadata codeMetadata = 5;
+	optional AIRichResponseTableMetadata tableMetadata = 6;
+	optional AIRichResponseDynamicMetadata dynamicMetadata = 7;
+	optional AIRichResponseLatexMetadata latexMetadata = 8;
+	optional AIRichResponseMapMetadata mapMetadata = 9;
+	optional AIRichResponseContentItemsMetadata contentItemsMetadata = 10;
+}
+
+message AIRichResponseContentItemsMetadata {
+	enum ContentType {
+		DEFAULT = 0;
+		CAROUSEL = 1;
+	}
+
+	message AIRichResponseContentItemMetadata {
+		oneof aIRichResponseContentItem {
+			AIRichResponseReelItem reelItem = 1;
+		}
+	}
+
+	message AIRichResponseReelItem {
+		optional string title = 1;
+		optional string profileIconURL = 2;
+		optional string thumbnailURL = 3;
+		optional string videoURL = 4;
+	}
+
+	repeated AIRichResponseContentItemMetadata itemsMetadata = 1;
+	optional ContentType contentType = 2;
+}
+
+message AIRichResponseMapMetadata {
+	message AIRichResponseMapAnnotation {
+		optional uint32 annotationNumber = 1;
+		optional double latitude = 2;
+		optional double longitude = 3;
+		optional string title = 4;
+		optional string body = 5;
+	}
+
+	optional double centerLatitude = 1;
+	optional double centerLongitude = 2;
+	optional double latitudeDelta = 3;
+	optional double longitudeDelta = 4;
+	repeated AIRichResponseMapAnnotation annotations = 5;
+	optional bool showInfoList = 6;
+}
+
+message AIRichResponseLatexMetadata {
+	message AIRichResponseLatexExpression {
+		optional string latexExpression = 1;
+		optional string URL = 2;
+		optional double width = 3;
+		optional double height = 4;
+		optional double fontHeight = 5;
+		optional double imageTopPadding = 6;
+		optional double imageLeadingPadding = 7;
+		optional double imageBottomPadding = 8;
+		optional double imageTrailingPadding = 9;
+	}
+
+	optional string text = 1;
+	repeated AIRichResponseLatexExpression expressions = 2;
+}
+
+message AIRichResponseDynamicMetadata {
+	enum AIRichResponseDynamicMetadataType {
+		AI_RICH_RESPONSE_DYNAMIC_METADATA_TYPE_UNKNOWN = 0;
+		AI_RICH_RESPONSE_DYNAMIC_METADATA_TYPE_IMAGE = 1;
+		AI_RICH_RESPONSE_DYNAMIC_METADATA_TYPE_GIF = 2;
+	}
+
+	optional AIRichResponseDynamicMetadataType type = 1;
+	optional uint64 version = 2;
+	optional string URL = 3;
+	optional uint32 loopCount = 4;
+}
+
+message AIRichResponseTableMetadata {
+	message AIRichResponseTableRow {
+		repeated string items = 1;
+		optional bool isHeading = 2;
+	}
+
+	repeated AIRichResponseTableRow rows = 1;
+	optional string title = 2;
+}
+
+
+message AIRichResponseCodeMetadata {
+	enum AIRichResponseCodeHighlightType {
+		AI_RICH_RESPONSE_CODE_HIGHLIGHT_DEFAULT = 0;
+		AI_RICH_RESPONSE_CODE_HIGHLIGHT_KEYWORD = 1;
+		AI_RICH_RESPONSE_CODE_HIGHLIGHT_METHOD = 2;
+		AI_RICH_RESPONSE_CODE_HIGHLIGHT_STRING = 3;
+		AI_RICH_RESPONSE_CODE_HIGHLIGHT_NUMBER = 4;
+		AI_RICH_RESPONSE_CODE_HIGHLIGHT_COMMENT = 5;
+	}
+
+	message AIRichResponseCodeBlock {
+		optional AIRichResponseCodeHighlightType highlightType = 1;
+		optional string codeContent = 2;
+	}
+
+	optional string codeLanguage = 1;
+	repeated AIRichResponseCodeBlock codeBlocks = 2;
+}
+
+message AIRichResponseMessage {
+  enum AIRichResponseMessageType {
+    AI_RICH_RESPONSE_TYPE_UNKNOWN = 0;
+    AI_RICH_RESPONSE_TYPE_STANDARD = 1;    
+  }  
+
+	optional AIRichResponseMessageType messageType = 1;
+	repeated AIRichResponseSubMessage submessages = 2;
+	optional AIRichResponseUnifiedResponse unifiedResponse = 3;
+	optional ContextInfo contextInfo = 4;
+}
+
+message StatusNotificationMessage {
+	enum StatusNotificationType {
+		UNKNOWN = 0;
+		STATUS_ADD_YOURS = 1;
+		STATUS_RESHARE = 2;
+		STATUS_QUESTION_ANSWER_RESHARE = 3;
+	}
+
+	optional MessageKey responseMessageKey = 1;
+	optional MessageKey originalMessageKey = 2;
+	optional StatusNotificationType type = 3;
+}
+
+message MessageHistoryMetadata {
+	repeated string historyReceivers = 1;
+	optional int64 oldestMessageTimestamp = 2;
+	optional int64 messageCount = 3;
+}
+
+message MessageHistoryNotice {
+	optional ContextInfo contextInfo = 1;
+	optional MessageHistoryMetadata messageHistoryMetadata = 2;
+}
+
+message StatusQuestionAnswerMessage {
+	optional MessageKey key = 1;
+	optional string text = 2;
+}
+
+message QuestionResponseMessage {
+	optional MessageKey key = 1;
+	optional string text = 2;
+}
+
+message StatusQuotedMessage {
+	enum StatusQuotedMessageType {
+		QUESTION_ANSWER = 1;
+	}
+
+	optional StatusQuotedMessageType type = 1;
+	optional string text = 2;
+	optional bytes thumbnail = 3;
+	optional MessageKey originalStatusID = 4;
+}
+
+message StatusStickerInteractionMessage {
+	enum StatusStickerType {
+		UNKNOWN = 0;
+		REACTION = 1;
+	}
+
+	optional MessageKey key = 1;
+	optional string stickerKey = 2;
+	optional StatusStickerType type = 3;
+}
+
+message PollResultSnapshotMessage {
+	message PollVote {
+		optional string optionName = 1;
+		optional int64 optionVoteCount = 2;
+	}
+
+  enum PollType {
+    POLL = 0;
+    QUIZ = 1;
+  }  
+
+	optional string name = 1;
+	repeated PollVote pollVotes = 2;
+	optional ContextInfo contextInfo = 3;
+	optional PollType pollType = 4;
+}
+
+message NewsletterFollowerInviteMessage {
+	optional string newsletterJID = 1;
+	optional string newsletterName = 2;
+	optional bytes JPEGThumbnail = 3;
+	optional string caption = 4;
+	optional ContextInfo contextInfo = 5;
 }
 
 message GroupMention {
@@ -1902,8 +2408,32 @@ message BizAccountPayload {
   optional bytes bizAcctLinkInfo = 2;
 }
 
+message Account {
+	optional string lid = 1;
+	optional string username = 2;
+	optional string countryCode = 3;
+	optional bool isUsernameDeleted = 4;
+}
+
 
 message HistorySync {
+
+    enum BotAIWaitListState {
+        IN_WAITLIST = 0;
+        AI_AVAILABLE = 1;
+    }
+    enum HistorySyncType {
+        INITIAL_BOOTSTRAP = 0;
+        INITIAL_STATUS_V3 = 1;
+        FULL = 2;
+        RECENT = 3;
+        PUSH_NAME = 4;
+        NON_BLOCKING_DATA = 5;
+        ON_DEMAND = 6;
+	      NO_HISTORY = 7;
+	      MESSAGE_ACCESS_STATUS = 8;        
+    }
+
     required HistorySyncType syncType = 1;
     repeated Conversation conversations = 2;
     repeated WebMessageInfo statusV3Messages = 3;
@@ -1918,19 +2448,11 @@ message HistorySync {
     repeated CallLogRecord callLogRecords = 13;
     optional BotAIWaitListState aiWaitListState = 14;
     repeated PhoneNumberToLIDMapping phoneNumberToLidMappings = 15;
-    enum BotAIWaitListState {
-        IN_WAITLIST = 0;
-        AI_AVAILABLE = 1;
-    }
-    enum HistorySyncType {
-        INITIAL_BOOTSTRAP = 0;
-        INITIAL_STATUS_V3 = 1;
-        FULL = 2;
-        RECENT = 3;
-        PUSH_NAME = 4;
-        NON_BLOCKING_DATA = 5;
-        ON_DEMAND = 6;
-    }
+	  optional string companionMetaNonce = 16;
+	  optional bytes shareableChatIdentifierEncryptionKey = 17;
+	  repeated Account accounts = 18;    
+
+
 }
 
 message HistorySyncMsg {
@@ -1940,6 +2462,20 @@ message HistorySyncMsg {
 
 
 message Conversation {
+
+    enum PrivacySystemMessage {
+      E2EE_MSG = 1;
+      NE2EE_SELF = 2;
+      NE2EE_OTHER = 3;
+    }  
+
+    enum EndOfHistoryTransferType {
+        COMPLETE_BUT_MORE_MESSAGES_REMAIN_ON_PRIMARY = 0;
+        COMPLETE_AND_NO_MORE_MESSAGE_REMAIN_ON_PRIMARY = 1;
+        COMPLETE_ON_DEMAND_SYNC_BUT_MORE_MSG_REMAIN_ON_PRIMARY = 2;
+        COMPLETE_ON_DEMAND_SYNC_WITH_MORE_MSG_ON_PRIMARY_BUT_NO_ACCESS = 3;
+    }
+
     required string id = 1;
     repeated HistorySyncMsg messages = 2;
     optional string newJid = 3;
@@ -1985,11 +2521,16 @@ message Conversation {
     optional string username = 43;
     optional string lidOriginType = 44;
     optional uint32 commentsCount = 45;
-    enum EndOfHistoryTransferType {
-        COMPLETE_BUT_MORE_MESSAGES_REMAIN_ON_PRIMARY = 0;
-        COMPLETE_AND_NO_MORE_MESSAGE_REMAIN_ON_PRIMARY = 1;
-        COMPLETE_ON_DEMAND_SYNC_BUT_MORE_MSG_REMAIN_ON_PRIMARY = 2;
-    }
+    optional bool locked = 46;
+    optional PrivacySystemMessage systemMessageToInsert = 47;
+    optional bool capiCreatedGroup = 48;
+    optional string accountLid = 49;
+    optional bool limitSharing = 50;
+    optional int64 limitSharingSettingTimestamp = 51;
+    optional LimitSharing.Trigger limitSharingTrigger = 52;
+    optional bool limitSharingInitiatedByMe = 53;
+    optional bool maibaAiThreadEnabled = 54;    
+
 }
 
 message Pushname {
@@ -2016,7 +2557,12 @@ message GlobalSettings {
     optional int32 photoQualityMode = 16;
     optional NotificationSettings individualNotificationSettings = 17;
     optional NotificationSettings groupNotificationSettings = 18;
+	  optional ChatLockSettings chatLockSettings = 19;
+	  optional int64 chatDbLidMigrationTimestamp = 20;    
 }
+
+
+
 
 message StickerMetadata {
     optional string url = 1;
@@ -2030,6 +2576,9 @@ message StickerMetadata {
     optional uint64 fileLength = 9;
     optional float weight = 10;
     optional int64 lastStickerSentTs = 11;
+    optional bool isLottie = 12;
+    optional string imageHash = 13;
+    optional bool isAvatarSticker = 14;    
 }
 
 message DisappearingMode {

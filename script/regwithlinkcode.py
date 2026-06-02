@@ -1,14 +1,13 @@
-# coding=UTF-8
 import sys,os
 sys.path.append(os.getcwd())
 
 import logging
-from app.yowbot import YowBot
+from app.zowbot import ZowBot
 from conf.constants import SysVar,GlobalVar
 from common.utils import Utils
 from common.consolemain import ConsoleMain
 
-from app.yowbot_values import YowBotType
+from app.zowbot_values import ZowBotType
 logger = logging.getLogger(__name__)
 
 class RegWithLinkCode(ConsoleMain):    
@@ -34,7 +33,7 @@ class RegWithLinkCode(ConsoleMain):
 
         self.commonOptionsProcess(options)   
         try:  
-            wabot = YowBot(bot_id=None,env=self.env,bot_type=YowBotType.TYPE_REG_COMPANION_LINKCODE  )            
+            wabot = ZowBot(bot_id=None,env=self.env,bot_type=ZowBotType.TYPE_REG_COMPANION_LINKCODE  )            
             wabot.pairPhoneNumber = botId
             wabot.pairLinkCode = linkCode
             wabot.run()

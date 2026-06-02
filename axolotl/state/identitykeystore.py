@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
-
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 import abc
 
 
-class IdentityKeyStore(object):
+class IdentityKeyStore:
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
@@ -11,13 +10,13 @@ class IdentityKeyStore(object):
         pass
 
     @abc.abstractmethod
-    def getLocalRegistrationId(self):
+    def getLocalRegistrationId(self) -> Any:
         pass
 
     @abc.abstractmethod
-    def saveIdentity(self, recepientId, deviceid, identityKey):
+    def saveIdentity(self, recipientId, recipientType,deviceid, identityKey):
         pass
 
     @abc.abstractmethod
-    def isTrustedIdentity(self, recepientId, deviceid,identityKey):
+    def isTrustedIdentity(self, recipientId, recipientType,deviceid,identityKey) -> Any:
         pass

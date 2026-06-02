@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import logging
 
 from .ecc.curve import Curve
@@ -22,12 +20,13 @@ logger = logging.getLogger(__name__)
 
 
 class SessionBuilder:
-    def __init__(self, sessionStore, preKeyStore, signedPreKeyStore, identityKeyStore, recepientId, deviceId):
+    def __init__(self, sessionStore, preKeyStore, signedPreKeyStore, identityKeyStore, recipientId, recipientType,deviceId):
         self.sessionStore = sessionStore
         self.preKeyStore = preKeyStore
         self.signedPreKeyStore = signedPreKeyStore
         self.identityKeyStore = identityKeyStore
-        self.recipientId = recepientId
+        self.recipientId = recipientId
+        self.recipientType = recipientType
         self.deviceId = deviceId
         
 
@@ -39,14 +38,14 @@ class SessionBuilder:
         """
 
         theirIdentityKey = message.getIdentityKey()
-        if not self.identityKeyStore.isTrustedIdentity(self.recipientId,self.deviceId, theirIdentityKey):
+        if not self.identityKeyStore.isTrustedIdentity(self.recipientId,self.recipientType,self.deviceId, theirIdentityKey):
             raise UntrustedIdentityException(self.recipientId, theirIdentityKey)
 
 
         unsignedPreKeyId = self.processV3(sessionRecord, message)     
 
 
-        self.identityKeyStore.saveIdentity(self.recipientId,self.deviceId, theirIdentityKey)
+        self.identityKeyStore.saveIdentity(self.recipientId,self.recipientType,self.deviceId, theirIdentityKey)
 
 
         return unsignedPreKeyId
@@ -62,7 +61,7 @@ class SessionBuilder:
         #print(message.getMessageVersion())
 
         if sessionRecord.hasSessionState(message.getMessageVersion(), message.getBaseKey().serialize()):
-            logger.warn("We've already setup a session for this V3 message, letting bundled message fall through...")
+            #logger.warn("We've already setup a session for this V3 message, letting bundled message fall through...")
             return None
         
 
@@ -102,7 +101,7 @@ class SessionBuilder:
         :type preKey: PreKeyBundle
         """
         
-        if not self.identityKeyStore.isTrustedIdentity(self.recipientId, self.deviceId, preKey.getIdentityKey()):
+        if not self.identityKeyStore.isTrustedIdentity(self.recipientId, self.recipientType,self.deviceId, preKey.getIdentityKey()):
             raise UntrustedIdentityException(self.recipientId, preKey.getIdentityKey())
 
         if preKey.getSignedPreKey() is not None and\
@@ -114,7 +113,7 @@ class SessionBuilder:
         if preKey.getSignedPreKey() is None:
             raise InvalidKeyException("No signed prekey!!")
 
-        sessionRecord = self.sessionStore.loadSession(self.recipientId, self.deviceId)
+        sessionRecord = self.sessionStore.loadSession(self.recipientId, self.recipientType,self.deviceId)
         ourBaseKey = Curve.generateKeyPair()
         theirSignedPreKey = preKey.getSignedPreKey()
         theirOneTimePreKey = preKey.getPreKey()
@@ -143,12 +142,12 @@ class SessionBuilder:
 
 
         
-        self.sessionStore.storeSession(self.recipientId, self.deviceId, sessionRecord)
-        self.identityKeyStore.saveIdentity(self.recipientId,self.deviceId, preKey.getIdentityKey())
+        self.sessionStore.storeSession(self.recipientId, self.recipientType,self.deviceId, sessionRecord)
+        self.identityKeyStore.saveIdentity(self.recipientId,self.recipientType,self.deviceId, preKey.getIdentityKey())
 
     def processKeyExchangeMessage(self, keyExchangeMessage):
 
-        if not self.identityKeyStore.isTrustedIdentity(self.recipientId,self.deviceId, keyExchangeMessage.getIdentityKey()):
+        if not self.identityKeyStore.isTrustedIdentity(self.recipientId,self.recipientType,self.deviceId, keyExchangeMessage.getIdentityKey()):
             raise UntrustedIdentityException(self.recipientId, keyExchangeMessage.getIdentityKey())
 
         responseMessage = None
@@ -162,7 +161,7 @@ class SessionBuilder:
 
     def processInitiate(self, keyExchangeMessage):
         flags = KeyExchangeMessage.RESPONSE_FLAG
-        sessionRecord = self.sessionStore.loadSession(self.recipientId, self.deviceId)
+        sessionRecord = self.sessionStore.loadSession(self.recipientId, self.recipientType,self.deviceId)
 
         if not Curve.verifySignature(
                 keyExchangeMessage.getIdentityKey().getPublicKey(),
@@ -192,8 +191,8 @@ class SessionBuilder:
 
         RatchetingSession.initializeSession(sessionRecord.getSessionState(), parameters)
 
-        self.sessionStore.storeSession(self.recipientId, self.deviceId, sessionRecord)
-        self.identityKeyStore.saveIdentity(self.recipientId, self.deviceId,keyExchangeMessage.getIdentityKey())
+        self.sessionStore.storeSession(self.recipientId, self.recipientType,self.deviceId, sessionRecord)
+        self.identityKeyStore.saveIdentity(self.recipientId, self.recipientType,self.deviceId,keyExchangeMessage.getIdentityKey())
 
         baseKeySignature = Curve.calculateSignature(parameters.getOurIdentityKey().getPrivateKey(),
                                                     parameters.getOurBaseKey().getPublicKey().serialize())
@@ -205,7 +204,7 @@ class SessionBuilder:
                                   parameters.getOurIdentityKey().getPublicKey())
 
     def processResponse(self, keyExchangeMessage):
-        sessionRecord = self.sessionStore.loadSession(self.recipientId, self.deviceId)
+        sessionRecord = self.sessionStore.loadSession(self.recipientId, self.recipientType,self.deviceId)
         sessionState = sessionRecord.getSessionState()
         hasPendingKeyExchange = sessionState.hasPendingKeyExchange()
         isSimultaneousInitiateResponse = keyExchangeMessage.isResponseForSimultaneousInitiate()
@@ -239,8 +238,8 @@ class SessionBuilder:
                 keyExchangeMessage.getBaseKeySignature()):
             raise InvalidKeyException("Base key signature doesn't match!")
 
-        self.sessionStore.storeSession(self.recipientId, self.deviceId, sessionRecord)
-        self.identityKeyStore.saveIdentity(self.recipientId, self.deviceId,keyExchangeMessage.getIdentityKey())
+        self.sessionStore.storeSession(self.recipientId, self.recipientType,self.deviceId, sessionRecord)
+        self.identityKeyStore.saveIdentity(self.recipientId, self.recipientType,self.deviceId,keyExchangeMessage.getIdentityKey())
 
     def processInitKeyExchangeMessage(self):
         try:
@@ -250,10 +249,10 @@ class SessionBuilder:
             ratchetKey = Curve.generateKeyPair()
             identityKey = self.identityKeyStore.getIdentityKeyPair()
             baseKeySignature = Curve.calculateSignature(identityKey.getPrivateKey(), baseKey.getPublicKey().serialize())
-            sessionRecord = self.sessionStore.loadSession(self.recipientId, self.deviceId)
+            sessionRecord = self.sessionStore.loadSession(self.recipientId, self.recipientType,self.deviceId)
 
             sessionRecord.getSessionState().setPendingKeyExchange(sequence, baseKey, ratchetKey, identityKey)
-            self.sessionStore.storeSession(self.recipientId, self.deviceId, sessionRecord)
+            self.sessionStore.storeSession(self.recipientId, self.recipientType,self.deviceId, sessionRecord)
 
             return KeyExchangeMessage(CiphertextMessage.CURRENT_VERSION, sequence, flags, baseKey.getPublicKey(), baseKeySignature,
                                       ratchetKey.getPublicKey(), identityKey.getPublicKey())

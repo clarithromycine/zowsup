@@ -21,7 +21,7 @@ class WhisperMessage(CiphertextMessage):
         self.serialized = ""
         if serialized:
             try:
-                assert type(serialized) in (str, bytes), "Expected serialized %s, got %s" % (str, type(serialized))
+                assert type(serialized) in (str, bytes), f"Expected serialized {str}, got {type(serialized)}"
                 messageParts = ByteUtil.split(serialized, 1, len(serialized) - 1 - WhisperMessage.MAC_LENGTH,
                                               WhisperMessage.MAC_LENGTH)
                 version = messageParts[0][0]

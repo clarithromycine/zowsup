@@ -1,14 +1,13 @@
-# coding=UTF-8
 import sys,os
 sys.path.append(os.getcwd())
 
 import logging
-from app.yowbot import YowBot
+from app.zowbot import ZowBot
 from conf.constants import SysVar
 from common.utils import Utils
 from common.consolemain import ConsoleMain
 
-from app.yowbot_values import YowBotType
+from app.zowbot_values import ZowBotType
 logger = logging.getLogger(__name__)
 
 class RegWithScan(ConsoleMain):
@@ -20,7 +19,7 @@ class RegWithScan(ConsoleMain):
             self.init_log(logging.INFO,"regwithscan.log")
 
         try:  
-            wabot = YowBot(bot_id=None,env=self.env,bot_type=YowBotType.TYPE_REG_COMPANION_SCANQR)                      
+            wabot = ZowBot(bot_id=None,env=self.env,bot_type=ZowBotType.TYPE_REG_COMPANION_SCANQR)                      
             wabot.run()
         except KeyboardInterrupt:        
             print("error")

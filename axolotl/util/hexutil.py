@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import codecs
 
 decode_hex = codecs.getdecoder("hex_codec")

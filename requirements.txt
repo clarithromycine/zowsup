@@ -1,24 +1,43 @@
+# ===== Core WhatsApp Protocol =====
 protobuf==5.29.5
-requests
-six==1.17.0
-appdirs
-websocket-client
-rel
-PySocks
-names
-ffmpeg
-pillow
-qrcode
-python-axolotl-curve25519
-cffi
-transitions
+requests==2.32.0
+python-socks[asyncio]
+urllib3
+pycryptodome
 dissononce
 tlslite-ng==0.8.0b3
-urllib3
-apkutils
-pycryptodome
 betterproto
-Flask
-gevent
+cffi
+python-axolotl-curve25519
+
+# ===== Network & Security =====
+cryptography>=41.0.0
+PySocks
+pytz
+
+# ===== Data & Configuration =====
+appdirs
 pyyaml
 pydantic
+names
+
+# ===== Image Processing & QR Code =====
+pillow
+qrcode
+
+
+# ===== Terminal & Prompt =====
+prompt_toolkit>=3.0
+
+# ===== Code Quality & Debugging =====
+pylint>=2.17
+flake8>=6.0
+
+# ===== Database (SQLite support) =====
+db-sqlite3>=0.0.1
+
+# ===== Additional Dependencies =====
+greenlet
+six
+aiofiles>=23.0.0
+

@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 class BobAxolotlParameters:
     def __init__(self, ourIdentityKey, ourSignedPreKey, ourRatchetKey, ourOneTimePreKey,
                  theirIdentityKey, theirBaseKey):

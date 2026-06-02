@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
-
 import abc
 import hmac
 import hashlib
 import math
 
 
-class HKDF(object):
+class HKDF:
     __metaclass__ = abc.ABCMeta
     HASH_OUTPUT_SIZE = 32
 

@@ -1,4 +1,4 @@
-class AxolotlAddress(object):
+class AxolotlAddress:
     def __init__(self, name, deviceId):
         self.name = name
         self.deviceId = deviceId
@@ -10,7 +10,7 @@ class AxolotlAddress(object):
         return self.deviceId
 
     def __str__(self):
-        return "%s;%s" % (self.name, self.deviceId)
+        return f"{self.name};{self.deviceId}"
 
     def __eq__(self, other):
         if other is None:

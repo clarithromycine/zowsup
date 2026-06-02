@@ -1,10 +1,10 @@
 import base64
 import hashlib
 
-class EnvTools(object):
+class EnvTools:
 
     
-    _USERAGENT_STRING_ANDROID = "WhatsApp/{WHATSAPP_VERSION} {OS_NAME}/{OS_VERSION} Device/{MANUFACTURER}-{DEVICE_NAME}"
+    _USERAGENT_STRING_ANDROID = "WhatsApp/{WHATSAPP_VERSION} {OS_NAME}/{OS_VERSION} Device/{MANUFACTURER}-{DEVICE_MODEL_TYPE}"
     _USERAGENT_STRING_IOS = "WhatsApp/{WHATSAPP_VERSION} {OS_NAME}/{OS_VERSION} Device/{DEVICE_NAME}"        
 
     _SIGNATURE_ANDROID = "MIIDMjCCAvCgAwIBAgIETCU2pDALBgcqhkjOOAQDBQAwfDELMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFDASBgNV" \
@@ -57,8 +57,8 @@ class EnvTools(object):
             OS_NAME=obj.getOSName(),
             OS_VERSION=obj.getOSVersion(),
             MANUFACTURER=obj.getManufacturer(),
-            DEVICE_NAME=obj.getDeviceName()
-        )     
+            DEVICE_MODEL_TYPE=obj.getDeviceModelType().replace(" ","_")            
+        )    
     
     @staticmethod
     def getIosUserAgent(obj):

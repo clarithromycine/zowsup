@@ -1,3 +1,4 @@
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 
 
 
@@ -8,7 +9,7 @@ class ArgoFieldWireType :
         self.type = type
         self.omittable = omittable
 
-    def __str__(self):
+    def __str__(self) -> Any:
         return "ArgoFieldWireType(name=%s, type=%s, omittable=%s)" % (self.name,self.type,str(self.omittable))
     
 

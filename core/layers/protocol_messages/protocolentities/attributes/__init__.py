@@ -1,0 +1,33 @@
+from .attributes_extendedtext import ExtendedTextAttributes
+from .attributes_video import VideoAttributes
+from .attributes_audio import AudioAttributes
+from .attributes_document import DocumentAttributes
+from .attributes_image import ImageAttributes
+from .attributes_message_meta import MessageMetaAttributes
+from .attributes_contact import ContactAttributes
+from .attributes_buttons import ButtonsAttributes
+from .attributes_buttons_response import ButtonsResponseAttributes
+from .attributes_list import ListAttributes
+from .attributes_list_response import ListResponseAttributes
+from .attributes_product import ProductAttributes
+from .attributes_poll_creation import PollCreationAttributes
+from .attributes_poll_update import PollUpdateAttributes
+from .attributes_context_info import ContextInfoAttributes
+from .attributes_protocol import ProtocolAttributes
+from .attributes_sticker import StickerAttributes
+from .attributes_template import TemplateAttributes
+from .attributes_hydrated_template import HydratedTemplateAttributes
+from .attributes_downloadablemedia import DownloadableMediaMessageAttributes
+from .attributes_media import MediaAttributes
+from .attributes_message import MessageAttributes
+from .attributes_external_ad_reply import ExternalAdReplyAttributes
+from .attributes_interactive import InteractiveAttributes
+from .attributes_interactive_header import InteractiveHeaderAttributes
+from .attributes_business_message_forward_info import BusinessMessageForwardInfoAttributes
+
+from .attributes_reaction import ReactionAttributes
+from .attributes_message_key import MessageKeyAttributes
+
+from .attributes_disappearing_mode import DisappearingModeAttributes
+
+from .attributes_location import LocationAttributes

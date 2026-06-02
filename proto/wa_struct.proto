@@ -169,7 +169,6 @@ message ClientPayload {
       HARDCODED = 2;
       OVERRIDE = 3;
       FALLBACK = 4;
-      MNS = 5;
     }
 
     optional DNSResolutionMethod dns_method = 15;
@@ -187,9 +186,9 @@ message ClientPayload {
   }
 
   message InteropData {
-		optional uint64 accountID = 1;
+		optional uint64 account_id = 1;
 		optional bytes token = 2;
-		optional bool enableReadReceipts = 3;
+		optional bool enable_read_receipts = 3;
 	}  
   enum Product {
     WHATSAPP = 0;
@@ -199,57 +198,50 @@ message ClientPayload {
     WHATSAPP_LID = 4;
   }
 
+	enum TrafficAnonymization {
+		OFF = 0;
+		STANDARD = 1;
+	}
+
 	enum AccountType {
 		DEFAULT = 0;
 		GUEST = 1;
 	}  
-
-	enum TrafficAnonymization {
-		OFF = 0;
-		STANDARD = 1;
-	}  
 	  
-  optional uint64 username = 1;  // phone number for WhatsApp, FBID for Messenger/IG
-  // optional bytes legacy_password = 2 [deprecated=true];
+  optional uint64 username = 1;  // phone number for WhatsApp, FBID for Messenger/IG   
   optional bool passive = 3;
-  // repeated ClientFeature client_features = 4 [deprecated=true];
   optional UserAgent user_agent = 5;
   optional WebInfo web_info = 6;
   optional string push_name = 7;
-  // optional uint32 session_id = 8 [deprecated=true];  // replaced by 9
   optional sfixed32 session_id = 9;
-  optional bool short_connect = 10;  // Set to true by clients that are clients relying on a push system to wake them up as opposed to intending to stay connected to chatd indefinitely
-  // optional string connect_reason = 11; // replaced by 13
+  optional bool short_connect = 10;  
   optional ConnectType connect_type = 12;
-  optional ConnectReason connect_reason = 13; // Requested as debugging tool
-  // Used only by sharded enterprise clients to list which client shards this connection will handle.
+  optional ConnectReason connect_reason = 13; 
   repeated int32 shards = 14;
-  optional DNSSource dns_source = 15; // Requested as a debugging tool - optional
+  optional DNSSource dns_source = 15; 
   optional uint32 connect_attempt_count = 16;
-  optional uint32 agent = 17;
-  optional uint32 device = 18;
-  // Used only for device pairing (either WA companion registration or Trust Circle device onboarding)
+  optional uint32 device = 18;  
   optional DevicePairingRegistrationData device_pairing_data = 19;
   optional Product product = 20;
-  optional bytes fb_cat = 21;         // Crypto Auth Token
-  optional bytes fb_user_agent = 22;
-  // Is this an official client? (may not be reliable)
-  optional bool oc = 23;
-  // Login counter
+  optional bytes fb_cat = 21;       
+  optional bytes fb_user_agent = 22;  
+  optional bool oc = 23;  
   optional int32 lc = 24;
-  optional IOSAppExtension ios_app_extension = 30;
-  // https://www.internalfb.com/intern/wiki/Appids/
-  optional uint64 fb_app_id = 31;
-  // 128-bit UUID https://www.internalfb.com/intern/wiki/How-do-we-uniquely-identify-devices/device-id/
+  optional IOSAppExtension ios_app_extension = 30;  
+  optional uint64 fb_app_id = 31;  
   optional bytes fb_device_id = 32;
   optional bool pull = 33;
   optional bytes padding_bytes = 34;
   optional int32 year_class = 36;
   optional int32 mem_class = 37;
-  optional InteropData interop_data = 38;  
+  optional InteropData interop_data = 38;
 	optional TrafficAnonymization traffic_anonymization = 40;
 	optional bool lid_db_migrated = 41;
-	optional AccountType account_type = 42;  
+	optional AccountType account_type = 42;
+  optional int32 connection_sequence_info = 43;
+  optional bool  paa_link = 44;
+  optional int32 preacks_count = 45;
+  optional int32 processing_queue_size = 46;
 }
 
 // NOTE: when you make any change, please update both wa5.proto and wa5_chatd.proto

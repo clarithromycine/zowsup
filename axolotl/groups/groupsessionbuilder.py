@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from ..protocol.senderkeydistributionmessage import SenderKeyDistributionMessage
 from ..invalidkeyidexception import InvalidKeyIdException
 from ..invalidkeyexception import InvalidKeyException

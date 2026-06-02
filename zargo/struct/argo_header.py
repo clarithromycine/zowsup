@@ -1,6 +1,6 @@
 
 
-class ArgoHeader(object):
+class ArgoHeader:
 
     def __init__(self,inlineEverything,selfDescribing,outOfBandFieldErrors,selfDescribingErrors,nullTerminatedStrings,noDeduplication,hasUserFlags,userFlags):
         self.inlineEverything       =   inlineEverything

@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 class ECKeyPair():
     def __init__(self, publicKey, privateKey):
         """

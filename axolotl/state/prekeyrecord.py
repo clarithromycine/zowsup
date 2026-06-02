@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from ..protobuf.LocalStorageProtocol_pb2 import PreKeyRecordStructure
 from ..ecc.curve import Curve
 from ..ecc.eckeypair import ECKeyPair

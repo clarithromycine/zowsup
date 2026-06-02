@@ -1,4 +1,4 @@
-from dissononce.dh.x25519.x25519 import PublicKey
+﻿from dissononce.dh.x25519.x25519 import PublicKey
 from ..proto import wa5_pb2,cert_pb2
 import axolotl_curve25519 as curve
 import logging
@@ -7,7 +7,7 @@ import time
 logger = logging.getLogger(__name__)
 
 
-class CertMan(object):
+class CertMan:
     def __init__(self):
         self._pubkeys = {
             "WhatsAppLongTerm1": bytearray(
@@ -16,7 +16,7 @@ class CertMan(object):
         }
 
     
-    #这里由5.x升级为6.x的CertChain逻辑，暂时相当于没验证签名，后面签名算法完善之后再看
+    #杩欓噷鐢?.x鍗囩骇涓?.x鐨凜ertChain閫昏緫锛屾殏鏃剁浉褰撲簬娌￠獙璇佺鍚嶏紝鍚庨潰绛惧悕绠楁硶瀹屽杽涔嬪悗鍐嶇湅
 
     def is_valid(self, rs, certificate_data):
         """

@@ -1,6 +1,9 @@
 from common.utils import Utils
-import random
-class NetworkEnv(object):
+import random,logging
+from common.country_code import CountryCodeParser
+
+logger = logging.getLogger(__name__)
+class NetworkEnv:
 
     TYPE_DIRECT = "direct"
     TYPE_PROXY  = "proxy"
@@ -17,7 +20,7 @@ class NetworkEnv(object):
             self.updateProxyStr(proxyStr,proxyStr)
 
     def __str__(self):
-        return "NetworkType=%s, Proxy=%s" % (self.type,self.proxyStr)
+        return f"NetworkType={self.type}, Proxy={self.proxyStr}"
             
     def updateProxyStr(self,proxyStr,rawProxyStr=None):
         if rawProxyStr:
@@ -32,12 +35,13 @@ class NetworkEnv(object):
             self.password = params[3]
         else:
             raise Exception("proxy string format error")            
-            
-    def updateByWaNum(self,waNum):
+        
+    def updateProxyByWaNum(self,waNum):
         if self.type=="direct":
-            return         
-        cc = Utils.getMobileCC(waNum)       
-        lg,lc = Utils.getLGLC(cc)                          
+            return 
+        
+        lc = CountryCodeParser.parse(waNum)
+                        
         if lc.lower()=="cn":
             lc = "us"                                    
         session_id = waNum[-8:]       
@@ -46,22 +50,13 @@ class NetworkEnv(object):
             proxyStr = proxyStr.replace("[location]",lc.lower())
         if "[session_id]" in proxyStr:
             proxyStr = proxyStr.replace("[session_id]",session_id)
-        self.updateProxyStr(proxyStr)
 
-    def changeIP(self,waNum):
-        cc = Utils.getMobileCC(waNum)       
-        lg,lc = Utils.getLGLC(cc)                          
-        if lc.lower()=="cn":
-            lc = "us"                    
-        alp = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'                
-        session_id = ''.join(random.sample(alp, 8))        
-        proxyStr =  self.rawProxyStr
-        if "[location]" in proxyStr:
-            proxyStr = proxyStr.replace("[location]",lc.lower())
-        if "[session_id]" in proxyStr:
-            proxyStr = proxyStr.replace("[session_id]",session_id)
+        logger.info("USING PROXY %s" % proxyStr)
+
+        self.updateProxyStr(proxyStr)        
+            
+
         
-        self.updateProxyStr(proxyStr)
 
 
 

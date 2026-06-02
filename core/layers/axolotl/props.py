@@ -1,0 +1,1 @@
+PROP_IDENTITY_AUTOTRUST =  "org.openwhatsapp.zowsup.prop.axolotl.INDENTITY_AUTOTRUST"

@@ -1,31 +1,30 @@
-# -*- coding: utf-8 -*-
-
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 import abc
 
 
-class SessionStore(object):
+class SessionStore:
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
-    def loadSession(self, recepientId, deviceId):
+    def loadSession(self, recipientId, recipientType,deviceId):
         pass
 
     @abc.abstractmethod
-    def getSubDeviceSessions(self, recepientId):
+    def getSubDeviceSessions(self, recepientId) -> Any:
         pass
 
     @abc.abstractmethod
-    def storeSession(self, recepientId, deviceId, sessionRecord):
+    def storeSession(self, recepientId, recipientType,deviceId, sessionRecord):
         pass
 
     @abc.abstractmethod
-    def containsSession(self, recepientId, deviceId):
+    def containsSession(self, recepientId, recipientType, deviceId) -> Any:
         pass
 
     @abc.abstractmethod
-    def deleteSession(self, recepientId, deviceId):
+    def deleteSession(self, recepientId,recipientType, deviceId):
         pass
 
     @abc.abstractmethod
-    def deleteAllSessions(self, recepientId):
+    def deleteAllSessions(self, recepientId) -> Any:
         pass

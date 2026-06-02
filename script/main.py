@@ -1,114 +1,127 @@
-# coding=UTF-8
 import os,sys
 sys.path.append(os.getcwd())
 from common.consolemain import ConsoleMain
-import logging,time
+import logging
 from pathlib import Path
-from app.yowbot import YowBot
-from script.cmdprocess import CmdProcess
-from script.interactiveprocess import InteractiveProcess
-from conf.constants import SysVar,GlobalVar
+from app.zowbot import ZowBot
+from interactivethread import InteractiveThread
+from conf.constants import SysVar
 from common.utils import Utils
-from yowsup.profile.profile import YowProfile
+from core.profile.profile import YowProfile
 from app.device_env import DeviceEnv
+from app.zowbot_values import ZowBotType
+
 
 logger = logging.getLogger(__name__)
 
 class Main(ConsoleMain):
-     
+                       
     def run(self,params,options):
         
-        if len(params) == 0:
-            print("a phone number must be specified")        
-            sys.exit(1)
-        else:
-            botId = params[0]
+        # If no account specified, allow interactive connection
+        botId = params[0] if len(params) > 0 else None
         
-        if "debug" in options:
-            self.init_log(logging.DEBUG,botId+".log")
+        if botId:
+            if "debug" in options:
+                self.init_log(logging.DEBUG,botId+".log")
+            else:
+                self.init_log(logging.INFO,botId+".log")
         else:
-            self.init_log(logging.INFO,botId+".log")
+            if "debug" in options:
+                self.init_log(logging.DEBUG,"zowbot.log")
+            else:
+                self.init_log(logging.INFO,"zowbot.log")
 
         
         if "proxy" not in options:
             options["proxy"] = "DIRECT"
 
-        lg,lc = Utils.getLGLC(Utils.getMobileCC(botId))
-        logger.info("LG=%s, LC=%s" % (lg,lc))
-
-        self.commonOptionsProcess(options)
-
-                                      
-        config_file = Path(SysVar.ACCOUNT_PATH+botId+"/config.json")
-        if not config_file.exists():
-            logger.info("account not exist !!")
-            return 
+        if botId:
+            lg,lc = Utils.getLGLC(Utils.getMobileCC(botId))
+            logger.info("LG={}, LC={}".format(lg,lc))
         
         self.commonOptionsProcess(options)
 
-        info = None        
-        if "env" not in options:           
+        # Only check for account file if botId is provided
+        if botId:
+            config_file = Path(SysVar.ACCOUNT_PATH+botId+"/config.json")
 
-            profile = YowProfile(SysVar.ACCOUNT_PATH+botId)
-            if profile.config.os_name is not None:
-                logger.info("Local Profile found")
-                tt = {
-                    "Android":"android",
-                    "SMBA":"smb_android",
-                    "iOS":"ios",
-                    "SMB iOS":"smb_ios"
-                }
-                self.env.deviceEnv = DeviceEnv(tt[profile.config.os_name])
-            else:
-                pass  
-
-        logger.info("ENV=%s",self.env.deviceEnv.getOSName())                
-        logger.info("BotId=%s" % botId)        
-        logger.info("RegType=%s" % (info["regType"] if info is not None else "1")) 
-        
-
-        
-
-        try:  
-            wabot = YowBot(bot_id=botId,env=self.env,)
-            logger.info(self.env.networkEnv)            
+            if not config_file.exists():
+                logger.info("account not exist !!")
+                return         
             
-            if len(params) == 1:
-                InteractiveProcess(wabot).run()
-                pass            
-            else: 
-                if params[1] in wabot.getCmdList():                      
-                    CmdProcess(wabot,params[1:],options).run()    
+            self.commonOptionsProcess(options)
+
+            info = None        
+            if "env" not in options:           
+
+                profile = YowProfile(SysVar.ACCOUNT_PATH+botId)
+                if profile.config.os_name is not None:
+                    logger.info("Local Profile found")
+                    self.env.deviceEnv = DeviceEnv(SysVar.ENV_NAME_MAPPING.get(profile.config.os_name, "android"))
                 else:
-                    logger.info("Unknown Command")         
+                    pass  
 
-            wabot.runAsThread()
+            logger.info("ENV=%s",self.env.deviceEnv.getOSName())                
+            logger.info("BotId=%s" % botId)        
+            logger.info("RegType=%s" % (info["regType"] if info is not None else "1"))
 
-            while True:
-                if wabot.sendLayer.userQuit:
-                    break
-                time.sleep(0.1)
-        except KeyboardInterrupt:                
-            wabot.disconnect()            
+
+ 
+        wabot = ZowBot(bot_id=botId,env=self.env,bot_type=ZowBotType.TYPE_RUN_SINGLETON)        
+        
+
+        if botId:
+            logger.info(self.env.networkEnv)
+            logger.info("Starting bot: %s", botId)
+        
+        
+        # Always start InteractiveThread, it handles both account init and commands
+        if len(params) <= 1 or botId is None:
+            # Interactive mode: either no params, only account param, or no account
+            logger.info(f"Starting interactive mode - botId={botId}, params={params}")
+            interactive_thread = InteractiveThread(wabot, self.env, self)
+            logger.debug("InteractiveThread created, starting...")
+            interactive_thread.run()
+            logger.info("InteractiveThread started, waiting for completion...")
+            # Wait for the interactive thread to complete (user exits)
+            # Use timeout loop to allow Ctrl+C to be responsive even during connection
+            try:
+                while interactive_thread.thread.is_alive():
+                    interactive_thread.thread.join(timeout=0.1)
+            except KeyboardInterrupt:
+                logger.info("Main thread interrupted by user (Ctrl+C)")
+                # Thread will clean up gracefully via its own KeyboardInterrupt handler
+                interactive_thread.thread.join(timeout=5)
+            logger.info("InteractiveThread completed, exiting.")
+        else:
+            # Command execution mode: account + command
+            if params[1] in wabot.getCmdList():
+                # New way: Pass command args to bot, execute in event loop
+                wabot._cmd_args_for_exec = params[1:]
+                wabot._cmd_options_for_exec = options
+            else:
+                logger.info("Unknown Command")
+                return
+        
+            wabot.botLayer.setProp("USER_REQUEST_QUIT",False)
+            wabot.botLayer.setProp("QUITTED",False)
+
+            wabot.run()  # asyncio event loop runs in main thread
             
 if __name__ == "__main__":
-    
-    GlobalVar.WANUMTYPE = 1     
+          
     SysVar.loadConfig()       
         
-    if len(sys.argv)<=1:
-        print("USAGE:")
-        print("\nmain.py [account-number] [command] [commandParams]\n")
-        YowBot.printUsage()
-        sys.exit(0)
-    
-    params,options = Utils.cmdLineParser(sys.argv)
-
+    if len(sys.argv) <= 1:
+        # Allow running without arguments - will start interactive mode
+        params = []
+        options = {}
+    else:
+        params,options = Utils.cmdLineParser(sys.argv)
 
     Main().run(params,options)    
     
-    
-
 
 
 
@@ -151,3 +164,4 @@ if __name__ == "__main__":
 
 
             
+

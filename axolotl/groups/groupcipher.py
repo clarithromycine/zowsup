@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from ..invalidkeyidexception import InvalidKeyIdException
 from ..invalidkeyexception import InvalidKeyException
 from ..invalidmessageexception import InvalidMessageException

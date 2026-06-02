@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
-
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 import abc
 
 
-class PreKeyStore(object):
+class PreKeyStore:
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
@@ -11,7 +10,7 @@ class PreKeyStore(object):
         pass
 
     @abc.abstractmethod
-    def storePreKey(self, preKeyId, preKeyRecord):
+    def storePreKey(self, preKeyId, preKeyRecord) -> Any:
         pass
 
     @abc.abstractmethod
@@ -19,5 +18,5 @@ class PreKeyStore(object):
         pass
 
     @abc.abstractmethod
-    def removePreKey(self, preKeyId):
+    def removePreKey(self, preKeyId) -> Any:
         pass

@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
-
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 import abc
 
 
-class ECPublicKey(object):
+class ECPublicKey:
     __metaclass__ = abc.ABCMeta
 
     KEY_SIZE = 33
@@ -13,11 +12,11 @@ class ECPublicKey(object):
         pass
 
     @abc.abstractmethod
-    def getType(self):
+    def getType(self) -> Any:
         pass
 
 
-class ECPrivateKey(object):
+class ECPrivateKey:
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
@@ -25,5 +24,5 @@ class ECPrivateKey(object):
         pass
 
     @abc.abstractmethod
-    def getType(self):
+    def getType(self) -> Any:
         pass

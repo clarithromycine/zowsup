@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from ..ecc.curve import Curve
 from ..kdf.derivedrootsecrets import DerivedRootSecrets
 from .chainkey import ChainKey
@@ -16,7 +14,7 @@ class RootKey:
     def createChain(self, ECPublicKey_theirRatchetKey, ECKeyPair_ourRatchetKey):
         sharedSecret = Curve.calculateAgreement(ECPublicKey_theirRatchetKey, ECKeyPair_ourRatchetKey.getPrivateKey())
         derivedSecretBytes = self.kdf.deriveSecrets(sharedSecret,
-                                                    "WhisperRatchet".encode(),
+                                                    b"WhisperRatchet",
                                                     DerivedRootSecrets.SIZE,
                                                     salt=self.key)
         derivedSecrets = DerivedRootSecrets(derivedSecretBytes)

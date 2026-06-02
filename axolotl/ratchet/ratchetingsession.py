@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from ..ecc.curve import Curve
 from .bobaxolotlparamaters import BobAxolotlParameters
 from .aliceaxolotlparameters import AliceAxolotlParameters
@@ -106,7 +104,7 @@ class RatchetingSession:
     @staticmethod
     def calculateDerivedKeys(masterSecret):
         kdf = HKDFv3()
-        derivedSecretBytes = kdf.deriveSecrets(masterSecret,  bytearray("WhisperText".encode()), 64)
+        derivedSecretBytes = kdf.deriveSecrets(masterSecret,  bytearray(b"WhisperText"), 64)
         derivedSecrets = ByteUtil.split(derivedSecretBytes, 32, 32)
         return RatchetingSession.DerivedKeys(RootKey(kdf, derivedSecrets[0]),
                                              ChainKey(kdf, derivedSecrets[1], 0))

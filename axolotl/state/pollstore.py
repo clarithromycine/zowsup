@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
-
 import abc
 
 
-class PollStore(object):
+class PollStore:
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod

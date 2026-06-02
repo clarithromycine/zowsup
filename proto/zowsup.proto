@@ -1,0 +1,254 @@
+syntax = "proto2";
+
+package zowsup;
+
+option java_package = "com.wisight.zowsup.proto";
+
+enum MessageStatus {
+    EXECUTED = 2;          //已执行
+    SENT = 3;              //已发送
+    DELIVERED = 4;          //已接收
+    READ = 5;              //已阅读
+    RESPONSE = 6;          //已回复     
+    ERROR = 7;             //发送错误，具体原因见下面的error_code
+}
+
+enum MessageType {
+    TEXT = 1;
+    AD   = 2;    
+    INTERACTIVE = 3;
+    URL   = 4;
+    IMAGE = 5;
+    VIDEO = 6;
+    AUDIO = 7;
+    DOCUMENT = 8;
+    STICKER = 9;
+    REACTION = 10;
+    POLL = 11;
+
+    UNKNOWN_MEDIA=91;
+    OTHER = 99;
+}
+
+message ClusterUpdate {
+    enum Type {
+        CLUSTER_STATUS = 1;
+
+        BOT_UPDATE = 2;
+        ASSET_UPDATE = 3;
+        TASK_UPDATE = 4;
+
+        BOT_EVENT = 5;
+        //ASSET_EVENT = 6;
+        //TASK_EVENT = 7;
+    }
+    enum Status {
+        OFFLINE = 1;       //离线事件
+        ONLINE  = 2;       //上线事件
+        ALIVE = 3;         //定期的保活事件,保持当前状态，但更新状态时间
+    }    
+
+    //这里没有cluster_id的原因是，这里的cluster在服务器上用accesskey来对应，放在接口的header内
+
+    optional Type   type=1;    
+    optional int64 timestamp = 2;       
+
+    oneof InMessage {
+        Status status = 3;
+        BotUpdate bot_update = 4;
+        AssetUpdate asset_update = 5;
+        TaskUpdate task_update = 6;
+
+        BotEvent   bot_event = 7;
+        //AssetEvent asset_event = 8;
+        //TaskEvent  task_event = 9;
+    }
+
+}
+
+message AssetEvent {
+    enum Event {
+        STARTING = 1;
+        READY    = 2;
+        STOPPED  = 3;
+        ERROR    = 4;
+
+        NUMBER_LOGIN_SUCCESS = 5;
+        NUMBER_LOGIN_FAIL    = 6;
+        NUMBER_LOGOUT        = 7;
+                
+        HEARTBEAT     = 99;
+    }
+
+    optional string asset_id = 1;
+    optional Event event = 2;
+    optional int64 timestamp = 4;
+    optional string detail = 5;
+}
+
+message AssetUpdate {
+
+    //号码状态
+    enum Status {
+        STARTING = 1;        
+        READY = 2;        
+        STOPPED = 3;
+        ERROR = 4;        
+    }
+
+    optional string asset_id = 1;     
+    optional Status status = 3;
+    optional int64 timestamp = 4;
+    optional WaNumberStatus wa_number_status = 5;
+
+}
+
+message BotEvent {
+    //这个结构主要是用于Bot和BotCluster之间的事件传递，这个事件服务器不处理
+    enum Event {
+        LOGIN_SUCCESS = 1;
+        LOGIN_FAIL    = 2;
+        
+        EXCEPTION     = 3;
+        LOGOUT        = 4;        
+        QUIT          = 5;
+        BOT_ERROR     = 6;
+        CONFLICT      = 7;       
+    
+        CONTACT_UPDATE= 8;
+
+        HEARTBEAT     = 99;         
+    }
+    optional string bot_id = 1;
+    optional Event event = 2;        
+    optional int64 timestamp = 4;       
+    optional string detail = 5;    
+}
+
+message BotUpdate {
+    //这个结构主要用于BotCluster向服务端上报Bot的状态更新
+    enum Status {
+        INITIAL = 0;        
+        TEMP_LOCKED = 2;
+        OFFLINE_AUTO = 4;        
+        BANNED = 6;
+        KICKED = 7;
+        OFFLINE_MANUAL = 8;
+        ONLINE_AUTO  = 9;
+        ONLINE_MANUAL = 5;        
+    }
+    
+
+    optional string bot_id = 1;
+    optional int64 last_send_time = 3;
+    optional Status status = 4;
+    optional uint32 fail_reason_code = 5;  //登陆失败时(status=BANNED)才有 type==BUSINESS才有
+    optional string ip = 6;                //登陆成功时(status=ONLINE)才有    
+    optional int64 timestamp = 7;
+    optional string task_id = 8;            //登录成功时，如果是任务状态，同时上传task_id，更新user表
+
+
+}
+
+
+message WaNumberStatus {
+
+    enum Status {
+        INITIAL = 0;        
+        TEMP_LOCKED = 2;
+        OFFLINE_AUTO = 4;        
+        BANNED = 6;
+        KICKED = 7;
+        OFFLINE_MANUAL = 8;
+        ONLINE_AUTO  = 9;
+        ONLINE_MANUAL = 5;        
+    }
+
+    optional string number = 1;
+    optional Status status = 2;
+    optional uint32 fail_reason_code = 5;  //登陆失败时(status=BANNED)才有 type==BUSINESS才有
+    optional int64 timestamp = 7;
+
+}
+
+
+
+
+
+
+message TaskUpdate {
+    enum Status {
+        INITIAL = 1;
+        WAITING_CLUSTER = 2;
+        CLUSTER_ACEEPTED = 3;
+        RUNNING = 4;
+        PAUSE = 5;
+        FINISH = 6;
+        ERROR = 7;
+        COMPLETE = 8;
+    }
+
+    enum TaskType {
+        REGISTER = 0;
+        BULK_SEND= 1;
+        FILTER_WANUM = 2;
+        MAKE_GROUP = 3;
+        WARM_UP = 4;
+    }
+
+    message BulkSendStat {
+        optional uint32 plan = 1;
+        optional uint32 executed = 2;
+        optional uint32 sent = 3;
+        optional uint32 delivered = 4;
+        optional uint32 read = 5;
+        optional uint32 response = 6;
+        optional uint32 banned_worker_cnt = 7;
+        optional uint32 worker_cnt = 8;
+    }
+
+    message FilterWaNumStat {
+        optional uint32 plan = 1;
+        optional uint32 executed = 2;
+        optional uint32 success = 3;
+        optional uint32 banned_worker_cnt = 7;
+        optional uint32 worker_cnt = 8;
+    }
+
+    message RegisterStat {
+        optional uint32 plan = 1;
+    }
+
+    message MakeGroupStat {
+        optional uint32 plan = 1;
+    }
+
+    message WarmupStat {
+        optional uint32 plan = 1; 
+    }
+
+    optional string task_id = 1;
+    optional Status status = 2;
+    
+    oneof task_type_message{
+        BulkSendStat bulk_send_stat = 3;
+        FilterWaNumStat filter_wanum_stat = 4;
+        RegisterStat register_stat = 5;
+        MakeGroupStat make_group_stat = 6;
+        WarmupStat warmup_stat = 7;    
+    }
+
+    optional TaskType task_type = 8;
+    optional int64 timestamp = 9;
+}
+
+
+
+
+
+
+
+
+
+
+

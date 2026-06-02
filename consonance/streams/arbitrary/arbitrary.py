@@ -1,12 +1,13 @@
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 import logging
 
 logger = logging.getLogger(__file__)
 
 
-class ArbitraryStream(object):
+class ArbitraryStream:
     def read(self, readsize):
         """
-        :param readsize:
+        :param readsize -> Any:
         :type readsize: int
         :return:
         :rtype: bytes
@@ -14,7 +15,7 @@ class ArbitraryStream(object):
 
     def write(self, data):
         """
-        :param data:
+        :param data -> Any:
         :type data: bytes
         :return:
         :rtype:

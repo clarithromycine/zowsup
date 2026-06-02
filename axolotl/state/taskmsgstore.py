@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
-
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 import abc
 
 
-class TaskMsgStore(object):
+class TaskMsgStore:
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
@@ -11,7 +10,7 @@ class TaskMsgStore(object):
         pass
 
     @abc.abstractmethod
-    def getTaskMsg(self,msg_id):
+    def getTaskMsg(self,msg_id) -> Any:
         pass
 
     @abc.abstractmethod
@@ -19,5 +18,5 @@ class TaskMsgStore(object):
         pass
 
     @abc.abstractclassmethod
-    def delExpiredTaskMsg(self):
+    def delExpiredTaskMsg(self) -> Any:
         pass

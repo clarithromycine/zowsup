@@ -1,6 +1,53 @@
 [SysVar]
+PLATFORM=linux
+PYTHON=/usr/bin/python
 ACCOUNT_PATH=/data/account/
+TMP_ACCOUNT_PATH=/data/account//tmp/
 DOWNLOAD_PATH=/data/tmp/
 UPLOAD_PATH=/data/tmp/
 LOG_PATH=/data/log/
 DEFAULT_ENV=android
+
+
+# ==================== AI Module Configuration ====================
+[AI_LLM_ACTIVE]
+# Enable/Disable AI auto-reply completely
+enabled = false
+backend = QWEN
+
+[AI_LLM_GLM]
+# GLM configuration 
+api_key = 
+auth_mode = apikey
+model = glm-4-plus
+
+
+[AI_LLM_QWEN]
+# QWEN configuration
+auth_mode = apikey
+api_key = 
+model = qwen3.6-plus
+
+[AI_MEMORY]
+# Per-account settings (stored in SQLite, not here)
+memory_window_days = 3
+cleanup_strategy = first_daily_message
+
+[AI_RETRY]
+retry_delay_minutes = 5
+max_retry_attempts = 1
+enabled = true
+
+[AI_FILTER]
+p2p_only = true
+skip_self_device = true
+
+[AI_SATISFACTION]
+# Enable/Disable satisfaction survey after AI reply
+enabled = false
+# Minutes of silence after last AI reply before sending survey question
+timeout_minutes = 30
+# Survey question text sent to user
+question_text = 请问这次回答对您有帮助吗？请回复 1-5 分（1=很差，5=非常好）
+# Thank-you message sent after user submits rating
+thank_you_text = 感谢您的反馈！

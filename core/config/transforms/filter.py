@@ -1,0 +1,34 @@
+from ...config.base.transform import ConfigTransform
+from typing import Any, Optional, Dict, List, Tuple
+
+
+
+class FilterTransform(ConfigTransform):
+
+    def __init__(self, transform_filter=None, reverse_filter=None) -> None:
+        """
+        :param transform_filter:
+        :type transform_filter: function | None
+        :param reverse_filter:
+        :type reverse_filter: function | None
+        """
+        self._transform_filter = transform_filter  # type: function | None
+        self._reverse_filter = reverse_filter  # type: function | None
+
+    def transform(self, data) -> Any:
+        if self._transform_filter is not None:
+            out = {}
+            for key, val in data.items():
+                if self._transform_filter(key, val):
+                    out[key] = val
+            return out
+        return data
+
+    def reverse(self, data) -> Any:
+        if self._reverse_filter is not None:
+            out = {}
+            for key, val in data.items():
+                if self._reverse_filter(key, val):
+                    out[key] = val
+            return out
+        return data

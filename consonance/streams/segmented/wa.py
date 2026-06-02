@@ -1,3 +1,4 @@
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 import struct
 
 from .segmented import SegmentedStream
@@ -7,7 +8,7 @@ from ..arbitrary.arbitrary import ArbitraryStream
 class WASegmentedStream(SegmentedStream):
     def __init__(self, dynamicstream):
         """
-        :param dynamicstream:
+        :param dynamicstream -> Any:
         :type dynamicstream:  DataStream
         """
         self._datastream = dynamicstream # type: ArbitraryStream
@@ -16,7 +17,7 @@ class WASegmentedStream(SegmentedStream):
         size = struct.unpack('>I', b"\x00" + self._datastream.read(3))[0] # type: int
         return self._datastream.read(size)
 
-    def write_segment(self, data):
+    def write_segment(self, data) -> Any:
         if len(data) >= 16777216:
             raise ValueError("data too large to write; length=%d" % len(data))
 

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import sys
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -20,19 +18,20 @@ import  logging
 logger = logging.getLogger(__name__)
 
 class SessionCipher:
-    def __init__(self, sessionStore, preKeyStore, signedPreKeyStore, identityKeyStore, recepientId, deviceId):
+    def __init__(self, sessionStore, preKeyStore, signedPreKeyStore, identityKeyStore, recipientId, recipientType, deviceId):
         self.sessionStore = sessionStore
         self.preKeyStore = preKeyStore
-        self.recipientId = recepientId
+        self.recipientId = recipientId
+        self.recipientType = recipientType
         self.deviceId = deviceId
         self.sessionBuilder = SessionBuilder(sessionStore, preKeyStore, signedPreKeyStore,
-                                             identityKeyStore, recepientId, deviceId)
+                                             identityKeyStore, recipientId, recipientType,deviceId)
 
     def encrypt(self, paddedMessage):
         """
         :type paddedMessage: bytes
         """
-        sessionRecord = self.sessionStore.loadSession(self.recipientId, self.deviceId)
+        sessionRecord = self.sessionStore.loadSession(self.recipientId, self.recipientType,self.deviceId)
         sessionState = sessionRecord.getSessionState()
         chainKey = sessionState.getSenderChainKey()
         messageKeys = chainKey.getMessageKeys()
@@ -62,7 +61,7 @@ class SessionCipher:
  
         sessionState.setSenderChainKey(chainKey.getNextChainKey())
 
-        self.sessionStore.storeSession(self.recipientId, self.deviceId, sessionRecord)
+        self.sessionStore.storeSession(self.recipientId, self.recipientType,self.deviceId, sessionRecord)
 
         return ciphertextMessage
 
@@ -72,13 +71,13 @@ class SessionCipher:
         :type textMsg: Bool set this to False if you are decrypting bytes
                        instead of string
         """
-        if not self.sessionStore.containsSession(self.recipientId, self.deviceId):
-            raise NoSessionException("No session for: %s, %s" % (self.recipientId, self.deviceId))
+        if not self.sessionStore.containsSession(self.recipientId, self.recipientType,self.deviceId):
+            raise NoSessionException(f"No session for: {self.recipientId}, {self.deviceId}")
 
-        sessionRecord = self.sessionStore.loadSession(self.recipientId, self.deviceId)
+        sessionRecord = self.sessionStore.loadSession(self.recipientId, self.recipientType, self.deviceId)
         plaintext = self.decryptWithSessionRecord(sessionRecord, ciphertext)
 
-        self.sessionStore.storeSession(self.recipientId, self.deviceId, sessionRecord)
+        self.sessionStore.storeSession(self.recipientId, self.recipientType,self.deviceId, sessionRecord)
 
         return plaintext
 
@@ -87,7 +86,7 @@ class SessionCipher:
         :type ciphertext: PreKeyWhisperMessage
         """        
         
-        sessionRecord = self.sessionStore.loadSession(self.recipientId, self.deviceId)     
+        sessionRecord = self.sessionStore.loadSession(self.recipientId, self.recipientType,self.deviceId)     
 
         if ciphertext.getPreKeyId() is not None:            
             unsignedPreKeyId = self.sessionBuilder.process(sessionRecord, ciphertext)
@@ -99,7 +98,7 @@ class SessionCipher:
         
 
         # callback.handlePlaintext(plaintext)
-        self.sessionStore.storeSession(self.recipientId, self.deviceId, sessionRecord)
+        self.sessionStore.storeSession(self.recipientId, self.recipientType,self.deviceId, sessionRecord)
 
         if unsignedPreKeyId is not None:
             self.preKeyStore.removePreKey(unsignedPreKeyId)
@@ -147,7 +146,7 @@ class SessionCipher:
             raise InvalidMessageException("Uninitialized session!")
 
         if ciphertextMessage.getMessageVersion() != sessionState.getSessionVersion():
-            raise InvalidMessageException("Message version %s, but session version %s" % (ciphertextMessage.getMessageVersion, sessionState.getSessionVersion()))
+            raise InvalidMessageException(f"Message version {ciphertextMessage.getMessageVersion}, but session version {sessionState.getSessionVersion()}")
 
 
         messageVersion = ciphertextMessage.getMessageVersion()
@@ -196,7 +195,7 @@ class SessionCipher:
             if sessionState.hasMessageKeys(theirEphemeral, counter):
                 return sessionState.removeMessageKeys(theirEphemeral, counter)
             else:
-                raise DuplicateMessageException("Received message with old counter: %s, %s" % (chainKey.getIndex(),
+                raise DuplicateMessageException("Received message with old counter: {}, {}".format(chainKey.getIndex(),
                                                                                                counter))
 
         if counter - chainKey.getIndex() > 2000:

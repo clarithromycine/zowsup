@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 class AliceAxolotlParameters:
     def __init__(self, ourIdentityKey, ourBaseKey, theirIdentityKey, theirSignedPreKey,
                  theirRatchetKey, theirOneTimePreKey):

@@ -1,4 +1,5 @@
 
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 from .array import ArgoArrayWireType
 from .block import ArgoBlockWireType
 from .field import ArgoFieldWireType

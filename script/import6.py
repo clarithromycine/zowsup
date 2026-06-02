@@ -1,20 +1,19 @@
-# coding=UTF-8
 import sys,os
 sys.path.append(os.getcwd())
 
-from yowsup.profile.profile import YowProfile
+from core.profile.profile import YowProfile
 import base64
-from yowsup.axolotl.factory import AxolotlManagerFactory
+from core.axolotl.factory import AxolotlManagerFactory
 from conf.constants import SysVar
-from yowsup.config.v1.config import Config
+from core.config.v1.config import Config
 from consonance.structs.keypair import KeyPair
 from pathlib import Path
-from yowsup.config.transforms.dict_json import DictJsonTransform
-from yowsup.config.v1.serialize import ConfigSerialize
+from core.config.transforms.dict_json import DictJsonTransform
+from core.config.v1.serialize import ConfigSerialize
 from common.utils import Utils
 import logging
 import names
-from yowsup.common.tools import WATools
+from core.common.tools import WATools
 from common.consolemain import ConsoleMain
 
 logger = logging.getLogger(__name__)
@@ -34,6 +33,10 @@ class Import6(ConsoleMain):
         if len(params) == 0:
             print("data must be specified")        
             sys.exit(1)
+
+        auto = ("auto" in options)
+
+
         
         data = params[0].split(",")
 
@@ -60,6 +63,8 @@ class Import6(ConsoleMain):
             id = id
         )    
 
+        config.os_name = SysVar.OS_NAME_MAPPING.get(options["env"],"Android")
+
         account_dir = Path(SysVar.ACCOUNT_PATH+data[0])
         if not account_dir.exists():
             account_dir.mkdir()
@@ -68,6 +73,10 @@ class Import6(ConsoleMain):
         profile.write_config(config)
         
         db = AxolotlManagerFactory().get_manager(SysVar.ACCOUNT_PATH+data[0],data[0])
+
+        db._store.identityKeyStore.dbConn.execute("DELETE FROM prekeys")
+
+        
                         
         q = "UPDATE identities SET public_key=? , private_key=? WHERE recipient_id=-1 AND recipient_type=0"
         c = db._store.identityKeyStore.dbConn.cursor()
@@ -91,6 +100,7 @@ class Import6(ConsoleMain):
         logger.info(privateKey)                  
         logger.info("===PART2-PROFILE===")
         logger.info(jsonstr)        
+
         
 if __name__ == "__main__":    
 
@@ -104,4 +114,3 @@ if __name__ == "__main__":
     
     
 
-    

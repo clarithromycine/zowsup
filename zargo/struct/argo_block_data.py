@@ -3,7 +3,7 @@ from  zargo.exception.data_exception import DataException
 from  zargo.wiretype.scalar import ArgoScalarWireType
 from  zargo.block import *
 
-class ArgoBlockData(object):
+class ArgoBlockData:
     
     def __init__(self,wireType,header,data):
         self.block = None

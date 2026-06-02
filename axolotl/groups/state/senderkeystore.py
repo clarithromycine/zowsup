@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
-
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 import abc
 
 
-class SenderKeyStore(object):
+class SenderKeyStore:
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
@@ -14,7 +13,7 @@ class SenderKeyStore(object):
         """
 
     @abc.abstractmethod
-    def loadSenderKey(self, senderKeyId):
+    def loadSenderKey(self, senderKeyId) -> Any:
         """
         :type senderKeyId: str
         """

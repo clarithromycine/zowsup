@@ -1,5 +1,6 @@
-# coding=UTF-8
 import sys,os
+from typing import Any, Optional, Dict, List, Tuple
+
 sys.path.append(os.getcwd())
 from conf.constants import SysVar
 import logging
@@ -14,20 +15,20 @@ from app.device_env import DeviceEnv
 logger = logging.getLogger(__name__)
 class ConsoleMain:
 
-    def __init__(self):        
+    def __init__(self) -> None:
 
         self.env = BotEnv(
             networkEnv=NetworkEnv("direct"),   
             deviceEnv=DeviceEnv(SysVar.DEFAULT_ENV)
         )                   
         
-    def init_log(self,level,name):
+    def init_log(self,level,name) -> Any:
         Utils.init_log(level,name)    
                     
-    def setDefaultEnvByInfo(self,info):
+    def setDefaultEnvByInfo(self,info) -> Any:
         self.env.deviceEnv = Utils.getDeviceEnvByInfo(info)
             
-    def commonOptionsProcess(self,options) :        
+    def commonOptionsProcess(self,options) -> Any:
                 
         if options is None:
             return

@@ -1,3 +1,4 @@
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 from .publickey import PublicKey
 from .privatekey import PrivateKey
 
@@ -5,10 +6,10 @@ from dissononce.dh.x25519.x25519 import X25519DH
 from dissononce.dh.x25519.keypair import KeyPair as X25519KeyPair
 
 
-class KeyPair(object):
+class KeyPair:
     def __init__(self, public, private):
         """
-        :param public:
+        :param public -> Any:
         :type public: PublicKey
         :param private:
         :type private: PrivateKey
@@ -21,14 +22,14 @@ class KeyPair(object):
         return self._public
 
     @property
-    def private(self):
+    def private(self) -> Any:
         return self._private
 
     def __eq__(self, other):
         return type(other) is KeyPair and other.public == self.public and other.private == self.private
 
     @classmethod
-    def generate(cls):
+    def generate(cls) -> Any:
         """
         :return:
         :rtype: KeyPair
@@ -46,7 +47,7 @@ class KeyPair(object):
     @classmethod
     def from_bytes(cls, data):
         """
-        :param data:
+        :param data -> Any:
         :type data: bytes
         :return:
         :rtype: KeyPair

@@ -1,0 +1,7 @@
+[MASTER]
+# Protobuf 生成的模块
+generated-members=wa_struct_pb2.*,protocol_pb2.*,zowsup_pb2.*,e2e_pb2.*
+
+[MESSAGES CONTROL]
+disable=
+    no-member,  # 对 protobuf 生成模块禁用

@@ -1,0 +1,2 @@
+class NoTargetException(Exception):
+    pass

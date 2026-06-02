@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 import hashlib
 import hmac
 
@@ -18,18 +17,18 @@ class SenderChainKey:
         self.iteration = iteration
         self.chainKey = chainKey
 
-    def getIteration(self):
+    def getIteration(self) -> Any:
         return self.iteration
 
     def getSenderMessageKey(self):
         return SenderMessageKey(self.iteration, self.getDerivative(self.__class__.MESSAGE_KEY_SEED, self.chainKey))
 
-    def getNext(self):
+    def getNext(self) -> Any:
         return SenderChainKey(self.iteration + 1, self.getDerivative(self.__class__.CHAIN_KEY_SEED, self.chainKey))
 
     def getSeed(self):
         return self.chainKey
 
-    def getDerivative(self, seed, key):
+    def getDerivative(self, seed, key) -> Any:
         mac = hmac.new(bytes(key), bytes(seed), digestmod=hashlib.sha256)
         return mac.digest()

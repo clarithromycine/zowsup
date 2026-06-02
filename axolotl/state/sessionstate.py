@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from ..protobuf import LocalStorageProtocol_pb2 as storageprotos
 from ..identitykeypair import IdentityKey, IdentityKeyPair
 from ..ratchet.rootkey import RootKey

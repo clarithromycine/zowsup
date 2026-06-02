@@ -1,8 +1,9 @@
 
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 from zargo.wiretype.scalar import ArgoScalarWireType
 from zargo.struct.argo_block_data import ArgoBlockData
 
-class ArgoBlock(object):
+class ArgoBlock:
     
     def __init__(self,header):
         self.header = header
@@ -10,7 +11,7 @@ class ArgoBlock(object):
         self.typeBlockMap = {}
         self.inlineEverything = header.inlineEverything
 
-    def getBlockData(self,key,wireType):
+    def getBlockData(self,key,wireType) -> Any:
         blockData = self.typeBlockMap.get(key)
         if blockData is None:
             header = self.header

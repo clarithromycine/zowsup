@@ -1,10 +1,11 @@
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 from .segmented import SegmentedStream
 
 
 class DummySegmentedStream(SegmentedStream):
     def __init__(self, data):
         """
-        :param data:
+        :param data -> Any:
         :type data: list[bytes]
         """
         self._read = data  # type: list[bytes]
@@ -12,14 +13,14 @@ class DummySegmentedStream(SegmentedStream):
 
     def read_segment(self):
         """
-        :return:
+        :return -> Any:
         :rtype: bytes
         """
         return self._read.pop(0)
 
     def write_segment(self, data):
         """
-        :param data:
+        :param data -> Any:
         :type data: bytes
         :return:
         :rtype:

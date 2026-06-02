@@ -1,4 +1,5 @@
-class AppVersionConfig(object):
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
+class AppVersionConfig:
     STR_TEMPLATE = """AppVersionConfig(
             primary={primary},
             secondary={secondary},
@@ -8,7 +9,7 @@ class AppVersionConfig(object):
 
     def __init__(self, version):
         """
-        :param version:
+        :param version -> Any:
         :type version: str
         """
         self._version = version
@@ -26,7 +27,7 @@ class AppVersionConfig(object):
             quaternary=self.quaternary
         )
 
-    def getVersion(self):
+    def getVersion(self) -> Any:
         return self._version
 
     @property
@@ -34,7 +35,7 @@ class AppVersionConfig(object):
         return self._primary
 
     @property
-    def secondary(self):
+    def secondary(self) -> Any:
         return self._secondary
 
     @property
@@ -42,5 +43,5 @@ class AppVersionConfig(object):
         return self._tertiary
 
     @property
-    def quaternary(self):
+    def quaternary(self) -> Any:
         return self._quaternary

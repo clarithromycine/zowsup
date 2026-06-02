@@ -1,3 +1,4 @@
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 from zargo.wiretype.block import ArgoBlockWireType
 from zargo.wiretype.scalar import ArgoScalarWireType
 
@@ -9,7 +10,7 @@ class ArgoDataDecoder() :
         self.blockReader = blockReader
         self.argoHeader = argoHeader
 
-    def decodeVarInt(self):
+    def decodeVarInt(self) -> Any:
         return self.argoBlock.getBlockData(
             "Int", 
             ArgoBlockWireType(
@@ -33,7 +34,7 @@ class ArgoDataDecoder() :
             self.blockReader
         )
     
-    def decodeBoolean(self):
+    def decodeBoolean(self) -> Any:
         return self.argoBlock.getBlockData(
             "Boolean", 
             ArgoBlockWireType(
@@ -57,7 +58,7 @@ class ArgoDataDecoder() :
             self.blockReader
         )
 
-    def decodeBlock(self,wt):
+    def decodeBlock(self,wt) -> Any:
 
         wireType = wt.wireType
         

@@ -1,7 +1,7 @@
 from .useragent import UserAgentConfig
 
 
-class ClientConfig(object):
+class ClientConfig:
     STR_TEMPLATE = """ClientConfig(
     username={username},
     passive={passive},

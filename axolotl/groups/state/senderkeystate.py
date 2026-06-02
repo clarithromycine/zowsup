@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from ...protobuf import LocalStorageProtocol_pb2  as storageprotos
 from ..ratchet.senderchainkey import SenderChainKey
 from ..ratchet.sendermessagekey import SenderMessageKey

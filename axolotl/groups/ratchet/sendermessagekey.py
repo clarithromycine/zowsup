@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from ...kdf.hkdfv3 import HKDFv3
 from ...util.byteutil import ByteUtil
 
@@ -10,7 +8,7 @@ class SenderMessageKey:
         :type iteration: int
         :type seed: bytearray
         """
-        derivative = HKDFv3().deriveSecrets(seed, "WhisperGroup".encode(), 48)
+        derivative = HKDFv3().deriveSecrets(seed, b"WhisperGroup", 48)
         parts = ByteUtil.split(derivative, 16, 32)
 
         self.iteration = iteration

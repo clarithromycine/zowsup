@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
-
 import abc
 
 
-class SignedPreKeyStore(object):
+class SignedPreKeyStore:
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod

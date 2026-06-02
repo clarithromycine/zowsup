@@ -1,5 +1,5 @@
-from .device_env_config import *
-
+from .device_env_config import * 
+from conf.constants import SysVar
 
 class DeviceEnv:
 
@@ -8,14 +8,6 @@ class DeviceEnv:
         "ios":EnvIos,
         "smb_android":EnvSmbAndroid,
         "smb_ios":EnvSmbIos,
-      
-    }    
-
-    ENV_DICT = {
-        1:"android",
-        2:"smb_android",
-        3:"ios",
-        4:"smb_ios"  
     }
 
     def __init__(self,name,random=False,envObj=None):
@@ -24,8 +16,7 @@ class DeviceEnv:
             self.obj = DeviceEnv.ENV_MAP[name].randomEnv()
             
         else:
-            self.obj = DeviceEnv.ENV_MAP[name](
-                version=envObj["version"],
+            self.obj = DeviceEnv.ENV_MAP[name](                
                 osVersion=envObj["osVersion"],
                 deviceName=envObj["deviceName"],
                 buildVersion=envObj["buildVersion"],
@@ -33,28 +24,34 @@ class DeviceEnv:
                 deviceModelType=envObj["deviceModelType"]
             )     
 
-    def setDeviceModelType(self,value):
+    def setVersion(self,version:str):
+        self.obj.setVersion(version)
+
+    def setMd5Classes(self,md5Classes:str):
+        self.obj.setMd5Classes(md5Classes)
+
+    def setKey(self,key):
+        self.obj.setKey(key)
+
+    def setDeviceModelType(self,value:str):
         self.obj.setDeviceModelType(value)
 
     def setPlatform(self,value):
         self.obj.setPlatform(value)
 
-    def setVersion(self,value):
-        self.obj.setVersion(value)
-
-    def setManufacturer(self,value):
+    def setManufacturer(self,value:str):
         self.obj.setManufacturer(value)
 
-    def setDeviceName(self,value):
+    def setDeviceName(self,value:str):
         self.obj.setDeviceName(value)
 
-    def setOSVersion(self,value):
+    def setOSVersion(self,value:str):
         self.obj.setOSVersion(value)
 
-    def setBuildVersion(self,value):
+    def setBuildVersion(self,value:str):
         self.obj.setBuildVersion(value)
 
-    def setOSName(self,value):
+    def setOSName(self,value:str):
         self.obj.setOSName(value)
 
     def getPlatform(self):

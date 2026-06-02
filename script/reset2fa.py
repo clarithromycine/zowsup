@@ -1,10 +1,9 @@
-# coding=UTF-8
 import sys,os
 sys.path.append(os.getcwd())
 
 import logging,traceback
-from yowsup.registration import WAReset2FARequest
-from yowsup.config.manager import ConfigManager
+from core.registration import WAReset2FARequest
+from core.config.manager import ConfigManager
 from conf.constants import SysVar
 from common.utils import Utils
 from common.consolemain import ConsoleMain
@@ -40,4 +39,4 @@ if __name__ == "__main__":
     SysVar.loadConfig()
     Utils.init_log(logging.INFO)     
     params,options = Utils.cmdLineParser(sys.argv)    
-    Reset2FA().run(params,options)    
+    Reset2FA().run(params,options)

@@ -1,18 +1,17 @@
-
 import random
 from .env_tools import EnvTools
 
-class EnvAndroid(object):
-    def __init__(self,               
-                 osVersion = "11.0.0",
-                 deviceName = "Mi11 Pro 5G",
-                 buildVersion = "R16AAWS001/release-keys",
-                 manufacturer = "xiaomi",
-                 deviceModelType = "Android 11.0.0",
+class EnvAndroid:
+    def __init__(self,                                 
+                 osVersion = "9",
+                 deviceName = "sigit",
+                 buildVersion = "PKQ1.190118.001",
+                 manufacturer = "Xiaomi",
+                 deviceModelType = "MI 6",
                  isAxolotlEnable = True
         ):        
         self.platform = 0
-        self.osName = "Android"      
+        self.osName = "Android"            
         self.osVersion = osVersion
         self.deviceName = deviceName
         self.buildVersion = buildVersion
@@ -20,11 +19,15 @@ class EnvAndroid(object):
         self.deviceModelType = deviceModelType
         self.isAxolotlEnable = isAxolotlEnable
 
+        #在线计算地址_MD5_CLASSES, classes.dex拖进去就可以
+        # https://the-x.cn/zh-cn/hash/MessageDigestAlgorithm.aspx        
+
         self.version = "2.26.17.72"
         self.md5Classes = "C0PnWG0hgPtvfFkVtdTWbQ=="
         #self.key = "RFObk0NHtvEmCSluaRRbWDCd+U7QqKWi2UB4qOr/hwE+PZWmlkSqG5JGRlMsJ5+LzShVq1XyyLwWk623gAyI/w=="   
         self.key = "sdvJhddpcZ+tuNfeaKAEhS+L3M1rg7jC3ka49uKKKbOnggnuN2gUAZLlhItnagVE7d0SPOTPPplfGOowd6240Q=="
-        
+
+
     @staticmethod
     def randomEnv():
         MANUFACTURER = ["Huawei","Xiaomi","Samsung","Vivo","Google"]
@@ -57,6 +60,7 @@ class EnvAndroid(object):
 
             ],            
             "Xiaomi":[
+                ["MI 6","sagit"],
                 ["MI 5s","capricorn"],
                 ["Mi 9 Lite","pyxis"],
                 ["MI 9 SE","grus"],
@@ -82,7 +86,9 @@ class EnvAndroid(object):
                 ["MI MAX 3","nitrogen"],
                 ["Mi MIX 2S","polaris"],
                 ["MI NOTE LTE","virgo"],
-                ["MI NOTE Pro","leo"]                   
+                ["MI NOTE Pro","leo"],         
+                ["MI 10","umi"],
+                ["Redmi 8","olive"]
             ],
             "Samsung":[
                 ["GT-S6312","roy"],
@@ -171,32 +177,43 @@ class EnvAndroid(object):
             ]
         }        
         
-        VERSION = ["10.0.0","11.0.0","12.0.0","13.0.0","14.0.0"]
+        VERSION = ["9","10","11","12"]
 
         osVersion = random.choice(VERSION)
+        manufacturer = random.choice(MANUFACTURER)        
+
         manufacturer = random.choice(MANUFACTURER)        
         obj = random.choice(DEVICE_MODEL_TYPE[manufacturer])           
         deviceModelType = obj[0]
         deviceName = obj[1]
+        buildVersion = deviceModelType+ " 5G-user "+osVersion+"/"+deviceName+" release-keys"
         
         return EnvAndroid(            
             osVersion=osVersion,
             manufacturer=manufacturer,
             deviceName=deviceName,
-            deviceModelType=deviceModelType
+            deviceModelType=deviceModelType,
+            buildVersion=buildVersion
         )
 
     def getToken(self,phoneNumber):        
         return EnvTools.getAndroidToken(self,phoneNumber,self.key,self.md5Classes)        
-     
+    
     def getUserAgent(self):
         return EnvTools.getAndroidUserAgent(self)
+    
+    def setVersion(self,version):
+        self.version = version
+
+    def setMd5Classes(self,md5Classes):
+        self.md5Classes = md5Classes
+
+    def setKey(self,key):
+        self.key = key    
     
     def setPlatform(self,value):
         self.platform=value
 
-    def setVersion(self,value):
-        self.version=value
 
     def setManufacturer(self,value):
         self.manufacturer=value

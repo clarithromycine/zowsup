@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from google.protobuf.message import DecodeError
 
 from .ciphertextmessage import CiphertextMessage

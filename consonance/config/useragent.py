@@ -1,7 +1,7 @@
 from .appversion import AppVersionConfig
 
 
-class UserAgentConfig(object):
+class UserAgentConfig:
     PLATFORM_ANDROID = 0
     PLATFORM_IOS = 1
     PLATFORM_WINDOWS_PHONE = 2

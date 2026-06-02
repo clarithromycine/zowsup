@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 from ..util.byteutil import ByteUtil
 
 
@@ -18,11 +17,11 @@ class DerivedMessageSecrets:
         self.macKey = keys[1]  # sha256
         self.iv = keys[2]
 
-    def getCipherKey(self):
+    def getCipherKey(self) -> Any:
         return self.cipherKey
 
     def getMacKey(self):
         return self.macKey
 
-    def getIv(self):
+    def getIv(self) -> Any:
         return self.iv

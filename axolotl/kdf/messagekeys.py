@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 class MessageKeys:
     def __init__(self, cipherKey, macKey, iv, counter):
         self.cipherKey = cipherKey

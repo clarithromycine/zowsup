@@ -1,4 +1,0 @@
-
-from .notification_device_add import AddDeviceNotificationProtocolEntity
-from .notification_device_remove import RemoveDeviceNotificationProtocolEntity
-

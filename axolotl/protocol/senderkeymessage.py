@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from .ciphertextmessage import CiphertextMessage
 from ..util.byteutil import ByteUtil
 from ..legacymessageexception import LegacyMessageException

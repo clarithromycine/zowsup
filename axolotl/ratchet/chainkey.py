@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 import hmac
 import hashlib
 
@@ -16,25 +15,25 @@ class ChainKey:
         self.key = key
         self.index = index
 
-    def getKey(self):
+    def getKey(self) -> Any:
         return self.key
 
     def getIndex(self):
         return self.index
 
-    def getNextChainKey(self):
+    def getNextChainKey(self) -> Any:
         nextKey = self.getBaseMaterial(self.__class__.CHAIN_KEY_SEED)
         return ChainKey(self.kdf, nextKey, self.index + 1)
 
     def getMessageKeys(self):
         inputKeyMaterial = self.getBaseMaterial(self.__class__.MESSAGE_KEY_SEED)
         keyMaterialBytes = self.kdf.deriveSecrets(inputKeyMaterial,
-                                                  bytearray("WhisperMessageKeys".encode()),
+                                                  bytearray(b"WhisperMessageKeys"),
                                                   DerivedMessageSecrets.SIZE)
         keyMaterial = DerivedMessageSecrets(keyMaterialBytes)
         return MessageKeys(keyMaterial.getCipherKey(), keyMaterial.getMacKey(), keyMaterial.getIv(), self.index)
 
-    def getBaseMaterial(self, seedBytes):
+    def getBaseMaterial(self, seedBytes) -> Any:
         mac = hmac.new(bytes(self.key), digestmod=hashlib.sha256)
         mac.update(bytes(seedBytes))
         return mac.digest()

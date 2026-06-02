@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from .ciphertextmessage import CiphertextMessage
 from ..util.byteutil import ByteUtil
 from ..protobuf import WhisperTextProtocol_pb2 as whisperprotos

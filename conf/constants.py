@@ -1,15 +1,38 @@
-# coding=UTF-8
 import os
 import configparser
 from pathlib import Path
 
 class SysVar:
+    # OS名称映射 (env_name -> os_name)
+    OS_NAME_MAPPING = {
+        "android":"Android",
+        "smb_android":"SMBA",
+        "ios":"iOS",
+        "smb_ios":"SMB iOS"
+    }
+    
+    # 反向映射 (os_name -> env_name)
+    ENV_NAME_MAPPING = {
+        "Android":"android",
+        "SMBA":"smb_android",
+        "iOS":"ios",
+        "SMB iOS":"smb_ios"
+    }
+    
+    # 数据库映射 (db_id -> env_name)
+    DB_ENV_MAPPING = {
+        1: "android",
+        2: "smb_android",
+        3: "ios",
+        4: "smb_ios",
+    }
         
     def assureDir(path):        
         if not os.path.exists(path):
             os.makedirs(path)    
           
-    def loadConfig(path=None): 
+    @staticmethod
+    def loadConfig(path:str|None =None): 
         if path is None:
             currentDir = os.path.split(os.path.realpath(__file__))[0]              
             path = os.path.join(currentDir,"config.conf")                      
@@ -17,13 +40,19 @@ class SysVar:
         configFile = Path(path)    
         if configFile.exists():    
             conf = configparser.ConfigParser()          
-            conf.read(path)                    
+            conf.read(path, encoding='utf-8')
+            SysVar.PLATFORM = conf.get("SysVar", "PLATFORM")
+            SysVar.PYTHON = conf.get("SysVar", "PYTHON")
             SysVar.ACCOUNT_PATH = conf.get("SysVar", "ACCOUNT_PATH",fallback="/data/account/")            
+            SysVar.BASE_URL = conf.get("SysVar", "BASE_URL",fallback=None)
             SysVar.DOWNLOAD_PATH = conf.get("SysVar", "DOWNLOAD_PATH",fallback="/data/download/")            
             SysVar.UPLOAD_PATH= conf.get("SysVar", "UPLOAD_PATH",fallback="/data/upload/")
+            SysVar.TASK_PATH = conf.get("SysVar", "TASK_PATH",fallback="/data/task/")
             SysVar.DEFAULT_ENV = conf.get("SysVar","DEFAULT_ENV",fallback="android")
+            SysVar.TMP_ACCOUNT_PATH = conf.get("SysVar", "TMP_ACCOUNT_PATH",fallback="/data/account/tmp/")
             SysVar.LOG_PATH = conf.get("SysVar","LOG_PATH",fallback="/data/log/")
-                        
+
+            
             account_dir = Path(SysVar.ACCOUNT_PATH)
             SysVar.assureDir(account_dir)                                     
 
@@ -36,11 +65,16 @@ class SysVar:
             log_dir = Path(SysVar.LOG_PATH)
             SysVar.assureDir(log_dir)
 
-            
+
+            device_dir = Path(SysVar.ACCOUNT_PATH+"device")
+            SysVar.assureDir(device_dir)              
+
+            SysVar.HTTP_URL = "http://"+SysVar.BASE_URL+"/" if SysVar.BASE_URL is not None else None
+                        
             SysVar.CMD_WAIT = None
 
 class GlobalVar:     
-    WANUMTYPE = 1       
+            
     COUNTRYCODE = [["AFGHANISTAN","93",412,"en","AF"],
                     ["ALBANIA","355",276,"sq","AL"],
                     ["ALGERIA","213",603,"ar","DZ"],
@@ -55,6 +89,7 @@ class GlobalVar:
                     ["AUSTRALIA","61",505,"en","AU"],
                     ["AUSTRIA","43",232,"de","AT"],
                     ["AZERBAIJAN","994",400,"az","AZ"],
+                    ["KYRGYSTAN","996",400,"kg","KG"],
                     ["BAHAMAS","1-242",364,"en","BS"],
                     ["BAHRAIN","973",426,"ar","BH"],
                     ["BANGLADESH","880",470,"bn","BD"],

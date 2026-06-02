@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
-
 import abc
 
 
-class AppStateStore(object):
+class AppStateStore:
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod

@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 class SymmetricAxolotlParameters:
     def __init__(self, ourBaseKey, ourRatchetKey, ourIdentityKey, theirBaseKey,
                  theirRatchetKey, theirIdentityKey):

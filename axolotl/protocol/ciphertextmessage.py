@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
-
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 import abc
 
 
-class CiphertextMessage(object):
+class CiphertextMessage:
     __metaclass__ = abc.ABCMeta
 
     UNSUPPORTED_VERSION = 1
@@ -22,5 +21,5 @@ class CiphertextMessage(object):
         return
 
     @abc.abstractmethod
-    def getType(self):
+    def getType(self) -> Any:
         return

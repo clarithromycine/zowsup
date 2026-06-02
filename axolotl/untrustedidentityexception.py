@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 class UntrustedIdentityException(Exception):
     def __init__(self, name, identityKey):
         self.name = name

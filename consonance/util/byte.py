@@ -1,8 +1,9 @@
-class ByteUtil(object):
+from typing import Any, Optional, Dict, List, Tuple, Union, Callable
+class ByteUtil:
     @staticmethod
     def split(input, first_len, second_len, third_len=None):
         """
-        :param input:
+        :param input -> Any:
         :type input: bytes
         :param first_len:
         :type first_len: int
