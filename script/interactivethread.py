@@ -83,7 +83,7 @@ class InteractiveThread:
     BUILTIN_COMMANDS = [
         ("help", "Show this help message"),
         ("exit", "Exit the interactive mode"),
-        ("connect", "Connect to a WhatsApp account"),
+        ("connect", "Connect to a whatsapp account"),
         ("disconnect", "Disconnect the current account")
     ]
 

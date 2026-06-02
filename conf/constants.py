@@ -1,6 +1,7 @@
 import os
 import configparser
 from pathlib import Path
+import sys
 
 class SysVar:
     # OS名称映射 (env_name -> os_name)
@@ -72,6 +73,10 @@ class SysVar:
             SysVar.HTTP_URL = "http://"+SysVar.BASE_URL+"/" if SysVar.BASE_URL is not None else None
                         
             SysVar.CMD_WAIT = None
+            return True
+        else:
+            print(f"Config file not found: {path}")
+            sys.exit(1)
 
 class GlobalVar:     
             

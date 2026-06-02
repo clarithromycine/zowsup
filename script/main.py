@@ -110,8 +110,8 @@ class Main(ConsoleMain):
             wabot.run()  # asyncio event loop runs in main thread
             
 if __name__ == "__main__":
-          
-    SysVar.loadConfig()       
+    
+    SysVar.loadConfig()    
         
     if len(sys.argv) <= 1:
         # Allow running without arguments - will start interactive mode

@@ -1413,18 +1413,11 @@ class ZowBotLayer(YowInterfaceLayer):
     async def resetSync(self,params,options):        
         try:
             entity = AppSyncResetIqProtocolEntity()
-            result_dict = await self._sendIqAsync(entity)
-            if isinstance(result_dict["result"], ResultIqProtocolEntity):
-                self.logger.info("resetSync success")
-                return {
-                    "status": "ok"
-                }
-            else:
-                raise Exception(f"Unexpected response type: {type(result_dict['result'])}")
+            await self.toLower(entity)  
+            logger.info("resetSync ok")
         except Exception as e:
             logger.error(f"resetSync error: {e}")
             raise        
-
 
     def generateAppStateSyncKeys(self,n):
         profile = self.getStack().getProp("profile")        
