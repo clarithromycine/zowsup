@@ -21,6 +21,7 @@ Since the original yowsup project has not been maintained for a long time, we fo
  * telegram:  [zowsup](https://t.me/+au1dTQz7jyU0YjU5)
 
 ## What's New 0.7.0
+IMPORTANT NOTICE:  0.9.0 architecture is not compatible with 0.6.5, so if you have already work in 0.6.5, don't update,  you can track on old code from the branch "legacy"
  * **Asyncio command architecture** — all commands are now fully async (`async def execute()`), powered by `asyncio` event loop
  * **`AsyncCommandExec`** replaces the old threading-based command executor; login wait is non-blocking
  * **`BotCommand` base class** — unified base for every command module with built-in IQ helpers (`send_iq`, `send_iq_expect`), parameter helpers, and structured `success` / `fail` response builders
