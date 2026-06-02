@@ -879,24 +879,6 @@ class ZowBotLayer(YowInterfaceLayer):
         await self.toLower(entity)         
         self.bot.status = ZowBotStatus.STATUS_RUNNING   
 
-        # Start avatar polling background task (dashboard IPC)
-        if self._avatarTask is None or self._avatarTask.done():
-            try:
-                loop = asyncio.get_event_loop()
-                self._avatarTask = loop.create_task(_avatar_poll_task(self))
-                self.logger.debug("Avatar poll task scheduled")
-            except Exception as exc:
-                self.logger.debug("Could not schedule avatar poll task: %s", exc)
-
-        # Start send-queue polling background task (dashboard outgoing messages)
-        if getattr(self, "_sendQueueTask", None) is None or self._sendQueueTask.done():
-            try:
-                loop = asyncio.get_event_loop()
-                self._sendQueueTask = loop.create_task(_send_queue_poll_task(self))
-                self.logger.debug("Send queue poll task scheduled")
-            except Exception as exc:
-                self.logger.debug("Could not schedule send queue poll task: %s", exc)
-
         self.bot.lastOnlineTime = int(time.time()) 
 
         self.loginFailCount = 0
