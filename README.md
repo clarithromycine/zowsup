@@ -20,7 +20,7 @@ Since the original yowsup project has not been maintained for a long time, we fo
 ## Discussion Groups
  * telegram:  [zowsup](https://t.me/+au1dTQz7jyU0YjU5)
 
-## What's New 0.7.0
+## What's New 0.9.0
 IMPORTANT NOTICE:  0.9.0 architecture is not compatible with 0.6.5, so if you have already work in 0.6.5, don't update,  you can track on old code from the branch "legacy"
  * **Asyncio command architecture** — all commands are now fully async (`async def execute()`), powered by `asyncio` event loop
  * **`AsyncCommandExec`** replaces the old threading-based command executor; login wait is non-blocking
