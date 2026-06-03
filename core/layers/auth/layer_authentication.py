@@ -70,12 +70,10 @@ class YowAuthenticationProtocolLayer(YowProtocolLayer):
         if code=="515":
             await self.toUpper(nodeEntity)
             return
-
         
         errorType = nodeEntity.getErrorType()
 
         if not errorType and nodeEntity.code is None:
             raise NotImplementedError("Unhandled stream:error node:\n%s" % node)
                 
-
         await self.toUpper(nodeEntity)

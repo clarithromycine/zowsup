@@ -137,8 +137,7 @@ class WARequest:
 
         self.addParam("cc", config.cc)
         self.addParam("in", self._p_in)
-
-        #杩欓噷瑕佽窡闅忓畨鍗撶郴缁熺殑鍙傛暟锛屾墍浠ユ敼涓哄灞傚彲瑕嗙洊锛岃繖閲屽彧鏄粯璁ゅ€?
+        
         #lg,lc = Utils.getLGLC(config.cc)        
         self.addParam("lg", "en")
         self.addParam("lc", "US")
@@ -158,10 +157,6 @@ class WARequest:
         self.addParam("fdid", config.fdid)        
         self.addParam("expid", self.b64encode(config.expid,padding=False))
 
-        #self.addParam("fdid", "2cba8377-bd5e-442f-b136-b00342901770")        
-        #
-        #287c4658-d2e0-4fdc-a827-fe3baf4a9d6e
-        #self.addParam("expid", "tHSdE9EBSaeTXJFxYHqERw")        
 
                      
         self.addParam("rc", "0")
@@ -189,7 +184,7 @@ class WARequest:
             self.addParam(name,value)
 
     def addParam(self, name, value) -> Any:
-        self.removeParam(name)      #濡傛灉鏈夛紝灏卞厛鍒犻櫎
+        self.removeParam(name)      
         self.params.append((name, value))
 
     def getParam(self, name) -> Any:

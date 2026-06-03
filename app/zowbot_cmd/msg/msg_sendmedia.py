@@ -124,7 +124,7 @@ class Cmd_Msg_Sendmedia(BotSendCommand):
                     message_meta_attrs=MessageMetaAttributes(id=self.bot.idType,recipient= Jid.normalize(to))
                 )                                    
 
-            self.logger.info("Send Media %s Msg (ID=%s)" % (mediaType,entity.getId()))                
+            self.logger.info("Send Media {} Msg (ID={})".format(mediaType, entity.getId()))                
 
             self.bot.botLayer.ackQueue.append(entity.getId())
 

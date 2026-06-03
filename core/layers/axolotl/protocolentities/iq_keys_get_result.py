@@ -9,8 +9,6 @@ from axolotl.ecc.djbec import DjbECPublicKey
 import binascii
 import sys
 
-
-
 class ResultGetKeysIqProtocolEntity(ResultIqProtocolEntity):
     """
     <iq type="result" from="s.whatsapp.net" id="3">
