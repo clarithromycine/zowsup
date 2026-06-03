@@ -16,7 +16,6 @@ class IqProtocolEntity(ProtocolEntity):
     def __init__(self, xmlns = None, _id = None, _type = None, to = None, _from = None,target=None,smax_id=None) -> None:
         super().__init__("iq")
 
-        #assert _type in self.__class__.TYPES, "Iq of type %s is not implemented, can accept only (%s)" % (_type," | ".join(self.__class__.TYPES))
         assert not to or not _from, "Can't set from and to at the same time"
 
         if _id is None:

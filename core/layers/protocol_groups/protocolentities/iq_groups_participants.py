@@ -14,8 +14,6 @@ class ParticipantsGroupsIqProtocolEntity(GroupsIqProtocolEntity):
         self.setProps(group_jid = jid, participantList = participantList, mode = _mode)
 
     def setProps(self, group_jid, participantList, mode) -> Any:
-        #assert type(participantList) is list, "Must be a list of jids, got %s instead." % type(participantList)
-        #assert mode in self.modes, "Mode should be in: '" + "', '".join(self.modes) + "' but is '" + mode + "'"
         self.group_jid = group_jid
         self.participantList = participantList
         self.mode = mode
