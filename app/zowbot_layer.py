@@ -144,13 +144,7 @@ class ZowBotLayer(YowInterfaceLayer):
         self.loginFailCount = 0
         self.pairingStatus = None
         
-        # AI auto-reply service (Phase 1: Mock mode)
-        self.ai_service = None
-        # Dashboard DB path — set once CONFIG is loaded; used for direct message persistence
-        self._dashboard_db_path: "str | None" = None
 
-        # Satisfaction survey plugin (None until onSuccess)
-        self._satisfaction: SatisfactionPlugin | None = None
 
     async def _sendIqAsync(self, entity):
         """
@@ -295,11 +289,7 @@ class ZowBotLayer(YowInterfaceLayer):
 
         self.isConnected = False
 
-        if self._satisfaction:
-            self._satisfaction.stop()
 
-        if self.ai_service:
-            self.ai_service.cancel_retry_task()
                    
             
         if (not self.detect40x)  and (not self.getProp("USER_REQUEST_QUIT")) and self.loginFailCount<3 and (not self.bot.quitIfConflict):      
@@ -750,92 +740,6 @@ class ZowBotLayer(YowInterfaceLayer):
     def callback(self,event=None,message=None,messageStatus=None,cmdResult=None,modeResult=None):           
         self.bot.callback(event,message,messageStatus,cmdResult,modeResult)
 
-    def _load_ai_config(self) -> dict:
-        """Load AI configuration from config.conf."""
-        try:
-            # Get config.conf path
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            config_path = os.path.join(os.path.dirname(current_dir), 'conf', 'config.conf')
-            
-            if not os.path.exists(config_path):
-                self.logger.warning(f"config.conf not found at {config_path}, using defaults")
-                return {
-                    'ai_llm_active': {'enabled': True, 'backend': 'GLM'},
-                    'ai_llm_glm': {'auth_mode': 'apikey', 'api_key': '', 'model': 'glm-4-plus'}
-                }
-            
-            conf = configparser.ConfigParser()
-            conf.read(config_path, encoding='utf-8')
-            
-            ai_config = {
-                'ai_llm_active': {},
-                'ai_llm_glm': {},
-                'ai_llm_qwen': {},
-                'ai_memory': {},
-                'ai_retry': {},
-                'ai_filter': {}
-            }
-            
-            # Read AI_LLM_ACTIVE section
-            if conf.has_section('AI_LLM_ACTIVE'):
-                ai_config['ai_llm_active']['enabled'] = conf.getboolean('AI_LLM_ACTIVE', 'enabled', fallback=True)
-                ai_config['ai_llm_active']['backend'] = conf.get('AI_LLM_ACTIVE', 'backend', fallback='GLM').upper()
-            
-            # Read AI_LLM_GLM section  
-            if conf.has_section('AI_LLM_GLM'):
-                ai_config['ai_llm_glm']['model'] = conf.get('AI_LLM_GLM', 'model', fallback='glm-4-plus')
-                ai_config['ai_llm_glm']['auth_mode'] = conf.get('AI_LLM_GLM', 'auth_mode', fallback='apikey')
-                ai_config['ai_llm_glm']['api_key'] = conf.get('AI_LLM_GLM', 'api_key', fallback='')
-
-            # Read AI_LLM_QWEN section (NEW)
-            if conf.has_section('AI_LLM_QWEN'):
-                ai_config['ai_llm_qwen']['model'] = conf.get('AI_LLM_QWEN', 'model', fallback='qwen-plus')
-                ai_config['ai_llm_qwen']['auth_mode'] = conf.get('AI_LLM_QWEN', 'auth_mode', fallback='apikey')
-                ai_config['ai_llm_qwen']['api_key'] = conf.get('AI_LLM_QWEN', 'api_key', fallback='')
-            
-            # Read AI_MEMORY section
-            if conf.has_section('AI_MEMORY'):
-                ai_config['ai_memory']['memory_window_days'] = conf.getint('AI_MEMORY', 'memory_window_days', fallback=3)
-                ai_config['ai_memory']['cleanup_strategy'] = conf.get('AI_MEMORY', 'cleanup_strategy', fallback='first_daily_message')
-            
-            # Read AI_RETRY section
-            if conf.has_section('AI_RETRY'):
-                ai_config['ai_retry']['retry_delay_minutes'] = conf.getint('AI_RETRY', 'retry_delay_minutes', fallback=5)
-                ai_config['ai_retry']['max_retry_attempts'] = conf.getint('AI_RETRY', 'max_retry_attempts', fallback=1)
-                ai_config['ai_retry']['enabled'] = conf.getboolean('AI_RETRY', 'enabled', fallback=True)
-            
-            # Read AI_FILTER section
-            if conf.has_section('AI_FILTER'):
-                ai_config['ai_filter']['p2p_only'] = conf.getboolean('AI_FILTER', 'p2p_only', fallback=True)
-                ai_config['ai_filter']['skip_self_device'] = conf.getboolean('AI_FILTER', 'skip_self_device', fallback=True)
-
-            # Read AI_SATISFACTION section
-            if conf.has_section('AI_SATISFACTION'):
-                ai_config['ai_satisfaction'] = {
-                    'enabled': conf.getboolean('AI_SATISFACTION', 'enabled', fallback=False),
-                    'timeout_minutes': conf.getint('AI_SATISFACTION', 'timeout_minutes', fallback=30),
-                    'question_text': conf.get('AI_SATISFACTION', 'question_text',
-                        fallback='请问这次回答对您有帮助吗？请回复 1-5 分（1=很差，5=非常好）'),
-                    'thank_you_text': conf.get('AI_SATISFACTION', 'thank_you_text',
-                        fallback='感谢您的反馈！'),
-                }
-            else:
-                ai_config['ai_satisfaction'] = {'enabled': False, 'timeout_minutes': 30}
-
-            self.logger.debug(f"AI config loaded: {ai_config}")
-            return ai_config
-            
-        except Exception as e:
-            self.logger.error(f"Failed to load AI config: {e}", exc_info=True)
-            return {
-                'ai_llm_active': {'enabled': False, 'backend': 'GLM'},
-                'ai_llm_glm': {'auth_mode': 'apikey', 'api_key': '', 'model': 'glm-4-plus'},
-                'ai_llm_qwen': {'auth_mode': 'apikey', 'api_key': '', 'model': 'qwen-plus'},
-                'ai_memory': {'memory_window_days': 3, 'cleanup_strategy': 'first_daily_message'},
-                'ai_retry': {'retry_delay_minutes': 5, 'max_retry_attempts': 1, 'enabled': True},
-                'ai_filter': {'p2p_only': True, 'skip_self_device': True},
-                'ai_satisfaction': {'enabled': False, 'timeout_minutes': 30},
-            }
 
     @ProtocolEntityCallback("success")
     async def onSuccess(self, successProtocolEntity):      
@@ -1012,79 +916,6 @@ class ZowBotLayer(YowInterfaceLayer):
         # Always send read ack
         await self.toLower(messageProtocolEntity.ack(read=True))
     
-    async def _ai_send_response(self, user_jid: str, ai_response: str):
-        """
-        Send AI response to user (used by retry manager).
-        
-        Args:
-            user_jid: Normalized user JID (e.g., "248846345101511@s.whatsapp.net")
-            ai_response: AI generated response text
-        """
-        try:
-            from core.layers.protocol_messages.protocolentities.message_extendedtext import ExtendedTextMessageProtocolEntity
-            from core.layers.protocol_messages.protocolentities.attributes.attributes_message_meta import MessageMetaAttributes
-            from core.layers.protocol_messages.protocolentities.attributes.attributes_extendedtext import ExtendedTextAttributes
-            
-            # Create response message attributes
-            attr = ExtendedTextAttributes(
-                text=ai_response,
-                preview_type=0
-            )
-            
-            # Create response message entity
-            response_entity = ExtendedTextMessageProtocolEntity(
-                attr,
-                MessageMetaAttributes(
-                    id=self.bot.idType,
-                    recipient=Jid.normalize(user_jid),
-                    timestamp=int(time.time())
-                )
-            )
-            
-            self.bot.botLayer.ackQueue.append(response_entity.getId())
-            self.logger.info(f"Sending AI retry response to {user_jid}")
-            await self.toLower(response_entity)
-            
-        except Exception as send_err:
-            self.logger.error(f"Failed to send AI retry response to {user_jid}: {send_err}", exc_info=True)
-
-
-    def _update_group_member_last_seen(self, group_jid: str, participant: str) -> None:
-        """
-        Stamp group_members.last_seen for the participant who just sent a message.
-
-        In LID-mode groups the incoming participant identifier ends with ``@lid``
-        (e.g. ``38097098133757@lid``).  In that case we match against the stored
-        ``participant_lid`` column.  For normal groups we match ``participant_jid``.
-        """
-        db_path = self._dashboard_db_path
-        if not db_path or not participant:
-            return
-        try:
-            import sqlite3 as _sqlite3
-            import time as _time
-            now = int(_time.time())
-            conn = _sqlite3.connect(db_path, timeout=5)
-            try:
-                conn.execute("PRAGMA journal_mode=WAL")
-                if participant.endswith("@lid"):
-                    conn.execute(
-                        "UPDATE group_members SET last_seen = ? "
-                        "WHERE group_jid = ? AND participant_lid = ?",
-                        (now, group_jid, participant),
-                    )
-                else:
-                    conn.execute(
-                        "UPDATE group_members SET last_seen = ? "
-                        "WHERE group_jid = ? AND participant_jid = ?",
-                        (now, group_jid, participant),
-                    )
-                conn.commit()
-            finally:
-                conn.close()
-        except Exception as exc:
-            self.logger.debug("group_members last_seen update failed: %s", exc)
-
     def _parse_jid_and_lid(self, messageProtocolEntity):
         """
         Parse and extract JID and LID from messageProtocolEntity.
@@ -1226,63 +1057,8 @@ class ZowBotLayer(YowInterfaceLayer):
         # Send message acks with probabilistic behavior
         await self._async_send_message_acks(messageProtocolEntity)        
         
-        # Satisfaction plugin: intercept 1-5 rating replies before AI processing
-        # Must run before _save_msg_to_dashboard so survey replies are NOT recorded in chat history
-        if text and not messageProtocolEntity.fromme and self._satisfaction:
-            if await self._satisfaction.intercept(jid, text):
-                return
 
-        # Persist messages: either to local dashboard.db (DASHBOARD_MODE) or forward
-        # to backend server via HTTP (AGENT_MODE).  The two are mutually exclusive.
-        if text and (self._dashboard_db_path or os.environ.get("AGENT_MODE")):            
-            direction = "out" if messageProtocolEntity.fromme else "in"
-            participant = messageProtocolEntity.getParticipant() or None
-            notify = messageProtocolEntity.getNotify() or None
-            # Fix UTF-8 mojibake: protocol may deliver UTF-8 bytes decoded as
-            # Latin-1, producing Ð© sequences (same issue as group subject).
-            if notify:
-                try:
-                    notify = notify.encode("latin-1").decode("utf-8")
-                except (UnicodeEncodeError, UnicodeDecodeError):
-                    pass  # already valid Unicode
-            # Download media to disk for displayable types
-            db_message_type = "text"
-            media_path: str | None = None
-            _DOWNLOADABLE = (
-                ImageDownloadableMediaMessageProtocolEntity,
-                VideoDownloadableMediaMessageProtocolEntity,
-                AudioDownloadableMediaMessageProtocolEntity,
-                DocumentDownloadableMediaMessageProtocolEntity,
-                StickerDownloadableMediaMessageProtocolEntity,
-            )
-            if isinstance(messageProtocolEntity, _DOWNLOADABLE):
-                # Use __class__ because the local 'type' variable is shadowed by
-                # _parse_message_type's return value (a protobuf int enum).
-                _cls = messageProtocolEntity.__class__
-                _type_map = {
-                    ImageDownloadableMediaMessageProtocolEntity: "IMAGE",
-                    VideoDownloadableMediaMessageProtocolEntity: "VIDEO",
-                    AudioDownloadableMediaMessageProtocolEntity: "AUDIO",
-                    DocumentDownloadableMediaMessageProtocolEntity: "DOCUMENT",
-                    StickerDownloadableMediaMessageProtocolEntity: "STICKER",
-                }
-                db_message_type = _type_map.get(_cls, "IMAGE")
-                try:
-                    # Use entity-level properties (.url/.media_key/.mimetype) which are
-                    # proxied from downloadablemedia_specific_attributes, not media_specific_attributes.
-                    media_path = self.download({
-                        "url": messageProtocolEntity.url,
-                        "filename": messageProtocolEntity.getId(),
-                        "type": db_message_type,
-                        "media_key": messageProtocolEntity.media_key,
-                        "mimetype": messageProtocolEntity.mimetype,
-                    })
-                except Exception as dl_exc:
-                    self.logger.warning("Media download failed for %s: %s", jid, dl_exc)
-            self._save_msg_to_dashboard(jid, direction, text, message_type=db_message_type, participant=participant, notify=notify, media_path=media_path)
-            # Update last_seen for group messages (participant is the sender's JID or LID)
-            if participant and jid.endswith("@g.us"):
-                self._update_group_member_last_seen(jid, participant)
+
                                                                 
     @ProtocolEntityCallback("receipt")
     async def onReceipt(self, entity):
