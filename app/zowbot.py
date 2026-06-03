@@ -168,12 +168,12 @@ class ZowBot:
         if self.upperCallback is not None:
             try:
                 loop = asyncio.get_running_loop()
-                # In event loop �� offload blocking HTTP callback to thread pool
+
                 future = loop.run_in_executor(None, lambda: self.upperCallback(
                     event=event,message=message,messageStatus=messageStatus,
                     cmdResult=cmdResult,modeResult=modeResult,cbId=self.botId
                 ))
-                # Add exception handler to prevent "Future exception was never retrieved"
+                                
                 def _handle_callback_exception(f):
                     try:
                         result = f.result()
@@ -192,8 +192,7 @@ class ZowBot:
                     except Exception as e:
                         self.logger.error(f"Callback error: {e}", exc_info=True)
                 future.add_done_callback(_handle_callback_exception)
-            except RuntimeError:
-                # Not in event loop �� call directly
+            except RuntimeError:                
                 self.upperCallback(event=event,message=message,messageStatus=messageStatus,
                                    cmdResult=cmdResult,modeResult=modeResult,cbId=self.botId)
 

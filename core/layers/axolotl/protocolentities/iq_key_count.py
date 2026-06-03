@@ -4,7 +4,6 @@ from ....layers.protocol_iq.protocolentities import IqProtocolEntity
 from ....structs import ProtocolTreeNode
 from ....layers.protocol_iq.protocolentities import ResultIqProtocolEntity
 
-
 class GetKeysCountIqProtocolEntity(IqProtocolEntity):
     def __init__(self) -> None:
         super().__init__("encrypt", _type="get", to=YowConstants.WHATSAPP_SERVER)
@@ -26,7 +25,6 @@ class ResultKeyCountIqProtocolEntity(ResultIqProtocolEntity):
     def __init__(self,_id,count) -> None:
         super().__init__(_id = _id, _type = "result", _from = YowConstants.DOMAIN)
         self.count = int(count)
-
 
     def __str__(self):
         out = super().__str__()

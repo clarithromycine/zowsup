@@ -3,8 +3,7 @@ from typing import Optional, Any, List, Dict, Union
 from .notification import NotificationProtocolEntity
 class StatusNotificationProtocolEntity(NotificationProtocolEntity):
     '''
-    <notification offline="0" id="{{NOTIFICATION_ID}}" notify="{{NOTIFY_NAME}}" type="status" 
-            t="{{TIMESTAMP}}" from="{{SENDER_JID}}">
+    <notification offline="0" id="{{NOTIFICATION_ID}}" notify="{{NOTIFY_NAME}}" type="status" t="{{TIMESTAMP}}" from="{{SENDER_JID}}">
         <set>
             {{STATUS}}
         </set>
