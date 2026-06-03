@@ -1399,8 +1399,7 @@ class ZowBotLayer(YowInterfaceLayer):
         result = await self._sendIqAsync(entity)
         print(result)
 
-        result_entity = result.get("result")
-        #print(result_entity.__class__.__name__)
+        result_entity = result.get("result")        
         if isinstance(result_entity, PushGetCatResultIqProtocolEntity):
             profile = self.getStack().getProp("profile")
             profile.config.fcm_cat = base64.b64encode(result_entity.catData)

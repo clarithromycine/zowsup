@@ -8,6 +8,7 @@ dissononce
 tlslite-ng==0.8.0b3
 betterproto
 cffi
+transitions
 python-axolotl-curve25519
 
 # ===== Network & Security =====
