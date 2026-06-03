@@ -507,23 +507,7 @@ class Utils:
         })
         Utils.exit(0)        
     
-    @staticmethod
-    def getDeviceEnvByInfo(info) -> Any:
 
-        if info is not None and "regType" in info:
-            if "osType" not in info:
-                info["osType"]=2
-
-            if info["regType"]==1:
-                if info["osType"]==1:
-                    return DeviceEnv("android",random=True)
-                if info["osType"]==2:
-                    return DeviceEnv("ios",random=True)                
-            else:
-                if info["osType"]==1:
-                    return DeviceEnv("smb_android",random=True)
-                if info["osType"]==2:
-                    return DeviceEnv("smb_ios",random=True) 
                        
     @staticmethod           
     def profile2Channel(config,db) -> Any:

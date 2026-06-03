@@ -60,7 +60,7 @@ class Main(ConsoleMain):
                 else:
                     pass  
 
-            logger.info("ENV={}, BotId={}, RegType={}".format(self.env.deviceEnv.getOSName(), botId, info["regType"] if info is not None else "1"))                
+            logger.info("ENV={}, BotId={}".format(self.env.deviceEnv.getOSName(), botId))                
 
 
  

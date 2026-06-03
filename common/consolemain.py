@@ -24,10 +24,7 @@ class ConsoleMain:
         
     def init_log(self,level,name) -> Any:
         Utils.init_log(level,name)    
-                    
-    def setDefaultEnvByInfo(self,info) -> Any:
-        self.env.deviceEnv = Utils.getDeviceEnvByInfo(info)
-            
+                                
     def commonOptionsProcess(self,options) -> Any:
                 
         if options is None:
