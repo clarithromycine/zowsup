@@ -114,7 +114,7 @@ class Utils:
     def outputResult(obj) -> Any:
         #被特殊字符包裹的结果
         Utils._OUTPUT.append(obj)  
-        logger.info("@@@@@{\"result\":%s}@@@@@" % json.dumps(obj))
+        logger.info("@@@@@{\"result\":}@@@@@" % json.dumps(obj))
 
     @staticmethod
     def normalize_jid(jid_str: str) -> str:
@@ -513,12 +513,12 @@ class Utils:
     def profile2Channel(config,db) -> Any:
 
         kp = config.client_static_keypair
-        pk1 = str(base64.b64encode(kp.public.data),"UTF-8")
-        sk1 = str(base64.b64encode(kp.private.data),"UTF-8")        
-        pk2 = str(base64.b64encode(db.identity.publicKey.serialize()[1:]),'UTF-8')
-        sk2 = str(base64.b64encode(db.identity.privateKey.serialize()),'UTF-8') 
+        pk1 = Utils.b64str(kp.public.data)
+        sk1 = Utils.b64str(kp.private.data)        
+        pk2 = Utils.b64str(db.identity.publicKey.serialize()[1:])
+        sk2 = Utils.b64str(db.identity.privateKey.serialize())
 
-        sixth = str(base64.b64encode(config.phone.encode()+b"#"+config.id),"UTF-8")
+        sixth = Utils.b64str(config.phone.encode()+b"#"+config.id)
         return f"{config.phone},{pk1},{sk1},{pk2},{sk2},{sixth}"
     
     @staticmethod
@@ -535,11 +535,11 @@ class Utils:
             "config": json.loads(str(config)),
             "db": {
                 "regid":db.registration_id,                
-                "pk2":str(base64.b64encode(db.identity.publicKey.serialize()[1:]),'UTF-8'),
-                "sk2":str(base64.b64encode(db.identity.privateKey.serialize()),'UTF-8'),
+                "pk2":Utils.b64str(db.identity.publicKey.serialize()[1:]),
+                "sk2":Utils.b64str(db.identity.privateKey.serialize()),
                 "spkid":signedprekey.getId(),        
                 "spkts":signedprekey.getTimestamp(),
-                "spkrecord":str(base64.b64encode(signedprekey.serialize()),'UTF-8')                
+                "spkrecord":Utils.b64str(signedprekey.serialize())                
             }
         }
     @staticmethod
@@ -582,9 +582,6 @@ class Utils:
         db._store.signedPreKeyStore.storeSignedPreKey(prekey_id,record) 
         db._store.signedPreKeyStore.dbConn.commit()
 
-      
-    
-
     @staticmethod
     def vnamePayload(name,privateKey) -> Any:
         
@@ -598,6 +595,12 @@ class Utils:
 
         return payload
     
+    
+    @staticmethod
+    def b64str(data) -> str:
+        return str(base64.b64encode(data),"UTF-8")
+    
+
 
 
 

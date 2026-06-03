@@ -24,10 +24,10 @@ class SenderKeyMessage(CiphertextMessage):
                 signature = messageParts[2]
 
                 if ByteUtil.highBitsToInt(version) < 3:
-                    raise LegacyMessageException("Legacy message: %s" % ByteUtil.highBitsToInt(version))
+                    raise LegacyMessageException("Legacy message: {}".format(ByteUtil.highBitsToInt(version)))
 
                 if ByteUtil.highBitsToInt(version) > self.__class__.CURRENT_VERSION:
-                    raise InvalidMessageException("Unknown version: %s" % ByteUtil.highBitsToInt(version))
+                    raise InvalidMessageException("Unknown version: {}".format(ByteUtil.highBitsToInt(version)))
 
                 senderKeyMessage = whisperprotos.SenderKeyMessage()
                 senderKeyMessage.ParseFromString(message)

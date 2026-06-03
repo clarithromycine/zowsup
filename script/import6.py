@@ -35,8 +35,6 @@ class Import6(ConsoleMain):
             sys.exit(1)
 
         auto = ("auto" in options)
-
-
         
         data = params[0].split(",")
 
@@ -92,8 +90,8 @@ class Import6(ConsoleMain):
         c.execute(q, (pubKey,privKey))
         db._store.identityKeyStore.dbConn.commit()        
         jsonstr = DictJsonTransform().transform(ConfigSerialize(config.__class__).serialize(config))
-        publicKey = str(base64.b64encode(pubKey),'UTF-8')
-        privateKey = str(base64.b64encode(privKey),'UTF-8')   
+        publicKey = Utils.b64str(pubKey)
+        privateKey = Utils.b64str(privKey)   
         logger.info("===PART1-REGKEYS===")
         logger.info(db.registration_id)
         logger.info(publicKey)  

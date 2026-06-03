@@ -39,8 +39,7 @@ class YowMessagesProtocolLayer(YowProtocolLayer):
         protoNode = node.getChild("proto")                                
         if protoNode is None :
             return
-        
-        
+                
         if node.getAttributeValue("type")=="reaction":
             entity = ReactionMessageProtocolEntity.fromProtocolTreeNode(node)
             await self.toUpper(entity)
@@ -48,8 +47,7 @@ class YowMessagesProtocolLayer(YowProtocolLayer):
         elif node.getAttributeValue("type")=="poll":                               
             entity = PollUpdateMessageProtocolEntity.fromProtocolTreeNode(node,message_db = self.getStack().getProp("profile").axolotl_manager )
             await self.toUpper(entity)
-            
- 
+             
         elif node.getAttributeValue("type")=="text":                       
             entity = TextMessageProtocolEntity.fromProtocolTreeNode(node)                                  
             await self.toUpper(entity)

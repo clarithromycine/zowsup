@@ -44,7 +44,7 @@ class GroupCipher:
         try:
             record = self.senderKeyStore.loadSenderKey(self.senderKeyName)
             if record.isEmpty():
-                raise NoSessionException("No sender key for: %s" % self.senderKeyName)
+                raise NoSessionException("No sender key for: {}".format(self.senderKeyName))
             senderKeyMessage = SenderKeyMessage(serialized = bytes(senderKeyMessageBytes))
             senderKeyState = record.getSenderKeyState(senderKeyMessage.getKeyId())
 
@@ -67,8 +67,7 @@ class GroupCipher:
             if senderKeyState.hasSenderMessageKey(iteration):
                 return senderKeyState.removeSenderMessageKey(iteration)
             else:
-                raise DuplicateMessageException("Received message with old counter: %s, %s" %
-                                                (senderChainKey.getIteration(), iteration))
+                raise DuplicateMessageException("Received message with old counter: {}, {}".format(senderChainKey.getIteration(), iteration))
 
         if senderChainKey.getIteration() - iteration > 2000:
             raise InvalidMessageException("Over 2000 messages into the future!")

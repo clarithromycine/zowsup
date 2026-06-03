@@ -8,7 +8,7 @@ class ArgoArrayWireType :
         self.type = type
 
     def __str__(self) -> Any:
-        return "ArgoArrayWireType(of=%s)" % (self.type)
+        return "ArgoArrayWireType(of={})".format(self.type)
     
 
     

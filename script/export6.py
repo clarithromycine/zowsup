@@ -22,12 +22,12 @@ class Export6(ConsoleMain):
             config_manager = ConfigManager()
             config = config_manager.load(SysVar.ACCOUNT_PATH+number)
             kp = config.client_static_keypair
-            pk1 = str(base64.b64encode(kp.public.data),"UTF-8")
-            sk1 = str(base64.b64encode(kp.private.data),"UTF-8")
+            pk1 = Utils.b64str(kp.public.data)
+            sk1 = Utils.b64str(kp.private.data)
             db = AxolotlManagerFactory().get_manager(SysVar.ACCOUNT_PATH+number,number)
-            pk2 = str(base64.b64encode(db.identity.publicKey.serialize()[1:]),'UTF-8')
-            sk2 = str(base64.b64encode(db.identity.privateKey.serialize()),'UTF-8') 
-            sixth = str(base64.b64encode(config.phone.encode()+b"#"+config.id),"UTF-8")
+            pk2 = Utils.b64str(db.identity.publicKey.serialize()[1:])
+            sk2 = Utils.b64str(db.identity.privateKey.serialize())
+            sixth = Utils.b64str(config.phone.encode()+b"#"+config.id)
             
             print("{},{},{},{},{},{}".format(config.phone,pk1,sk1,pk2,sk2,sixth))
 

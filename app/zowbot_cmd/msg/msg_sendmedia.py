@@ -71,7 +71,7 @@ class Cmd_Msg_Sendmedia(BotSendCommand):
 
         mediaType = params[1]
         if not mediaType in ["image","video","audio","document"]:
-            self.logger.info("sendmedia type %s is not supported now" % mediaType)
+            self.logger.info("sendmedia type {} is not supported now".format(mediaType))
             return 
 
         try:
@@ -124,7 +124,7 @@ class Cmd_Msg_Sendmedia(BotSendCommand):
                     message_meta_attrs=MessageMetaAttributes(id=self.bot.idType,recipient= Jid.normalize(to))
                 )                                    
 
-            self.logger.info("Send Media %s Msg (ID=%s)" % (mediaType,entity.getId()))                
+            self.logger.info("Send Media {} Msg (ID={})".format(mediaType, entity.getId()))                
 
             self.bot.botLayer.ackQueue.append(entity.getId())
 

@@ -8,7 +8,7 @@ class Jid:
             return Jid.unpackHex(n2)
         if n == 255:
             return Jid.unpackNibble(n2)
-        raise ValueError("bad packed type %s" % n)
+        raise ValueError("bad packed type {}".format(n))
 
     @staticmethod
     def unpackHex(n):

@@ -71,15 +71,15 @@ class RegWithCode(ConsoleMain):
                 kp = config.client_static_keypair
                 lg,lc = Utils.getLGLC(config.cc)
 
-                publicKey = str(base64.b64encode(db.identity.publicKey.serialize()),'UTF-8')
-                privateKey = str(base64.b64encode(db.identity.privateKey.serialize()),'UTF-8')               
+                publicKey = Utils.b64str(db.identity.publicKey.serialize())
+                privateKey = Utils.b64str(db.identity.privateKey.serialize())                 
                 jsonstr = DictJsonTransform().transform(ConfigSerialize(config.__class__).serialize(config))  
 
                 fullData = {
                     "jid":config.phone,
                     "registrationID":db.registration_id,
-                    "identityPublicKey":str(base64.b64encode(db.identity.publicKey.serialize()[1:]),'UTF-8').replace("/","\\/"),
-                    "identityPrivateKey":str(base64.b64encode(db.identity.privateKey.serialize()),'UTF-8').replace("/","\\/"),
+                    "identityPublicKey":Utils.b64str(db.identity.publicKey.serialize()[1:]),
+                    "identityPrivateKey":Utils.b64str(db.identity.privateKey.serialize()),
                     "phoneUUID":config.fdid,
                     "deviceUUID":str(uuid.UUID(int=int.from_bytes(config.expid, 'little'))),
                     "osVersion":self.env.deviceEnv.getOSVersion(),
@@ -94,12 +94,12 @@ class RegWithCode(ConsoleMain):
                     "country":lc,
                     "cc":config.cc,
                     "in":config.phone[len(config.cc):],
-                    "clientStaticPrivateKey":str(base64.b64encode(kp.private.data),"UTF-8").replace("/","\\/"),
-                    "clientStaticPublicKey":str(base64.b64encode(kp.public.data),"UTF-8").replace("/","\\/"),
+                    "clientStaticPrivateKey":Utils.b64str(kp.private.data).replace("/","\\/"),
+                    "clientStaticPublicKey":Utils.b64str(kp.public.data).replace("/","\\/"),
                     "signPreKeyID":signedprekey.getId(),
-                    "signPreKeyPublicKey":str(base64.b64encode(signedprekey.getKeyPair().publicKey.serialize()[1:]),"UTF-8").replace("/","\\/"),
-                    "signPreKeyPrivateKey":str(base64.b64encode(signedprekey.getKeyPair().privateKey.serialize()),"UTF-8").replace("/","\\/"),
-                    "signPreKeySignature":str(base64.b64encode(signedprekey.getSignature()),"UTF-8").replace("/","\\/"),
+                    "signPreKeyPublicKey":Utils.b64str(signedprekey.getKeyPair().publicKey.serialize()[1:]).replace("/","\\/"),
+                    "signPreKeyPrivateKey":Utils.b64str(signedprekey.getKeyPair().privateKey.serialize()).replace("/","\\/"),
+                    "signPreKeySignature":Utils.b64str(signedprekey.getSignature()).replace("/","\\/"),
                     "whatsappVersion":self.env.deviceEnv.getVersion()
                 }
 

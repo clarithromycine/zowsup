@@ -48,7 +48,7 @@ class Cmd_Md_Link(BotCommand):
             logger.info(f"Device paired: {companionJid}")            
             return self.success(
                 deviceJid = result.deviceJid,
-                companionProps = base64.b64encode(result.companionProps).decode('utf-8')
+                companionProps = Utils.b64str(result.companionProps)
             )
                 
         except Exception as e:

@@ -3,7 +3,6 @@ from typing import Optional, Any, List, Dict, Union
 from ....layers.protocol_iq.protocolentities import IqProtocolEntity
 from ....structs import ProtocolTreeNode
 
-
 class GetKeysIqProtocolEntity(IqProtocolEntity):
     def __init__(self, jids, reason=None,_id=None) -> None:
         super().__init__("encrypt", _type="get", to=YowConstants.WHATSAPP_SERVER,_id=_id)

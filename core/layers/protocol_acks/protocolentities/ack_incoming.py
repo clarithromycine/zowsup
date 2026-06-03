@@ -33,9 +33,9 @@ class IncomingAckProtocolEntity(AckProtocolEntity):
 
     def __str__(self):
         out  = super().__str__()
-        out += "From: %s\n" % self._from
-        out += "Timestamp: %s\n" % self.timestamp
-        out += "Participant: %s\n" % self.participant
+        out += "From: {}\n".format(self._from)
+        out += "Timestamp: {}\n".format(self.timestamp)
+        out += "Participant: {}\n".format(self.participant)
         return out
     
     def ack(self) -> Any:

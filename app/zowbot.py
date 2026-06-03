@@ -113,9 +113,6 @@ class ZowBot:
         self.upperCallback = None        
         self._exit_code = None  # For graceful exit from callback (None = no exit requested)
 
-        self.creationTs = None
-        self.lastRegTs = None
-
         self.lastOnlineTime = None        
         
         if self.bot_type==ZowBotType.TYPE_REG_COMPANION_SCANQR or self.bot_type==ZowBotType.TYPE_REG_COMPANION_LINKCODE:                        
@@ -152,7 +149,7 @@ class ZowBot:
             if event.get("detail") is not None:
                 self.logger.info("Event {}, detail={}".format(zowsup_pb2.BotEvent.Event.Name(event["event"]),json.dumps(event["detail"])))                    
             else:
-                self.logger.info("Event %s" % zowsup_pb2.BotEvent.Event.Name(event["event"]))
+                self.logger.info("Event {}".format(zowsup_pb2.BotEvent.Event.Name(event["event"])))
             
                                 
         if message is not None:            
@@ -168,12 +165,12 @@ class ZowBot:
         if self.upperCallback is not None:
             try:
                 loop = asyncio.get_running_loop()
-                # In event loop �� offload blocking HTTP callback to thread pool
+
                 future = loop.run_in_executor(None, lambda: self.upperCallback(
                     event=event,message=message,messageStatus=messageStatus,
                     cmdResult=cmdResult,modeResult=modeResult,cbId=self.botId
                 ))
-                # Add exception handler to prevent "Future exception was never retrieved"
+
                 def _handle_callback_exception(f):
                     try:
                         result = f.result()
@@ -192,8 +189,7 @@ class ZowBot:
                     except Exception as e:
                         self.logger.error(f"Callback error: {e}", exc_info=True)
                 future.add_done_callback(_handle_callback_exception)
-            except RuntimeError:
-                # Not in event loop �� call directly
+            except RuntimeError:                
                 self.upperCallback(event=event,message=message,messageStatus=messageStatus,
                                    cmdResult=cmdResult,modeResult=modeResult,cbId=self.botId)
 
@@ -415,7 +411,7 @@ class ZowBot:
         self.disconnect()
 
     def setMode(self,mode,upperCallback=None):
-        self.botLayer.setProp(mode,True)  #HC_MODE,BC_MODE,TRANSFER6_MODE
+        self.botLayer.setProp(mode,True)  #HC_MODE,TRANSFER6_MODE
         self.upperCallback = upperCallback       
 
     def callDirectCompat(self, name, params, options, timeout=20):
@@ -431,7 +427,7 @@ class ZowBot:
         try:
             fn = self.cmdList[name] if name in self.cmdList else None
             if fn is None:
-                logger.info("command %s not found" % name)
+                logger.info("command {} not found".format(name))
                 return None, {"code": -2, "msg": "Command Not Found"}
             
             try:

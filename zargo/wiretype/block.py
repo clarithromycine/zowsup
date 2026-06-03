@@ -10,7 +10,7 @@ class ArgoBlockWireType :
         self.dedupe = dedupe
 
     def __str__(self) -> Any:
-        return "ArgoBlockWireType(of=%s, key=%s, dedupe=%s)" % (self.wireType,self.key,str(self.dedupe))
+        return "ArgoBlockWireType(of={}, key={}, dedupe={})".format(self.wireType, self.key, self.dedupe)
     
 
     

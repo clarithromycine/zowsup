@@ -4,7 +4,7 @@ from .notification import NotificationProtocolEntity
 class ServerPushConfigNotificationProtocolEntity(NotificationProtocolEntity):
     '''
     <notification from="s.whatsapp.net" type="server" id="3013524925" t="1762336050">
-    <push-config />
+        <push-config />
     </notification>
     '''
 

@@ -34,7 +34,6 @@ class EncProtocolEntity(ProtocolEntity):
     def getJid(self) -> Any:
         return self.jid
     
-
     def getCount(self) -> Any:
         return self.count
 

@@ -28,7 +28,7 @@ class SenderKeyRecord:
             for state in self.senderKeyStates:
                 if state.getKeyId() == keyId:
                     return state
-            raise InvalidKeyIdException("No keys for: %s" % keyId)
+            raise InvalidKeyIdException("No keys for: {}".format(keyId))
 
     def addSenderKeyState(self, id, iteration, chainKey, signatureKey):
         """

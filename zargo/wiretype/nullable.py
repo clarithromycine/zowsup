@@ -8,7 +8,7 @@ class ArgoNullableWireType :
         self.inner = inner
 
     def __str__(self) -> Any:
-        return "ArgoNullableWireType(inner=%s)" % (self.inner)
+        return "ArgoNullableWireType(inner={})".format(self.inner)
     
 
 

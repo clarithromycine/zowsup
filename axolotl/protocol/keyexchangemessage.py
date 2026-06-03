@@ -32,9 +32,9 @@ class KeyExchangeMessage:
                 self.version = ByteUtil.highBitsToInt(parts[0][0])
                 self.supportedVersion = ByteUtil.lowBitsToInt(parts[0][0])
                 if self.version < CiphertextMessage.CURRENT_VERSION:
-                    raise LegacyMessageException("Unsupportmessageed legacy version: %s" % self.version)
+                    raise LegacyMessageException("Unsupportmessageed legacy version: {}".format(self.version))
                 if self.version > CiphertextMessage.CURRENT_VERSION:
-                    raise InvalidVersionException("Unkown version: %s" % self.version)
+                    raise InvalidVersionException("Unkown version: {}".format(self.version))
                 message = whisperprotos.KeyExchangeMessage()
                 message.ParseFromString(bytes(parts[1]))
 

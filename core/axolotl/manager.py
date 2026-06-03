@@ -68,17 +68,17 @@ class AxolotlManager:
         return ret
 
     def level_prekeys(self, force=False) -> None:
-        logger.debug("level_prekeys(force=%s)" % force)
+        logger.debug("level_prekeys(force={})".format(force))
         len_pending_prekeys = len(self._store.loadPendingPreKeys())
-        logger.debug("len(pending_prekeys) = %d" % len_pending_prekeys)
+        logger.debug("len(pending_prekeys) = {}".format(len_pending_prekeys))
         
         
         if force or len_pending_prekeys < self.THRESHOLD_REGEN:
             count_gen = self.COUNT_GEN_PREKEYS
             max_prekey_id = self._store.preKeyStore.loadMaxPreKeyId()
-            logger.info("Generating %d prekeys, current max_prekey_id=%d" % (count_gen, max_prekey_id))
+            logger.info("Generating {} prekeys, current max_prekey_id={}".format(count_gen, max_prekey_id))
             prekeys = KeyHelper.generatePreKeys(max_prekey_id + 1, count_gen)
-            logger.info("Storing %d prekeys" % len(prekeys))
+            logger.info("Storing {} prekeys".format(len(prekeys)))
             
             # Batch store prekeys for better performance (single database commit)
             prekey_records = [(key.getId(), key) for key in prekeys]
@@ -94,7 +94,7 @@ class AxolotlManager:
         logger.debug("load_unsent_prekeys")
         unsent = self._store.preKeyStore.loadUnsentPendingPreKeys()
         if len(unsent) > 0:
-            logger.info("Loaded %d unsent prekeys" % len(unsent))
+            logger.info("Loaded {} unsent prekeys".format(len(unsent)))
         return unsent
 
     def set_prekeys_as_sent(self, prekeyIds) -> None:
@@ -104,7 +104,7 @@ class AxolotlManager:
         :return:
         :rtype:
         """
-        logger.debug("set_prekeys_as_sent(prekeyIds=[%d prekeyIds])" % len(prekeyIds))
+        logger.debug("set_prekeys_as_sent(prekeyIds=[{} prekeyIds])".format(len(prekeyIds)))
         self._store.preKeyStore.setAsSent([prekey.getId() for prekey in prekeyIds])
 
     def generate_signed_prekey(self) -> Any:
@@ -130,8 +130,8 @@ class AxolotlManager:
         return self.generate_signed_prekey() if generate else None
     
     def _get_session_cipher(self, recipientId,recipientType,deviceid=0):        
-        key = "%s.%d:%d" % (recipientId,recipientType,deviceid)        
-        logger.debug("get_session_cipher(username=%s)" % key)
+        key = "{}.{}:{}".format(recipientId,recipientType,deviceid)        
+        logger.debug("get_session_cipher(username={})".format(key))
         if key in self._session_ciphers:
             session_cipher = self._session_ciphers[key]
         else:                        
@@ -140,7 +140,7 @@ class AxolotlManager:
         return session_cipher
 
     def _get_group_cipher(self, groupid, username):
-        logger.debug(f"get_group_cipher(groupid={groupid}, username={username})")
+        logger.debug("get_group_cipher(groupid={}, username={})".format(groupid, username)  )
         senderkeyname = SenderKeyName(groupid, AxolotlAddress(username, 0))
         if senderkeyname in self._group_ciphers:
             group_cipher = self._group_ciphers[senderkeyname]
@@ -226,12 +226,12 @@ class AxolotlManager:
         # to avoid the hassle of encoding issues and associated unnecessary crashes,
         # don't log the message content.
         # see https://github.com/tgalal/yowsup/issues/2732
-        logger.debug("group_encrypt(groupid=%s, message=[omitted])" % groupid)
+        logger.debug("group_encrypt(groupid={}, message=[omitted])".format(groupid))
         group_cipher = self._get_group_cipher(groupid, self._username)
         return group_cipher.encrypt(message + self._generate_random_padding())
 
     def group_decrypt(self, groupid, participantid, data):
-        logger.debug(f"group_decrypt(groupid={groupid}, participantid={participantid}, data=[omitted])")
+        logger.debug("group_decrypt(groupid={}, participantid={}, data=[omitted])".format(groupid, participantid))
         group_cipher = self._get_group_cipher(groupid, participantid)
         try:
             plaintext = group_cipher.decrypt(data)
@@ -245,7 +245,7 @@ class AxolotlManager:
             raise exceptions.InvalidMessageException()
 
     def group_create_skmsg(self, groupid):
-        logger.debug("group_create_skmsg(groupid=%s)" % groupid)
+        logger.debug("group_create_skmsg(groupid={})".format(groupid))
         senderKeyName = SenderKeyName(groupid, AxolotlAddress(self._username, 0))
         return self._group_session_builder.create(senderKeyName)
 
@@ -260,8 +260,8 @@ class AxolotlManager:
         :return:
         :rtype:
         """
-        logger.debug("group_create_session(groupid=%s, participantid=%s, skmsgdata=[omitted])"
-                     % (groupid, participantid))
+        logger.debug("group_create_session(groupid={}, participantid={}, skmsgdata=[omitted])"
+                     .format(groupid, participantid))
         senderKeyName = SenderKeyName(groupid, AxolotlAddress(participantid, 0))
         senderkeydistributionmessage = SenderKeyDistributionMessage(serialized=skmsgdata)
         self._group_session_builder.process(senderKeyName, senderkeydistributionmessage)
@@ -275,7 +275,7 @@ class AxolotlManager:
         :return:
         :rtype:
         """
-        logger.debug(f"create_session(username={username}, prekeybundle=[omitted], autotrust={autotrust})")
+        logger.debug("create_session(username={}, prekeybundle=[omitted], autotrust={})".format(username, autotrust))
         
         recipientId,recipientType,deviceId = WATools.jidDecode(username)     
 
@@ -295,7 +295,7 @@ class AxolotlManager:
         :return:
         :rtype:
         """        
-        logger.debug("session_exists(%s)?" % username)
+        logger.debug("session_exists(username={})?".format(username))
         recipientId,recipientType,deviceId = WATools.jidDecode(username)   
         return self._store.containsSession(recipientId, recipientType,deviceId)
     
@@ -305,12 +305,12 @@ class AxolotlManager:
         return self._store.get_all_session_usernames(username)
 
     def load_senderkey(self, groupid) -> Any:
-        logger.debug("load_senderkey(groupid=%s)" % groupid)
+        logger.debug("load_senderkey(groupid={})".format(groupid))
         senderkeyname = SenderKeyName(groupid, AxolotlAddress(self._username, 0))
         return self._store.loadSenderKey(senderkeyname)
 
     def trust_identity(self, account ,identitykey) -> None:
-        logger.debug("trust_identity(account=%s, identitykey=[omitted])" % account)
+        logger.debug("trust_identity(account={}, identitykey=[omitted])".format(account))
 
         recipientId,recipientType,deviceid = WATools.jidDecode(account) 
         self._store.saveIdentity(recipientId,recipientType,deviceid,identitykey)

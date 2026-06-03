@@ -39,7 +39,7 @@ class Cmd_Misc_Bizintegrity(BotCommand):
 
             result = []                                
             for obj in entity_result.result_obj["data"]["xwa2_fetch_wa_users"]:
-                logger.debug("integrity check obj: %s", obj)
+                logger.debug("integrity check obj: {}".format(obj))
                 if "integrity_signals_info" in obj and "phone_country_code" in obj["integrity_signals_info"]:
                     result.append({
                         "jid": obj["jid"],

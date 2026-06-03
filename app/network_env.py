@@ -15,7 +15,7 @@ class NetworkEnv:
         self.proxyStr = None
         if type=="proxy":
             if proxyStr is None:                
-                proxyStr = "%s:%d:%s:%s" % (host,port,username,password)
+                proxyStr = "{}:{}:{}:{}".format(host,port,username,password)
                 
             self.updateProxyStr(proxyStr,proxyStr)
 
@@ -51,7 +51,7 @@ class NetworkEnv:
         if "[session_id]" in proxyStr:
             proxyStr = proxyStr.replace("[session_id]",session_id)
 
-        logger.info("USING PROXY %s" % proxyStr)
+        logger.info("USING PROXY {}".format(proxyStr))
 
         self.updateProxyStr(proxyStr)        
             

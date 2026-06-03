@@ -8,7 +8,7 @@ class PatchWireType :
         self.inner = inner
 
     def __str__(self) -> Any:
-        return "PatchWireType(inner=%s)" % (self.inner)
+        return "PatchWireType(inner={})".format(self.inner)
     
 
 

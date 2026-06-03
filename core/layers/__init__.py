@@ -153,7 +153,7 @@ class YowProtocolLayer(YowLayer):
         return "-" in jid
 
     def raiseErrorForNode(self, node: Any) -> None:
-        raise ValueError("Unimplemented notification type %s " % node)
+        raise ValueError("Unimplemented notification type {} ".format(node))
 
 
     async def _sendIq(self, iqEntity: Any, onSuccess: Optional[Callable] = None, onError: Optional[Callable] = None) -> None:
@@ -272,14 +272,14 @@ class YowLayerTest(unittest.TestCase):
         try:
             self.assertEqual(event, self.upperEventSink.pop())
         except IndexError:
-            raise AssertionError("Event '%s' was not emited through this layer" % (event.getName()))
+            raise AssertionError("Event '{}' was not emited through this layer".format(event.getName()))
         
     async def assert_broadcastEvent(self, event: YowLayerEvent) -> None:
         await self.broadcastEvent(event)
         try:
             self.assertEqual(event, self.lowerEventSink.pop())
         except IndexError:
-            raise AssertionError("Event '%s' was not broadcasted through this layer" % (event.getName()))
+            raise AssertionError("Event '{}' was not broadcasted through this layer".format(event.getName()))
 
 class YowProtocolLayerTest(YowLayerTest):
     async def assertSent(self, entity: Any) -> None:
@@ -287,7 +287,7 @@ class YowProtocolLayerTest(YowLayerTest):
         try:
             self.assertEqual(entity.toProtocolTreeNode(), self.lowerSink.pop())
         except IndexError:
-            raise AssertionError("Entity '%s' was not sent through this layer" % (entity.getTag()))
+            raise AssertionError("Entity '{}' was not sent through this layer".format(entity.getTag()))
 
     async def assertReceived(self, entity: Any) -> None:
         node = entity.toProtocolTreeNode()
@@ -295,4 +295,4 @@ class YowProtocolLayerTest(YowLayerTest):
         try:
             self.assertEqual(node, self.upperSink.pop().toProtocolTreeNode())
         except IndexError:
-            raise AssertionError("'%s' was not received through this layer" % (entity.getTag()))
+            raise AssertionError("Entity '{}' was not received through this layer".format(entity.getTag()))

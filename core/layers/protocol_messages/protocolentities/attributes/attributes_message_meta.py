@@ -19,12 +19,9 @@ class MessageMetaAttributes:
         self.category = category
         self.phash = phash
         self.edit = edit
-
         self.sender_lid = sender_lid
         self.sender_pn  = sender_pn
         self.peer_recipient_pn = peer_recipient_pn
-
-
 
     @staticmethod
     def from_message_protocoltreenode(node,proto=None):
@@ -35,7 +32,6 @@ class MessageMetaAttributes:
             if proto.HasField("device_sent_message"):
                 fromMe = True                
                 to = proto.device_sent_message.destination_jid
-
                         
         return MessageMetaAttributes(
             node["id"], node["from"], node["to"] if to is None else to, node["notify"], node["t"], node["participant"], node["offline"],

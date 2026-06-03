@@ -35,7 +35,7 @@ class BotSendCommand(BotCommand):
                             self.bot.botLayer.db._store.updateContact(value["jid"],value["lid"],key)      
                             jid.append(value["jid"])
                         else:
-                            logger.info("%s not found",key)
+                            logger.info("{} not found".format(key))
                 except Exception as e:
                     logger.error(f"Error syncing contacts: {e}")
                     return

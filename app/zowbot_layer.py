@@ -91,17 +91,17 @@ async def _qr_code_task(layer, interval):
                 advSecretKey = random.randbytes(32)
                 logger.debug("{},{},{},{}".format(
                     str(ref, "utf8"),
-                    str(base64.b64encode(keypair.public.data), "utf8"),
-                    str(base64.b64encode(identity.publicKey.serialize()[1:]), "utf8"),
-                    str(base64.b64encode(advSecretKey), "utf8")
+                    Utils.b64str(keypair.public.data),
+                    Utils.b64str(identity.publicKey.serialize()[1:]),
+                    Utils.b64str(advSecretKey)
                 ))
                 qr = qrcode.QRCode()
                 qr.border = 1
                 qr.add_data("{},{},{},{}".format(
                     str(ref, "utf8"),
-                    str(base64.b64encode(keypair.public.data), "utf8"),
-                    str(base64.b64encode(identity.publicKey.serialize()[1:]), "utf8"),
-                    str(base64.b64encode(advSecretKey), "utf8")
+                    Utils.b64str(keypair.public.data),
+                    Utils.b64str(identity.publicKey.serialize()[1:]),
+                    Utils.b64str(advSecretKey)  
                 ))
                 qr.make()
                 qr.print_ascii(out=None, tty=False, invert=False)
@@ -144,13 +144,7 @@ class ZowBotLayer(YowInterfaceLayer):
         self.loginFailCount = 0
         self.pairingStatus = None
         
-        # AI auto-reply service (Phase 1: Mock mode)
-        self.ai_service = None
-        # Dashboard DB path — set once CONFIG is loaded; used for direct message persistence
-        self._dashboard_db_path: "str | None" = None
 
-        # Satisfaction survey plugin (None until onSuccess)
-        self._satisfaction: SatisfactionPlugin | None = None
 
     async def _sendIqAsync(self, entity):
         """
@@ -247,7 +241,7 @@ class ZowBotLayer(YowInterfaceLayer):
             phone=phone,
             device=int(deviceid),           
             client_static_keypair=keypair,
-            device_identity=str(base64.b64encode(device_identity.SerializeToString()),'UTF-8')
+            device_identity=Utils.b64str(device_identity.SerializeToString())   
         )
         account_dir = Path(SysVar.ACCOUNT_PATH+phone+"_"+str(deviceid))
         Utils.assureDir(account_dir)        
@@ -276,7 +270,7 @@ class ZowBotLayer(YowInterfaceLayer):
             if self._qrTask:
                 self._qrTask.cancel()
             waNum,a,deviceid = WATools.jidDecode(self.getProp("jid"))
-            self.logger.info("Companion device register success(%s_%d)" % (waNum,deviceid))        
+            self.logger.info("Companion device register success({}_{})".format(waNum, deviceid))        
             self.setProp("jid",None)
             await asyncio.sleep(5)                                       
             self.getStack().setProfile(SysVar.ACCOUNT_PATH+waNum+"_"+str(deviceid))                       
@@ -286,8 +280,7 @@ class ZowBotLayer(YowInterfaceLayer):
             await asyncio.sleep(5)
             await self.getStack().broadcastEvent(YowLayerEvent(YowNetworkLayer.EVENT_STATE_CONNECT))
             return
-        
-        
+                
         if self.isConnected:     
             self.callback(event={
                 "event":zowsup_pb2.BotEvent.Event.LOGOUT            
@@ -295,13 +288,6 @@ class ZowBotLayer(YowInterfaceLayer):
 
         self.isConnected = False
 
-        if self._satisfaction:
-            self._satisfaction.stop()
-
-        if self.ai_service:
-            self.ai_service.cancel_retry_task()
-                   
-            
         if (not self.detect40x)  and (not self.getProp("USER_REQUEST_QUIT")) and self.loginFailCount<3 and (not self.bot.quitIfConflict):      
             self.bot.wa_old = None               
             self.loginEvent.clear()
@@ -309,7 +295,7 @@ class ZowBotLayer(YowInterfaceLayer):
             await self.getStack().broadcastEvent(YowLayerEvent(YowNetworkLayer.EVENT_STATE_CONNECT))  
                     
         else:                                                      
-            if not self.getProp("HC_MODE") and not self.getProp("BC_MODE"):
+            if not self.getProp("HC_MODE") :
                 self.bot.status = ZowBotStatus.STATUS_STOPPED              
                 self.callback(event={
                     "event":zowsup_pb2.BotEvent.Event.QUIT
@@ -322,16 +308,15 @@ class ZowBotLayer(YowInterfaceLayer):
                 self.setProp("THREADQUIT",True)
                 await asyncio.sleep(1)                    
 
-
     @ProtocolEntityCallback("ib")
     async def onIb(self,entity):
 
         if isinstance(entity,GpiaRequestIbProtocolEntity):
-            self.logger.info("Ib-gpia-request: %s" % entity.nonce)
+            self.logger.info("Ib-gpia-request: {}".format(entity.nonce))
             await self.gpia([entity.nonce],{})
         
         if isinstance(entity,SafetynetRequestIbProtocolEntity):
-            self.logger.info("Ib-safetynet-request: %s" % entity.nonce)
+            self.logger.info("Ib-safetynet-request: {}".format(entity.nonce))
             await self.safetynet([entity.nonce],{})
 
 
@@ -348,7 +333,7 @@ class ZowBotLayer(YowInterfaceLayer):
     async def onNotification(self,entity):        
 
         if isinstance(entity,MexUpdateNotificationProtocolEntity):            
-            self.logger.info("Notification: Received a MexUpdate Notification: %s" % entity.jsonObj)            
+            self.logger.info("Notification: Received a MexUpdate Notification: {}".format(entity.jsonObj))            
             return
         
         if isinstance(entity,ServerPushConfigNotificationProtocolEntity):
@@ -361,11 +346,11 @@ class ZowBotLayer(YowInterfaceLayer):
             if entity.collections is not None:
                 for  item in entity.collections:
                     collectionNames.append(item["name"])
-            self.logger.info("Notification: Received a ServerSync Notification, collections=%s" % ",".join(collectionNames))
+            self.logger.info("Notification: Received a ServerSync Notification, collections={}".format(",".join(collectionNames)))
             try:
                 await self.syncData([','.join(collectionNames)] ,{})
             except Exception as e:
-                self.logger.warning("syncData failed, continuing: %s", e)
+                self.logger.warning("syncData failed, continuing: {}".format(e))
             
         if isinstance(entity,AccountSyncNotificationProtocolEntity):
             self.logger.info("Notification: Received a AccountSync Notification")            
@@ -426,8 +411,6 @@ class ZowBotLayer(YowInterfaceLayer):
                     #######################APP STATE SYNC START###############################
 
                     #  critical_block critical_unblock_low
-                
-
                     if not self.db:
                         return 
                     
@@ -474,7 +457,7 @@ class ZowBotLayer(YowInterfaceLayer):
             await self._sendIq(entity, on_get_encrypt_success, on_get_encrypt_error)                 
 
         if isinstance(entity,LinkCodeCompanionRegNotificationProtocolEntity):
-            self.logger.info("Notification: Received a LinkCodeCompanionReg, stage=%s",entity.stage)
+            self.logger.info("Notification: Received a LinkCodeCompanionReg, stage={}".format(entity.stage))
 
             if entity.stage == "primary_hello":                
                 linkCode = self.bot.pairLinkCode
@@ -504,7 +487,7 @@ class ZowBotLayer(YowInterfaceLayer):
                 self.pairingStatus = "WAIT_PAIRINGCODE"
                 self.companionHelloEntity = entity  
 
-                logger.debug("bot_type: %s", self.bot.bot_type)
+                logger.debug("bot_type: {}".format(self.bot.bot_type))
 
                 if self.bot.bot_type == ZowBotType.TYPE_RUN_TEMP:
                     #如果是临时模式TYPE_RUN_TEMP模式，直接输入，不需要再调用接口
@@ -549,7 +532,7 @@ class ZowBotLayer(YowInterfaceLayer):
                 await self._sendIq(entity, on_pair_device_success, on_pair_device_error)                
 
         if isinstance(entity,WaOldCodeNotificationProtocolEntity):
-            self.logger.info(f"Notification: Received a wa_old registration code: {entity.code} in {entity.timestamp}")  
+            self.logger.info("Notification: Received a wa_old registration code: {} in {}".format(entity.code, entity.timestamp))  
             if self.getProp("TRANSFER6_MODE",False):
                 if int(entity.timestamp)>=self.bot.startts:
                     self.bot.wa_old = entity.code     
@@ -565,15 +548,15 @@ class ZowBotLayer(YowInterfaceLayer):
             return 
                     
         if isinstance(entity,CreateGroupsNotificationProtocolEntity):
-            self.logger.info("Notification: Group %s created" % entity.groupId)
+            self.logger.info("Notification: Group {} created".format(entity.groupId))
             return 
         
         if isinstance(entity,AddGroupsNotificationProtocolEntity):            
-            self.logger.info(f"Notification: Group {entity.getGroupId()} add participant {entity.getParticipants()[0]}")
+            self.logger.info("Notification: Group {} add participant {}".format(entity.getGroupId(), entity.getParticipants()[0]))
             return
         
         if isinstance(entity,RemoveGroupsNotificationProtocolEntity):             
-            self.logger.info(f"Notification: Group {entity.getGroupId()} remove participant {entity.getParticipants()[0]}")       
+            self.logger.info("Notification: Group {} remove participant {}".format(entity.getGroupId(), entity.getParticipants()[0]))       
             return    
         
         if isinstance(entity,SetPictureNotificationProtocolEntity):
@@ -605,18 +588,6 @@ class ZowBotLayer(YowInterfaceLayer):
 
                 })                
             return                
-                                        
-    def setCmdRedirect(self,cmdId,cmdName,cmdParams,options,context):        
-        if cmdId in self.cmdEventMap: 
-            obj = self.cmdEventMap[cmdId]
-            obj["error"] = "redirect"
-            obj["result"] = {
-                "cmdName":cmdName,
-                "cmdParams":cmdParams,
-                "options":options,
-                "context":context
-            }
-            obj["event"].set()
 
     def setCmdResult(self,cmdId,result):
         self.bot.setCmdResult(cmdId,result)
@@ -632,7 +603,6 @@ class ZowBotLayer(YowInterfaceLayer):
                 "last":entity.getLast()
             })
             return
-                
                          
     @ProtocolEntityCallback("iq")
     async def onIq(self, entity):          
@@ -645,7 +615,6 @@ class ZowBotLayer(YowInterfaceLayer):
         self.pingCount+=1
         if self.pingCount % 10 == 0:        
             self.callback(event={"event":zowsup_pb2.BotEvent.Event.HEARTBEAT})
-
                         
         if isinstance(entity,ResultIqProtocolEntity):
             #这里主要处理一些非指令产生的回复,例如ping            
@@ -750,92 +719,6 @@ class ZowBotLayer(YowInterfaceLayer):
     def callback(self,event=None,message=None,messageStatus=None,cmdResult=None,modeResult=None):           
         self.bot.callback(event,message,messageStatus,cmdResult,modeResult)
 
-    def _load_ai_config(self) -> dict:
-        """Load AI configuration from config.conf."""
-        try:
-            # Get config.conf path
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            config_path = os.path.join(os.path.dirname(current_dir), 'conf', 'config.conf')
-            
-            if not os.path.exists(config_path):
-                self.logger.warning(f"config.conf not found at {config_path}, using defaults")
-                return {
-                    'ai_llm_active': {'enabled': True, 'backend': 'GLM'},
-                    'ai_llm_glm': {'auth_mode': 'apikey', 'api_key': '', 'model': 'glm-4-plus'}
-                }
-            
-            conf = configparser.ConfigParser()
-            conf.read(config_path, encoding='utf-8')
-            
-            ai_config = {
-                'ai_llm_active': {},
-                'ai_llm_glm': {},
-                'ai_llm_qwen': {},
-                'ai_memory': {},
-                'ai_retry': {},
-                'ai_filter': {}
-            }
-            
-            # Read AI_LLM_ACTIVE section
-            if conf.has_section('AI_LLM_ACTIVE'):
-                ai_config['ai_llm_active']['enabled'] = conf.getboolean('AI_LLM_ACTIVE', 'enabled', fallback=True)
-                ai_config['ai_llm_active']['backend'] = conf.get('AI_LLM_ACTIVE', 'backend', fallback='GLM').upper()
-            
-            # Read AI_LLM_GLM section  
-            if conf.has_section('AI_LLM_GLM'):
-                ai_config['ai_llm_glm']['model'] = conf.get('AI_LLM_GLM', 'model', fallback='glm-4-plus')
-                ai_config['ai_llm_glm']['auth_mode'] = conf.get('AI_LLM_GLM', 'auth_mode', fallback='apikey')
-                ai_config['ai_llm_glm']['api_key'] = conf.get('AI_LLM_GLM', 'api_key', fallback='')
-
-            # Read AI_LLM_QWEN section (NEW)
-            if conf.has_section('AI_LLM_QWEN'):
-                ai_config['ai_llm_qwen']['model'] = conf.get('AI_LLM_QWEN', 'model', fallback='qwen-plus')
-                ai_config['ai_llm_qwen']['auth_mode'] = conf.get('AI_LLM_QWEN', 'auth_mode', fallback='apikey')
-                ai_config['ai_llm_qwen']['api_key'] = conf.get('AI_LLM_QWEN', 'api_key', fallback='')
-            
-            # Read AI_MEMORY section
-            if conf.has_section('AI_MEMORY'):
-                ai_config['ai_memory']['memory_window_days'] = conf.getint('AI_MEMORY', 'memory_window_days', fallback=3)
-                ai_config['ai_memory']['cleanup_strategy'] = conf.get('AI_MEMORY', 'cleanup_strategy', fallback='first_daily_message')
-            
-            # Read AI_RETRY section
-            if conf.has_section('AI_RETRY'):
-                ai_config['ai_retry']['retry_delay_minutes'] = conf.getint('AI_RETRY', 'retry_delay_minutes', fallback=5)
-                ai_config['ai_retry']['max_retry_attempts'] = conf.getint('AI_RETRY', 'max_retry_attempts', fallback=1)
-                ai_config['ai_retry']['enabled'] = conf.getboolean('AI_RETRY', 'enabled', fallback=True)
-            
-            # Read AI_FILTER section
-            if conf.has_section('AI_FILTER'):
-                ai_config['ai_filter']['p2p_only'] = conf.getboolean('AI_FILTER', 'p2p_only', fallback=True)
-                ai_config['ai_filter']['skip_self_device'] = conf.getboolean('AI_FILTER', 'skip_self_device', fallback=True)
-
-            # Read AI_SATISFACTION section
-            if conf.has_section('AI_SATISFACTION'):
-                ai_config['ai_satisfaction'] = {
-                    'enabled': conf.getboolean('AI_SATISFACTION', 'enabled', fallback=False),
-                    'timeout_minutes': conf.getint('AI_SATISFACTION', 'timeout_minutes', fallback=30),
-                    'question_text': conf.get('AI_SATISFACTION', 'question_text',
-                        fallback='请问这次回答对您有帮助吗？请回复 1-5 分（1=很差，5=非常好）'),
-                    'thank_you_text': conf.get('AI_SATISFACTION', 'thank_you_text',
-                        fallback='感谢您的反馈！'),
-                }
-            else:
-                ai_config['ai_satisfaction'] = {'enabled': False, 'timeout_minutes': 30}
-
-            self.logger.debug(f"AI config loaded: {ai_config}")
-            return ai_config
-            
-        except Exception as e:
-            self.logger.error(f"Failed to load AI config: {e}", exc_info=True)
-            return {
-                'ai_llm_active': {'enabled': False, 'backend': 'GLM'},
-                'ai_llm_glm': {'auth_mode': 'apikey', 'api_key': '', 'model': 'glm-4-plus'},
-                'ai_llm_qwen': {'auth_mode': 'apikey', 'api_key': '', 'model': 'qwen-plus'},
-                'ai_memory': {'memory_window_days': 3, 'cleanup_strategy': 'first_daily_message'},
-                'ai_retry': {'retry_delay_minutes': 5, 'max_retry_attempts': 1, 'enabled': True},
-                'ai_filter': {'p2p_only': True, 'skip_self_device': True},
-                'ai_satisfaction': {'enabled': False, 'timeout_minutes': 30},
-            }
 
     @ProtocolEntityCallback("success")
     async def onSuccess(self, successProtocolEntity):      
@@ -882,8 +765,6 @@ class ZowBotLayer(YowInterfaceLayer):
         self.bot.lastOnlineTime = int(time.time()) 
 
         self.loginFailCount = 0
-        
-
         #self.setProp(PROP_IDENTITY_AUTOTRUST, True)
         
     @ProtocolEntityCallback("stream:error")
@@ -1007,84 +888,11 @@ class ZowBotLayer(YowInterfaceLayer):
         if random.random() < 0.8:
             await self.toLower(messageProtocolEntity.ack())            
         else:
-            logger.debug("Not sending received ack for message %s" % messageProtocolEntity.getId())
+            logger.debug("Not sending received ack for message {}".format(messageProtocolEntity.getId()))
         
         # Always send read ack
         await self.toLower(messageProtocolEntity.ack(read=True))
     
-    async def _ai_send_response(self, user_jid: str, ai_response: str):
-        """
-        Send AI response to user (used by retry manager).
-        
-        Args:
-            user_jid: Normalized user JID (e.g., "248846345101511@s.whatsapp.net")
-            ai_response: AI generated response text
-        """
-        try:
-            from core.layers.protocol_messages.protocolentities.message_extendedtext import ExtendedTextMessageProtocolEntity
-            from core.layers.protocol_messages.protocolentities.attributes.attributes_message_meta import MessageMetaAttributes
-            from core.layers.protocol_messages.protocolentities.attributes.attributes_extendedtext import ExtendedTextAttributes
-            
-            # Create response message attributes
-            attr = ExtendedTextAttributes(
-                text=ai_response,
-                preview_type=0
-            )
-            
-            # Create response message entity
-            response_entity = ExtendedTextMessageProtocolEntity(
-                attr,
-                MessageMetaAttributes(
-                    id=self.bot.idType,
-                    recipient=Jid.normalize(user_jid),
-                    timestamp=int(time.time())
-                )
-            )
-            
-            self.bot.botLayer.ackQueue.append(response_entity.getId())
-            self.logger.info(f"Sending AI retry response to {user_jid}")
-            await self.toLower(response_entity)
-            
-        except Exception as send_err:
-            self.logger.error(f"Failed to send AI retry response to {user_jid}: {send_err}", exc_info=True)
-
-
-    def _update_group_member_last_seen(self, group_jid: str, participant: str) -> None:
-        """
-        Stamp group_members.last_seen for the participant who just sent a message.
-
-        In LID-mode groups the incoming participant identifier ends with ``@lid``
-        (e.g. ``38097098133757@lid``).  In that case we match against the stored
-        ``participant_lid`` column.  For normal groups we match ``participant_jid``.
-        """
-        db_path = self._dashboard_db_path
-        if not db_path or not participant:
-            return
-        try:
-            import sqlite3 as _sqlite3
-            import time as _time
-            now = int(_time.time())
-            conn = _sqlite3.connect(db_path, timeout=5)
-            try:
-                conn.execute("PRAGMA journal_mode=WAL")
-                if participant.endswith("@lid"):
-                    conn.execute(
-                        "UPDATE group_members SET last_seen = ? "
-                        "WHERE group_jid = ? AND participant_lid = ?",
-                        (now, group_jid, participant),
-                    )
-                else:
-                    conn.execute(
-                        "UPDATE group_members SET last_seen = ? "
-                        "WHERE group_jid = ? AND participant_jid = ?",
-                        (now, group_jid, participant),
-                    )
-                conn.commit()
-            finally:
-                conn.close()
-        except Exception as exc:
-            self.logger.debug("group_members last_seen update failed: %s", exc)
-
     def _parse_jid_and_lid(self, messageProtocolEntity):
         """
         Parse and extract JID and LID from messageProtocolEntity.
@@ -1132,7 +940,7 @@ class ZowBotLayer(YowInterfaceLayer):
                     message_type = zowsup_pb2.MessageType.AD
         
         elif msg_type == 'reaction':
-            self.logger.debug("reaction entity: %s", messageProtocolEntity)
+            self.logger.debug("reaction entity: {}".format(messageProtocolEntity))
             if isinstance(messageProtocolEntity, ReactionMessageProtocolEntity):
                 message_type = zowsup_pb2.MessageType.REACTION
                 text = (messageProtocolEntity.message_attributes.reaction.text 
@@ -1225,64 +1033,6 @@ class ZowBotLayer(YowInterfaceLayer):
 
         # Send message acks with probabilistic behavior
         await self._async_send_message_acks(messageProtocolEntity)        
-        
-        # Satisfaction plugin: intercept 1-5 rating replies before AI processing
-        # Must run before _save_msg_to_dashboard so survey replies are NOT recorded in chat history
-        if text and not messageProtocolEntity.fromme and self._satisfaction:
-            if await self._satisfaction.intercept(jid, text):
-                return
-
-        # Persist messages: either to local dashboard.db (DASHBOARD_MODE) or forward
-        # to backend server via HTTP (AGENT_MODE).  The two are mutually exclusive.
-        if text and (self._dashboard_db_path or os.environ.get("AGENT_MODE")):            
-            direction = "out" if messageProtocolEntity.fromme else "in"
-            participant = messageProtocolEntity.getParticipant() or None
-            notify = messageProtocolEntity.getNotify() or None
-            # Fix UTF-8 mojibake: protocol may deliver UTF-8 bytes decoded as
-            # Latin-1, producing Ð© sequences (same issue as group subject).
-            if notify:
-                try:
-                    notify = notify.encode("latin-1").decode("utf-8")
-                except (UnicodeEncodeError, UnicodeDecodeError):
-                    pass  # already valid Unicode
-            # Download media to disk for displayable types
-            db_message_type = "text"
-            media_path: str | None = None
-            _DOWNLOADABLE = (
-                ImageDownloadableMediaMessageProtocolEntity,
-                VideoDownloadableMediaMessageProtocolEntity,
-                AudioDownloadableMediaMessageProtocolEntity,
-                DocumentDownloadableMediaMessageProtocolEntity,
-                StickerDownloadableMediaMessageProtocolEntity,
-            )
-            if isinstance(messageProtocolEntity, _DOWNLOADABLE):
-                # Use __class__ because the local 'type' variable is shadowed by
-                # _parse_message_type's return value (a protobuf int enum).
-                _cls = messageProtocolEntity.__class__
-                _type_map = {
-                    ImageDownloadableMediaMessageProtocolEntity: "IMAGE",
-                    VideoDownloadableMediaMessageProtocolEntity: "VIDEO",
-                    AudioDownloadableMediaMessageProtocolEntity: "AUDIO",
-                    DocumentDownloadableMediaMessageProtocolEntity: "DOCUMENT",
-                    StickerDownloadableMediaMessageProtocolEntity: "STICKER",
-                }
-                db_message_type = _type_map.get(_cls, "IMAGE")
-                try:
-                    # Use entity-level properties (.url/.media_key/.mimetype) which are
-                    # proxied from downloadablemedia_specific_attributes, not media_specific_attributes.
-                    media_path = self.download({
-                        "url": messageProtocolEntity.url,
-                        "filename": messageProtocolEntity.getId(),
-                        "type": db_message_type,
-                        "media_key": messageProtocolEntity.media_key,
-                        "mimetype": messageProtocolEntity.mimetype,
-                    })
-                except Exception as dl_exc:
-                    self.logger.warning("Media download failed for %s: %s", jid, dl_exc)
-            self._save_msg_to_dashboard(jid, direction, text, message_type=db_message_type, participant=participant, notify=notify, media_path=media_path)
-            # Update last_seen for group messages (participant is the sender's JID or LID)
-            if participant and jid.endswith("@g.us"):
-                self._update_group_member_last_seen(jid, participant)
                                                                 
     @ProtocolEntityCallback("receipt")
     async def onReceipt(self, entity):
@@ -1317,11 +1067,8 @@ class ZowBotLayer(YowInterfaceLayer):
             
     async def assureContactsAndSend(self,cmdParams,options,send_func,redo_func):        
         to,*other = cmdParams
-
         isCompanion = "_" in self.bot.botId
-
         jid = Jid.normalize(to)
-
         if jid.endswith("@g.us"):
             # Group JIDs need no contact-sync — send directly
             await send_func(cmdParams, options)
@@ -1339,7 +1086,7 @@ class ZowBotLayer(YowInterfaceLayer):
                             self.db._store.updateContact(value["jid"],value["lid"],key)      
                             jid.append(value["jid"])
                         else:
-                            logger.info("%s not found",key)
+                            logger.info("{} not found".format(key))
                     if len(jid)>0:
                         cmdParams[0]=','.join(jid)
                         await redo_func(cmdParams,options)                
@@ -1354,7 +1101,6 @@ class ZowBotLayer(YowInterfaceLayer):
         else:
             logger.info("lid-target, direct send")  
             await send_func(cmdParams,options)                             
-
 
     async def getContactList(self, cmdParams, options):
         query = {
@@ -1380,7 +1126,6 @@ class ZowBotLayer(YowInterfaceLayer):
         except Exception as e:
             logger.error(f"getContactList error: {e}")
             raise     
-        
     
     def getContextValue(self,ctxId,key):
         if ctxId not in self.ctxMap:
@@ -1399,8 +1144,7 @@ class ZowBotLayer(YowInterfaceLayer):
         result = await self._sendIqAsync(entity)
         print(result)
 
-        result_entity = result.get("result")
-        #print(result_entity.__class__.__name__)
+        result_entity = result.get("result")        
         if isinstance(result_entity, PushGetCatResultIqProtocolEntity):
             profile = self.getStack().getProp("profile")
             profile.config.fcm_cat = base64.b64encode(result_entity.catData)
@@ -1447,11 +1191,8 @@ class ZowBotLayer(YowInterfaceLayer):
         }    
     
     async def syncData(self,cmdParams,options):
-                
         request = {}             
-
         collectionNames = cmdParams[0].split(",")
-                                
         for name in collectionNames:
             request[name] = {                    
                 "version":"0",
@@ -1461,9 +1202,7 @@ class ZowBotLayer(YowInterfaceLayer):
         entity = AppSyncStateIqProtocolEntity(                            
             request = request
         )            
-
         #直接用服务器返回的版本去请求，表明companion有一致的数据
-                            
         try :
             while entity is not None:
                 result_dict = await self._sendIqAsync(entity)
@@ -1491,7 +1230,7 @@ class ZowBotLayer(YowInterfaceLayer):
                     raise Exception(f"Unexpected response type: {type(entity_result)}")
         
         except asyncio.TimeoutError as e:
-            logger.warning("syncData timeout (collections=%s): %s", cmdParams[0], e)
+            logger.warning("syncData timeout (collections={}): {}".format(cmdParams[0], e))
         except Exception as e:
-            logger.error("syncData error: %s", e, exc_info=True)
+            logger.error("syncData error: {}".format(e), exc_info=True)
 

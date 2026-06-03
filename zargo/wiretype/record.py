@@ -11,7 +11,7 @@ class ArgoRecordWireType :
         for key in self.fields:
             arr.append(key+"="+str(self.fields[key]))
 
-        return "ArgoRecordWireType(fields=[%s])" % (', '.join(arr))
+        return "ArgoRecordWireType(fields=[{}])".format(', '.join(arr))
     
 
     

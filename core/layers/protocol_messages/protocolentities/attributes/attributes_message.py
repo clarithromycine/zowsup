@@ -108,7 +108,6 @@ class MessageAttributes:
         if self._interactive is not None:
             attrs.append(("interactive", self.interactive))          
 
-
         if self._reaction is not None:
             attrs.append(("reaction", self.reaction))                        
 

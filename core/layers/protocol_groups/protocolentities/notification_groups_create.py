@@ -87,12 +87,12 @@ class CreateGroupsNotificationProtocolEntity(GroupsNotificationProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "Creator: %s\n" % self.getCreatorJid()
-        out += "Create type: %s\n" % self.getCreatetype()
-        out += "Creation timestamp: %s\n" % self.getCreationTimestamp()
-        out += "Subject: %s\n" % self.getSubject()
-        out += "Subject owner: %s\n" % self.getSubjectOwnerJid()
-        out += "Subject timestamp: %s\n" % self.getSubjectTimestamp()
+        out += "Creator: {}\n".format(self.getCreatorJid())
+        out += "Create type: {}\n".format(self.getCreatetype())
+        out += "Creation timestamp: {}\n".format(self.getCreationTimestamp())
+        out += "Subject: {}\n".format(self.getSubject())
+        out += "Subject owner: {}\n".format(self.getSubjectOwnerJid())
+        out += "Subject timestamp: {}\n".format(self.getSubjectTimestamp())
         out += "Participants: %s\n" % self.getParticipants()
         out += "Key: %s\n" % self.key
         return out
