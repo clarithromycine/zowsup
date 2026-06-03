@@ -72,7 +72,7 @@ class ContextInfoAttributes:
         if self.external_ad_reply is not None:
             attribs.append(("external_ad_reply",str(self.external_ad_reply)))
 
-        return "[%s]" % " ".join(map(lambda item: "%s=%s" % item, attribs))
+        return "[{}]".format(" ".join(map(lambda item: "{}={}".format(*item), attribs)))
     
 
     @property

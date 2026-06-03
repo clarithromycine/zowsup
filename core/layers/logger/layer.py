@@ -6,12 +6,12 @@ class YowLoggerLayer(YowLayer):
 
     async def send(self, data) -> Any:
         ldata = list(data) if type(data) is bytearray else data
-        logger.debug("tx:\n%s" % ldata)
+        logger.debug("tx:\n{}".format(ldata))
         await self.toLower(data)
 
     async def receive(self, data) -> Any:
         ldata = list(data) if type(data) is bytearray else data
-        logger.debug("rx:\n%s" % ldata)
+        logger.debug("rx:\n{}".format(ldata))
         await self.toUpper(data)
 
     def __str__(self):

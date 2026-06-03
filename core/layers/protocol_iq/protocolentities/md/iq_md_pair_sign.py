@@ -29,8 +29,8 @@ class MultiDevicePairSignIqProtocolEntity(IqProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "key-index: %s\n" % self.keyIndex
-        out += "signature: %s\n" % self.sign        
+        out += "key-index: {}\n".format(self.keyIndex)
+        out += "signature: {}\n".format(self.sign)        
         return out
 
     def toProtocolTreeNode(self) -> Any:

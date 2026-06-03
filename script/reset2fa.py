@@ -15,7 +15,7 @@ class Reset2FA(ConsoleMain):
 
         if "env" not in options:
             options["env"] = SysVar.DEFAULT_ENV
-            logger.info("set default env to %s" % options["env"])
+            logger.info("set default env to {}".format(options["env"]))
                 
         number = params[0]
         wipe_token = params[1]

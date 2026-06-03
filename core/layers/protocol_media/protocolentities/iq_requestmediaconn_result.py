@@ -26,11 +26,11 @@ class ResultRequestMediaConnIqProtocolEntity(ResultIqProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "HOSTS: %s\n" % ",".join(self.hosts)
+        out += "HOSTS: {}\n".format(",".join(self.hosts))
         if self.auth:
-            out += "AUTH: %s\n" % self.auth
+            out += "AUTH: {}\n".format(self.auth)
         if self.ttl:
-            out += "TTL: %s\n" % self.ttl
+            out += "TTL: {}\n".format(self.ttl)
 
         return out
 

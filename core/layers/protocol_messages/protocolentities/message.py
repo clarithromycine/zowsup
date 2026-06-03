@@ -170,12 +170,12 @@ class MessageProtocolEntity(ProtocolEntity):
 
     def __str__(self):
         out  = "Message:\n"
-        out += "ID: %s\n" % self._id
-        out += "To: %s\n" % self.to  if self.isOutgoing() else "From: %s\n" % self._from
-        out += "Type:  %s\n" % self._type
-        out += "Timestamp: %s\n" % self.timestamp
+        out += "ID: {}\n".format(self._id)
+        out += "To: {}\n".format(self.to) if self.isOutgoing() else "From: {}\n".format(self._from)
+        out += "Type:  {}\n".format(self._type)
+        out += "Timestamp: {}\n".format(self.timestamp)
         if self.participant:
-            out += "Participant: %s\n" % self.participant
+            out += "Participant: {}\n".format(self.participant)
         return out
 
     def ack(self, read=False,histSync=False,peerMsg=False) -> Any:

@@ -150,7 +150,7 @@ class YowStack:
         self.setProfile(YowProfile(profile_name))
 
     def setProfile(self, profile: Any) -> None:
-        logger.debug("setProfile(%s)" % profile)
+        logger.debug("setProfile({})".format(profile))
         if self.getProfile() is None:                  
             self.setProp("profile", profile if isinstance(profile, YowProfile) else YowProfile(profile))
         
@@ -221,7 +221,7 @@ class YowStack:
                 else:
                     raise ValueError("Stack must contain only subclasses of YowLayer")
                 #inst = s()
-            logger.debug("Constructed %s" % inst)
+            logger.debug("Constructed {}".format(inst))
             inst.setStack(self)
             self.__stackInstances.append(inst)
 

@@ -104,7 +104,7 @@ class WAHandshakeAsync:
         dissononce_rs = PublicKey(rs.data) if rs else None
         client_payload = self._create_full_payload(client_config, s)
 
-        logger.debug("starting handshake (rs=%s)", "present" if rs else "absent")
+        logger.debug("starting handshake (rs={})".format("present" if rs else "absent"))
         try:
             if rs is not None:
                 try:

@@ -15,7 +15,7 @@ class AppVersionConfig:
         self._version = version
         dissected = version.split('.')
         padded = dissected + ['0'] * (4 - len(dissected))
-        assert len(padded) == 4, "%s is not a valid version" % version
+        assert len(padded) == 4, "{} is not a valid version".format(version)
 
         self._primary, self._secondary, self._tertiary, self._quaternary = map(lambda v:int(v), padded)
 

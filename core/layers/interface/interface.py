@@ -41,7 +41,7 @@ class YowInterfaceLayer(YowLayer):
                 self.entity_callbacks[fn.entity_callback] = getattr(self, fname)
 
     async def _sendIq(self, iqEntity, onSuccess=None, onError=None) -> Any:
-        assert iqEntity.getTag() == "iq", "Expected *IqProtocolEntity in _sendIq, got %s" % iqEntity.getTag()
+        assert iqEntity.getTag() == "iq", "Expected *IqProtocolEntity in _sendIq, got {}".format(iqEntity.getTag())
         self.iqRegistry[iqEntity.getId()] = (iqEntity, onSuccess, onError)
         await self.toLower(iqEntity)
 
@@ -106,8 +106,8 @@ class YowInterfaceLayer(YowLayer):
                 logger.info("Initiating reconnect")
                 self.reconnect = True
         else:
-            logger.warn("Not reconnecting because property %s is not set" %
-                        self.__class__.PROP_RECONNECT_ON_STREAM_ERR)
+            logger.warning("Not reconnecting because property {} is not set".format(
+                        self.__class__.PROP_RECONNECT_ON_STREAM_ERR))
         await self.toUpper(streamErrorEntity)
         await self.disconnect()
 

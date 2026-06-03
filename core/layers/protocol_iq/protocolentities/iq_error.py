@@ -29,9 +29,9 @@ class ErrorIqProtocolEntity(IqProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "Code: %s\n" % self.code
-        out += "Text: %s\n" % self.text
-        out += "Backoff: %s\n" % self.backoff
+        out += "Code: {}\n".format(self.code)
+        out += "Text: {}\n".format(self.text)
+        out += "Backoff: {}\n".format(self.backoff)
         return out
 
     @staticmethod

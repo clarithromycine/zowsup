@@ -97,10 +97,10 @@ class OutgoingReceiptProtocolEntity(ReceiptProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out  += "To: \n%s" % self.to
+        out  += "To: \n{}".format(self.to)
         if self.read:
-            out += "Type: \n%s" % "read"
-        out += "For: \n%s" % self.messageIds
+            out += "Type: \n{}".format("read")
+        out += "For: \n{}".format(self.messageIds)
         return out
 
     @staticmethod

@@ -11,7 +11,7 @@ class HydratedTemplateAttributes:
         if self._hydrated_buttons is not None:                          
             attrs.append(("hydrated_buttons", self._hydrated_buttons))        
         
-        return "[%s]" % " ".join(map(lambda item: "%s=%s" % item, attrs))
+        return "[{}]".format(" ".join(map(lambda item: "{}={}".format(*item), attrs)))
 
     @property
     def hydrated_content_text(self) -> Any:

@@ -32,9 +32,9 @@ class OutgoingChatstateProtocolEntity(ChatstateProtocolEntity):
 
     def __str__(self):
         out  = super().__str__()
-        out += "To: %s\n" % self._to
+        out += "To: {}\n".format(self._to)
         if self.participant:
-            out += "Participant: %s\n" % self.participant
+            out += "Participant: {}\n".format(self.participant)
 
         return out
 

@@ -17,7 +17,7 @@ class MessageKeyAttributes:
         if self.participant is not None:
             attrs.append(("participant", self.participant))
 
-        return "[%s]" % " ".join(map(lambda item: "%s=%s" % item, attrs))
+        return "[{}]".format(" ".join(map(lambda item: "{}={}".format(*item), attrs)))
 
     @property
     def remote_jid(self) -> Any:

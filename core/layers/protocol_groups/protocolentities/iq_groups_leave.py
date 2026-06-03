@@ -33,8 +33,8 @@ class LeaveGroupsIqProtocolEntity(GroupsIqProtocolEntity):
 
     @staticmethod
     def fromProtocolTreeNode(node):
-        assert node.getChild("leave") is not None, "Not a group leave iq node %s" % node
-        assert node.getChild("leave").getAttributeValue("action") == "delete", "Not a group leave action %s" % node
+        assert node.getChild("leave") is not None, "Not a group leave iq node {}".format(node)
+        assert node.getChild("leave").getAttributeValue("action") == "delete", "Not a group leave action {}".format(node)
         entity = super(LeaveGroupsIqProtocolEntity, LeaveGroupsIqProtocolEntity).fromProtocolTreeNode(node)
         entity.__class__ = LeaveGroupsIqProtocolEntity
         entity.setProps([group.getAttributeValue("id") for group in node.getChild("leave").getAllChildren()] )

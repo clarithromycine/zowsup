@@ -28,8 +28,8 @@ class YowDevicesIqProtocolLayer(YowProtocolLayer):
             elif node.getChild("update"):
                 pass
             else :
-                logger.warning("Unsupported device notification type: %s " % node["type"])
-                logger.debug("Unsupported device notification node: %s" % node)
+                logger.warning("Unsupported device notification type: {} ".format(node["type"]))
+                logger.debug("Unsupported device notification node: {}".format(node))
 
     def recvIq(self, node) -> Any:        
         pass

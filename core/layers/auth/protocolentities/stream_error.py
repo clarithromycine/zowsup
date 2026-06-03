@@ -54,8 +54,8 @@ class StreamErrorProtocolEntity(ProtocolEntity):
         
 
     def __str__(self):
-        out  = f"Stream Error code:{self.code} type: {self.getErrorType()}\n"
-        out += "%s" % self.getErrorData()
+        out  = "Stream Error code:{} type: {}\n".format(self.code, self.getErrorType())
+        out += "{}".format(self.getErrorData())
         out += "\n"
 
         return out

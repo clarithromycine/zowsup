@@ -36,7 +36,7 @@ class RequestMediaConnIqProtocolEntity(IqProtocolEntity):
 
     @staticmethod
     def fromProtocolTreeNode(node):
-        assert node.getAttributeValue("type") == "set", "Expected set as iq type in request upload, got %s" % node.getAttributeValue("type")
+        assert node.getAttributeValue("type") == "set", "Expected set as iq type in request upload, got {}".format(node.getAttributeValue("type"))
         entity = IqProtocolEntity.fromProtocolTreeNode(node)
         entity.__class__ = RequestMediaConnIqProtocolEntity
         mediaConnNode = node.getChild("media_conn")        

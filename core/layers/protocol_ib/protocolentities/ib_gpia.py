@@ -27,7 +27,7 @@ class GpiaIbProtocolEntity(IbProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "ib-gpia: %s\n" % base64.b64encode(self.jwsdata)
+        out += "ib-gpia: {}\n".format(base64.b64encode(self.jwsdata.encode()).decode())
         return out
     
 class GpiaRequestIbProtocolEntity(IbProtocolEntity):
@@ -44,7 +44,7 @@ class GpiaRequestIbProtocolEntity(IbProtocolEntity):
                 
     def __str__(self):
         out = super().__str__()
-        out += "ib-gpia-request: %s\n" % self.nonce
+        out += "ib-gpia-request: {}\n".format(self.nonce)
         return out
 
 

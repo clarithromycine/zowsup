@@ -29,7 +29,7 @@ class IncomingChatstateProtocolEntity(ChatstateProtocolEntity):
 
     def __str__(self):
         out  = super().__str__()
-        out += "From: %s\n" % self._from
+        out += "From: {}\n".format(self._from)
         return out
 
     @staticmethod

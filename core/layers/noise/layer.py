@@ -220,7 +220,7 @@ class YowNoiseLayer(YowLayer):
                 )
 
                 if not self._in_handshake():
-                    logger.debug("Performing handshake [username= %d, passive=%s]" % (username, passive) )
+                    logger.debug("Performing handshake [username={}, passive={}]".format(username, passive))
                     self._handshake_task = asyncio.ensure_future(
                         self._do_handshake(
                             client_config, local_static, rs=remote_static,

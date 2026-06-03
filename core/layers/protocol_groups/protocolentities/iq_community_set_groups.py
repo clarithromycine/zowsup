@@ -23,7 +23,7 @@ class SetCommunityGroupsIqProtocolEntity(GroupsIqProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "Group JID: %s\n" % self.group_jid
+        out += "Group JID: {}\n".format(", ".join(self.group_jids))
         return out
 
     def toProtocolTreeNode(self) -> Any:

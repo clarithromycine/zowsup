@@ -14,7 +14,7 @@ class StatusGetIqProtocolEntity(IqProtocolEntity):
 
     def __str__(self):
         out  = super().__str__()
-        out += "jid: %s\n" % self.jids
+        out += "jid: {}\n".format(self.jids)
         return out
 
     def toProtocolTreeNode(self) -> Any:

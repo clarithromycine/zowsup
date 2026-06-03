@@ -101,7 +101,7 @@ class AxolotlControlLayer(AxolotlBaseLayer):
     @EventCallback(YowNetworkLayer.EVENT_STATE_DISCONNECTED)
     async def on_disconnected(self, yowLayerEvent) -> Any:        
         super().on_disconnected(yowLayerEvent)
-        logger.debug("Disconnected, reboot_connect? = %s" % self._reboot_connection)        
+        logger.debug("Disconnected, reboot_connect? = {}".format(self._reboot_connection))        
         if self._reboot_connection:
             self._reboot_connection = False         
             self.setProp(YowAuthenticationProtocolLayer.PROP_PASSIVE, False)

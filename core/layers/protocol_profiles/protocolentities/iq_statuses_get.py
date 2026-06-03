@@ -23,7 +23,7 @@ class GetStatusesIqProtocolEntity(IqProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "Numbers: %s\n" % (",".join(self.numbers))
+        out += "Numbers: {}\n".format(",".join(self.jids))
         return out
 
     def toProtocolTreeNode(self) -> Any:

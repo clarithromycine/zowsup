@@ -18,7 +18,7 @@ class ButtonsAttributes:
         if self._context_info is not None:
             attrs.append(("context_info", self._context_info))
 
-        return "[%s]" % " ".join(map(lambda item: "%s=%s" % item, attrs))
+        return "[{}]".format(" ".join(map(lambda item: "{}={}".format(*item), attrs)))
 
     @property
     def buttons(self) -> Any:

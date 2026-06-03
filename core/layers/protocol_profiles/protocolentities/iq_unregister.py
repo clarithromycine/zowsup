@@ -21,6 +21,6 @@ class UnregisterIqProtocolEntity(IqProtocolEntity):
         entity = IqProtocolEntity.fromProtocolTreeNode(node)
         entity.__class__ = UnregisterIqProtocolEntity
         removeNode = node.getChild("remove")
-        assert removeNode["xmlns"] == UnregisterIqProtocolEntity.XMLNS, "Not an account delete xmlns, got %s" % removeNode["xmlns"]
+        assert removeNode["xmlns"] == UnregisterIqProtocolEntity.XMLNS, "Not an account delete xmlns, got {}".format(removeNode["xmlns"])
 
         return entity

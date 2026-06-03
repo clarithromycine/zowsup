@@ -24,5 +24,5 @@ class KeystoreAttestationIbProtocolEntity(IbProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "ib-keystore_attestation: %s\n" % base64.b64encode(self.payload)
+        out += "ib-keystore_attestation: {}\n".format(base64.b64encode(self.payload.encode()).decode())
         return out

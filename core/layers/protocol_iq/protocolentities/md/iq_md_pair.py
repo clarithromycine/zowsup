@@ -39,7 +39,7 @@ class MultiDevicePairIqProtocolEntity(IqProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "refs: %s\n" % self.refs
+        out += "refs: {}\n".format(self.refs)
         return out
 
     @staticmethod

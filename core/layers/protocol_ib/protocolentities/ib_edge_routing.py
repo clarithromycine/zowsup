@@ -28,7 +28,7 @@ class EdgeRoutingIbProtocolEntity(IbProtocolEntity):
         
     def __str__(self):
         out = super().__str__()
-        out += "edge_routing: %s\n" % self.routing_info
+        out += "edge_routing: {}\n".format(self.routing_info)
         return out
 
     @staticmethod

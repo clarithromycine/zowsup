@@ -27,7 +27,7 @@ class GetKeysIqProtocolEntity(IqProtocolEntity):
     @jids.setter
     def jids(self, value: Any) -> None:
         # type: (list[str]) -> None
-        assert type(value) is list, "expected list of jids, got %s" % type(value)
+        assert type(value) is list, "expected list of jids, got {}".format(type(value))
         self._jids = value
 
     def toProtocolTreeNode(self) -> Any:

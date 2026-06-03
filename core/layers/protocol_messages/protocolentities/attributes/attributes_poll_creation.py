@@ -19,7 +19,7 @@ class PollCreationAttributes:
         if self.message_secret is not None:
             attrs.append(("message_secret", self.message_secret))                     
 
-        return "[%s]" % " ".join(map(lambda item: "%s=%s" % item, attrs))
+        return "[{}]".format(" ".join(map(lambda item: "{}={}".format(*item), attrs)))
 
     @property
     def name(self) -> Any:

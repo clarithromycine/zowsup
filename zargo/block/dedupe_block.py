@@ -10,7 +10,7 @@ class DedupeBlock() :
         self.cache = []
 
     def __str__(self) -> Any:
-        return "LengthBlock(header=%s, data=%s)" % (self.header,self.blockData)
+        return "LengthBlock(header={}, data={})".format(self.header, self.blockData)
 
         
         

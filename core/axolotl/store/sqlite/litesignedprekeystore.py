@@ -24,7 +24,7 @@ class LiteSignedPreKeyStore(SignedPreKeyStore):
 
         result = cursor.fetchone()        
         if not result:
-            raise InvalidKeyIdException("No such signedprekeyrecord! %s " % signedPreKeyId)
+            raise InvalidKeyIdException("No such signedprekeyrecord! {}".format(signedPreKeyId))
         
 
         return SignedPreKeyRecord(serialized=result[0])

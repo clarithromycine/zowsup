@@ -83,11 +83,11 @@ class MediaUploader(WARequest, threading.Thread):
             contentLength += len(fBAOS)
             contentLength += filesize
 
-            POST = "POST %s\r\n" % uploadUrl
+            POST = "POST {} HTTP/1.1\r\n".format(uploadUrl)
             POST += "Content-Type: multipart/form-data; boundary=" + boundary + "\r\n"
-            POST += "Host: %s\r\n" % self.url
-            POST += "User-Agent: %s\r\n" % self.getUserAgent()
-            POST += "Content-Length: " + str(contentLength) + "\r\n\r\n"
+            POST += "Host: {}\r\n".format(self.url)
+            POST += "User-Agent: {}\r\n".format(self.getUserAgent())
+            POST += "Content-Length: {}\r\n\r\n".format(contentLength)
 
             ssl_sock.write(bytearray(POST.encode()))
             ssl_sock.write(bytearray(hBAOS.encode()))
@@ -140,11 +140,11 @@ class MediaUploader(WARequest, threading.Thread):
                 if self.successCallback:
                     self.successCallback(sourcePath, self.jid, result["url"])
             else:
-                logger.exception("uploadUrl: %s, result of uploading media has no url" % uploadUrl)
+                logger.exception("uploadUrl: {}, result of uploading media has no url".format(uploadUrl))
                 if self.errorCallback:
                     self.errorCallback(sourcePath, self.jid, uploadUrl)
 
         except:
-            logger.exception("Error occured at transfer %s" % sys.exc_info()[1])
+            logger.exception("Error occured at transfer {}".format(sys.exc_info()[1]))
             if self.errorCallback:
                 self.errorCallback(sourcePath, self.jid, uploadUrl)

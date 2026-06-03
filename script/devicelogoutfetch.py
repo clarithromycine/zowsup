@@ -31,7 +31,7 @@ class LogoutFetch(ConsoleMain):
 
         if "env" not in options:
             options["env"] = SysVar.DEFAULT_ENV
-            logger.info("set default env to %s" % options["env"])
+            logger.info("set default env to {}".format(options["env"]))
             
         regType,osType = Utils.getTypesByEnvName(options["env"])
                               

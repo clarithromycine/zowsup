@@ -23,8 +23,8 @@ class NotificationProtocolEntity(ProtocolEntity):
    
     def __str__(self):
         out = "Notification\n"
-        out += "From: %s\n" % self.getFrom()
-        out += "Type: %s\n" % self.getType()
+        out += "From: {}\n".format(self.getFrom())
+        out += "Type: {}\n".format(self.getType())
         return out
 
     def getFrom(self, full = True) -> Any:

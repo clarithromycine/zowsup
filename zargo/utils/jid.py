@@ -17,7 +17,7 @@ class Jid:
         if n in range(10, 16):
             return 65 + (n - 10)
 
-        raise ValueError("bad hex %s" % n)
+        raise ValueError("bad hex {}".format(n))
 
     @staticmethod
     def unpackNibble(n):
@@ -25,7 +25,7 @@ class Jid:
             return n + 48
         if n in (10, 11):
             return 45 + (n - 10)
-        raise ValueError("bad nibble %s" % n)
+        raise ValueError("bad nibble {}".format(n))
 
     @staticmethod
     def readPacked8(n, data):
@@ -42,7 +42,7 @@ class Jid:
         if remove == 0:
             for i in range(0, dataSize):
                 char = chr(hexData[i]) if type(hexData[i]) is int else hexData[i] #python2/3 compat
-                val = ord(binascii.unhexlify("0%s" % char))
+                val = ord(binascii.unhexlify("0{}".format(char)))
                 if i == (dataSize - 1) and val > 11 and n != 251: continue
                 out.append(Jid.unpackByte(n, val))
         else:

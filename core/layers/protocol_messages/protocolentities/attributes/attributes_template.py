@@ -12,7 +12,7 @@ class TemplateAttributes:
         if self.buttons is not None:
             attrs.append(("buttons", self.buttons))
 
-        return "[%s]" % " ".join(map(lambda item: "%s=%s" % item, attrs))
+        return "[{}]".format(" ".join(map(lambda item: "{}={}".format(*item), attrs)))
 
     @property
     def text(self) -> Any:

@@ -89,16 +89,16 @@ class IncomingReceiptProtocolEntity(ReceiptProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "From: %s\n" % self._from
-        out += "Timestamp: %s\n" % self.timestamp
+        out += "From: {}\n".format(self._from)
+        out += "Timestamp: {}\n".format(self.timestamp)
         if self.offline is not None:
-            out += "Offline: %s\n" % ("1" if self.offline else "0")
+            out += "Offline: {}\n".format("1" if self.offline else "0")
         if self.type is not None:
-            out += "Type: %s\n" % (self.type)
+            out += "Type: {}\n".format(self.type)
         if self.participant is not None:
-            out += "Participant: %s\n" % (self.participant)
+            out += "Participant: {}\n".format(self.participant)
         if self.items is not None:
-            out += "Items: %s\n" % " ".join(self.items)
+            out += "Items: {}\n".format(" ".join(self.items))
         return out
 
     def ack(self) -> Any:

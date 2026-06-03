@@ -33,8 +33,8 @@ class YowContactsIqProtocolLayer(YowProtocolLayer):
                 await self.toUpper(ContactsSyncNotificationProtocolEntity.fromProtocolTreeNode(node))
 
             else:
-                logger.warning("Unsupported contact notification type: %s " % node["type"])
-                logger.debug("Unsupported contact notification node: %s" % node)
+                logger.warning("Unsupported contact notification type: {}".format(node["type"]))
+                logger.debug("Unsupported contact notification node: {}".format(node))
 
     async def recvIq(self, node) -> Any:        
         if node["type"] == "result":            

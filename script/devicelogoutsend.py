@@ -17,7 +17,7 @@ class LogoutSend(ConsoleMain):
 
         if "env" not in options:
             options["env"] = SysVar.DEFAULT_ENV
-            logger.info("set default env to %s" % options["env"])
+            logger.info("set default env to {}".format(options["env"]))
             
         self.commonOptionsProcess(options)       
            

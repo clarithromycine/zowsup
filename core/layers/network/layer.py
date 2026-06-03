@@ -84,7 +84,7 @@ class YowNetworkLayer(YowLayer, ConnectionCallbacks):
         self._dispatcher = self.__create_dispatcher(self.getProp(self.PROP_DISPATCHER, self.DISPATCHER_DEFAULT))
         self.state = self.__class__.STATE_CONNECTING
         endpoint = self.getProp(self.__class__.PROP_ENDPOINT)        
-        logger.debug("Connecting to %s:%s" % endpoint)                    
+        logger.debug("Connecting to {}:{}".format(*endpoint))                    
         self._dispatcher.connect(endpoint)                                  
 
 

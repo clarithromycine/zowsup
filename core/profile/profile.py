@@ -15,17 +15,17 @@ class YowProfile:
         :param config: A supplied config will disable loading configs using the Config manager and provide that config
         instead
         """
-        logger.debug("Constructed Profile(profile_name=%s)" % profile_name)
+        logger.debug("Constructed Profile(profile_name={})".format(profile_name))
         self._profile_name = profile_name
         self._config = config
         self._config_manager = ConfigManager()
         self._axolotl_manager = None
 
     def __str__(self) -> str:
-        return "YowProfile(profile_name=%s)" % self._profile_name
+        return "YowProfile(profile_name={})".format(self._profile_name)
 
     def _load_config(self) -> Any:
-        logger.debug("load_config for %s" % self._profile_name)
+        logger.debug("load_config for {}".format(self._profile_name))
         return self._config_manager.load(self._profile_name)
 
     def _load_axolotl_manager(self) -> Any:
@@ -34,7 +34,7 @@ class YowProfile:
     def write_config(self, config: Optional[Any] = None) -> None:
         if config is None:
             config = self.config        
-        logger.debug("write_config for %s" % self._profile_name)
+        logger.debug("write_config for {}".format(self._profile_name))
         self._config_manager.save(self._profile_name, config) 
 
     @property

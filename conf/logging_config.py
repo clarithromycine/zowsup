@@ -195,7 +195,7 @@ def setup_logging(level=None, enable_file=False, module_name_mode=None, log_file
     # 3. 记录初始化信息
     # ========================================================================
     root_logger.info(
-        f"Logging module initialized | level={level_name} | module_name_mode={module_name_mode} | file output={'enabled' if enable_file else 'disabled'}"
+        f"Logging module initialized: level={level_name}, module_name_mode={module_name_mode},file_output={'enabled' if enable_file else 'disabled'}"
     )
     
     return root_logger

@@ -55,7 +55,7 @@ class AsyncioConnectionDispatcher(YowConnectionDispatcher):
     def connect(self, host: Tuple[str, int]) -> None:
         """Schedule an async connection.  The running loop is expected
         to already exist (started by YowStack or tests)."""
-        logger.debug("connect(%s)", host)
+        logger.debug("connect({})".format(host))
         self.connectionCallbacks.onConnecting()
         asyncio.ensure_future(self._async_connect(host))
 
@@ -90,7 +90,7 @@ class AsyncioConnectionDispatcher(YowConnectionDispatcher):
             logger.warning("Write drain timeout after %ds", WRITE_TIMEOUT)
             self.disconnect()
         except Exception as exc:
-            logger.error("Write drain error: %s", exc)
+            logger.error("Write drain error: {}".format(exc))
             self.disconnect()
 
     # ------------------------------------------------------------------
@@ -107,18 +107,18 @@ class AsyncioConnectionDispatcher(YowConnectionDispatcher):
             self._reader = reader
             self._writer = writer
             self._connected = True
-            logger.debug("Connected to %s:%d", *host)
+            logger.debug("Connected to {}:{}".format(*host))
             await self.connectionCallbacks.onConnected()
             # Start the read loop as a background task
             self._read_task = asyncio.ensure_future(self._read_loop())
         except asyncio.TimeoutError:
-            logger.error("Connection timeout to %s:%d after %ds", *host, CONNECT_TIMEOUT)
+            logger.error("Connection timeout to {}:{} after {}s".format(*host, CONNECT_TIMEOUT))
             self._connected = False
             await self.connectionCallbacks.onConnectionError(
-                TimeoutError(f"Connection to {host[0]}:{host[1]} timed out after {CONNECT_TIMEOUT}s")
+                TimeoutError("Connection to {}:{} timed out after {}s".format(host[0], host[1], CONNECT_TIMEOUT))
             )
         except Exception as exc:
-            logger.error("Connection failed: %s", exc)
+            logger.error("Connection failed: {}".format(exc))
             self._connected = False
             await self.connectionCallbacks.onConnectionError(exc)
 
@@ -128,7 +128,7 @@ class AsyncioConnectionDispatcher(YowConnectionDispatcher):
         """Return (reader, writer), going through a SOCKS5 proxy if configured."""
         if self._networkEnv.type != "direct":
             return await self._open_proxy_connection(host)
-        logger.debug("Direct connection to %s:%d", *host)
+        logger.debug("Direct connection to {}:{}".format(*host))
         return await asyncio.open_connection(host[0], host[1])
 
     async def _open_proxy_connection(
@@ -139,14 +139,10 @@ class AsyncioConnectionDispatcher(YowConnectionDispatcher):
 
         env = self._networkEnv
         logger.debug(
-            "SOCKS5 proxy %s:%d → %s:%d",
-            env.host,
-            env.port,
-            host[0],
-            host[1],
+            "SOCKS5 proxy {}:{} → {}:{}".format(env.host, env.port, host[0], host[1])
         )
         proxy = Proxy.from_url(
-            f"socks5://{env.username}:{env.password}@{env.host}:{env.port}",
+            "socks5://{}:{}@{}:{}".format(env.username, env.password, env.host, env.port),
             rdns=True,
         )
         sock = await proxy.connect(dest_host=host[0], dest_port=host[1])
@@ -174,7 +170,7 @@ class AsyncioConnectionDispatcher(YowConnectionDispatcher):
             logger.debug("Read loop cancelled")
             return
         except Exception as exc:
-            logger.error("Read loop error: %s", exc)
+            logger.error("Read loop error: {}".format(exc))
         # Connection lost — clean up
         self._connected = False
         self._close_writer()

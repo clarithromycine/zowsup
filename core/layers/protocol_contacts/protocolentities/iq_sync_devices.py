@@ -33,8 +33,8 @@ class DevicesGetSyncIqProtocolEntity(SyncIqProtocolEntity):
 
     def setDevicesGetSyncProps(self, jids, mode, context) -> Any:
         assert type(jids) is list, "numbers must be a list"
-        assert mode in self.__class__.MODES, "mode must be in %s" % self.__class__.MODES
-        assert context in self.__class__.CONTEXTS, "context must be in %s" % self.__class__.CONTEXTS
+        assert mode in self.__class__.MODES, "mode must be in {}".format(self.__class__.MODES)
+        assert context in self.__class__.CONTEXTS, "context must be in {}".format(self.__class__.CONTEXTS)
 
         self.jids = jids
         self.mode = mode
@@ -42,9 +42,9 @@ class DevicesGetSyncIqProtocolEntity(SyncIqProtocolEntity):
 
     def __str__(self):
         out  = super().__str__()
-        out += "Mode: %s\n" % self.mode
-        out += "Context: %s\n" % self.context
-        out += "numbers: %s\n" % (",".join(self.numbers))
+        out += "Mode: {}\n".format(self.mode)
+        out += "Context: {}\n".format(self.context)
+        out += "numbers: {}\n".format(",".join(self.numbers))
         return out
 
     def toProtocolTreeNode(self) -> Any:
@@ -112,7 +112,7 @@ class DevicesResultSyncIqProtocolEntity(SyncIqProtocolEntity):
                 if deviceId!="0":
                     targets.append(f"{key}:{deviceId}@lid")
                 else:
-                    targets.append("%s@lid" % (key))
+                    targets.append(f"{key}@lid")
 
         return targets
     

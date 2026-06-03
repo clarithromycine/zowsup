@@ -40,14 +40,14 @@ class AckProtocolEntity(ProtocolEntity):
 
     def __str__(self):
         out  = "ACK:\n"
-        out += "ID: %s\n" % self._id
-        out += "Class: %s\n" % self._class
+        out += "ID: {}\n".format(self._id)
+        out += "Class: {}\n".format(self._class)
 
         if self._type is not None:
-            out += "Type: %s\n" % self._type        
+            out += "Type: {}\n".format(self._type)        
 
         if self._error is not None:
-            out += "Error: %s\n" % self._error
+            out += "Error: {}\n".format(self._error)
             
         return out
         

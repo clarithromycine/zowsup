@@ -9,7 +9,7 @@ class NormalBlock() :
         self.reader = DataReader(blockData)        
 
     def __str__(self) -> Any:
-        return "NormalBlock(header=%s, data=%s)" % (self.header,self.blockData)
+        return "NormalBlock(header={}, data={})".format(self.header, self.blockData)
 
         
         

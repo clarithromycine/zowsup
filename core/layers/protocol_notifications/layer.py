@@ -36,7 +36,7 @@ class YowNotificationsProtocolLayer(YowProtocolLayer):
             await self.toUpper(ServerSyncNotificationProtocolEntity.fromProtocolTreeNode(node))
 
         elif node["type"] == "link_code_companion_reg":
-            logger.debug("link_code_companion_reg: %s", node)
+            logger.debug("link_code_companion_reg: {}".format(node))
             await self.toUpper(LinkCodeCompanionRegNotificationProtocolEntity.fromProtocolTreeNode(node))
             
         elif node["type"] == "registration":
@@ -55,7 +55,7 @@ class YowNotificationsProtocolLayer(YowProtocolLayer):
                 if n.getAttributeValue("jid") is not None:
                     await self.toUpper(BusinessNameUpdateNotificationProtocolEntity.fromProtocolTreeNode(node))
                 else:
-                    logger.debug("business verified_name without jid: %s", node)
+                    logger.debug("business verified_name without jid: {}".format(node))
             elif node.getChild("remove"):
                 await self.toUpper(BusinessRemoveNotificationProtocolEntity.fromProtocolTreeNode(node))
             else:
@@ -85,7 +85,7 @@ class YowNotificationsProtocolLayer(YowProtocolLayer):
             pass
             
         elif node["type"] == "privacy_token":        
-            logger.info("receive a privacy_token from %s",node["from"].split("@")[0])         
+            logger.info("receive a privacy_token from {}".format(node["from"].split("@")[0]))         
             jid = lid = tctoken = tctoken_ts = None
             tokens = node.getChild("tokens")
             if tokens:
@@ -108,10 +108,10 @@ class YowNotificationsProtocolLayer(YowProtocolLayer):
             if node.getChild("push-config"):
                 await self.toUpper(ServerPushConfigNotificationProtocolEntity.fromProtocolTreeNode(node))
             else:
-                logger.warning("Unsupported notification type: %s " % node["type"])            
+                logger.warning("Unsupported notification type: {}".format(node["type"]))            
                 logger.debug(node)
         else:                   
-            logger.warning("Unsupported notification type: %s " % node["type"])            
+            logger.warning("Unsupported notification type: {}".format(node["type"]))            
             logger.debug(node)
 
         ack = OutgoingAckProtocolEntity(node["id"], "notification", node["type"], node["from"], participant=node["participant"])

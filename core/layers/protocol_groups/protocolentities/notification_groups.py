@@ -30,7 +30,7 @@ class GroupsNotificationProtocolEntity(NotificationProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "Participant: %s\n" % self.getParticipant()
+        out += "Participant: {}\n".format(self.getParticipant())
         return out
 
     def toProtocolTreeNode(self) -> Any:

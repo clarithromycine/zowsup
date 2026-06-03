@@ -17,9 +17,9 @@ class SyncIqProtocolEntity(IqProtocolEntity):
 
     def __str__(self):
         out  = super().__str__()
-        out += "sid: %s\n" % self.sid
-        out += "index: %s\n" % self.index
-        out += "last: %s\n" % self.last
+        out += "sid: {}\n".format(self.sid)
+        out += "index: {}\n".format(self.index)
+        out += "last: {}\n".format(self.last)
         return out
 
     def toProtocolTreeNode(self) -> Any:

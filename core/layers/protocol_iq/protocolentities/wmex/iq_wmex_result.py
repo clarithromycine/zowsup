@@ -40,7 +40,7 @@ class WmexResultIqProtocolEntity(IqProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "result_obj: %s\n" % (json.dumps(self.result_obj) if self.result_type=="json" else str(self.result_obj))
+        out += "result_obj: {}\n".format(json.dumps(self.result_obj) if self.result_type=="json" else str(self.result_obj))
         return out
 
     @staticmethod

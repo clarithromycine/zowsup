@@ -26,7 +26,7 @@ class YowIbProtocolLayer(YowProtocolLayer):
     async def recvIb(self, node) -> Any:
         if node.getChild("dirty"):
             dirty_node = node.getChild("dirty")
-            logger.info("auto clean %s" % dirty_node["type"])
+            logger.info("auto clean {}".format(dirty_node["type"]))
             clean = CleanDirtyIqProtocolEntity(type=dirty_node["type"])
             await self.toLower(clean.toProtocolTreeNode())
         elif node.getChild("offline"):
@@ -53,4 +53,4 @@ class YowIbProtocolLayer(YowProtocolLayer):
         elif node.getChild("offline_preview"):
             logger.info(node)
         else:
-            logger.warning("Unsupported ib node: \n%s" % node)
+            logger.warning("Unsupported ib node: \n{}".format(node))

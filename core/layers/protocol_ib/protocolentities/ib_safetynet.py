@@ -23,7 +23,7 @@ class SafetynetIbProtocolEntity(IbProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "ib-safetynet: %s\n" % base64.b64encode(self.payload)
+        out += "ib-safetynet: {}\n".format(base64.b64encode(self.payload.encode()).decode())
         return out
 
 
@@ -41,7 +41,7 @@ class SafetynetRequestIbProtocolEntity(IbProtocolEntity):
                 
     def __str__(self):
         out = super().__str__()
-        out += "ib-safetynet-request: %s\n" % self.nonce
+        out += "ib-safetynet-request: {}\n".format(self.nonce)
         return out
 
     @staticmethod

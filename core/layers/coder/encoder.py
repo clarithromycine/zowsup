@@ -117,7 +117,7 @@ class WriteEncoder:
         if token <= 255 and token >=0:
             data.append(token)
         else:
-            raise ValueError("Invalid token: %s" % token)
+            raise ValueError("Invalid token: {}".format(token))
 
 
     def writeString(self, tag, data, packed = False) -> Any: 

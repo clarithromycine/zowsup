@@ -16,7 +16,7 @@ class ProtocolTreeNode:
         self.data: Optional[bytes] = data
         self._truncate_str_data: bool = True
 
-        assert type(self.children) is list, "Children must be a list, got %s" % type(self.children)
+        assert type(self.children) is list, "Children must be a list, got {}".format(type(self.children))
 
     def __eq__(self, protocolTreeNode: Any) -> bool:
         """
@@ -55,31 +55,31 @@ class ProtocolTreeNode:
         return hash(self.tag) ^ hash(tuple(self.attributes.items())) ^ hash(self.data)
 
     def __str__(self) -> str:
-        out = "<%s" % self.tag
-        attrs = " ".join(map(lambda item: "%s=\"%s\"" % item, self.attributes.items()))
+        out = "<{}".format(self.tag)
+        attrs = " ".join(map(lambda item: "{}=\"{}\"".format(*item), self.attributes.items()))
         children = "\n".join(map(str, self.children))
         data = self.data or b""
         len_data = len(data)
 
         if attrs:
-            out = f"{out} {attrs}"
+            out = "{} {}".format(out, attrs)
 
         if children or data:
-            out = "%s>" % out
+            out = "{}>".format(out)
             if children:
                 out = "{}\n{}{}".format(out, self._STR_INDENT, children.replace('\n', '\n' + self._STR_INDENT))
             if len_data:
                 if self._truncate_str_data and len_data > self._STR_MAX_LEN_DATA:
                     data = data[:self._STR_MAX_LEN_DATA]
-                    postfix = "...[truncated %s bytes]" % (len_data - self._STR_MAX_LEN_DATA)
+                    postfix = "...[truncated {} bytes]".format(len_data - self._STR_MAX_LEN_DATA)
                 else:
                     postfix = ""
-                data = "0x%s" % binascii.hexlify(data).decode()
-                out = f"{out}\n{self._STR_INDENT}{data}{postfix}"
+                data = "0x{}".format(binascii.hexlify(data).decode())
+                out = "{}\n{}{}{}".format(out, self._STR_INDENT, data, postfix)
 
-            out = f"{out}\n</{self.tag}>"
+            out = "{}\n</{}>".format(out, self.tag)
         else:
-            out = "%s />" % out
+            out = "{} />".format(out)
 
         return out
 

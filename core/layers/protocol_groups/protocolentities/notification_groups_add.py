@@ -14,7 +14,7 @@ class AddGroupsNotificationProtocolEntity(GroupsNotificationProtocolEntity):
         self.setParticipants(participants)
 
     def setParticipants(self, participants) -> Any:
-        assert type(participants) is list, "Must be a list of jids, got %s instead." % type(participants)
+        assert type(participants) is list, "Must be a list of jids, got {} instead.".format(type(participants))
         self.participants = participants
 
     def getParticipants(self) -> Any:
@@ -22,7 +22,7 @@ class AddGroupsNotificationProtocolEntity(GroupsNotificationProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "Participants: %s\n" % " ".join(self.getParticipants())
+        out += "Participants: {}\n".format(" ".join(self.getParticipants()))
         return out
 
     def toProtocolTreeNode(self) -> Any:

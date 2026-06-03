@@ -23,7 +23,7 @@ class SuccessLeaveGroupsIqProtocolEntity(ResultIqProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "Group Id: %s\n" % self.groupId
+        out += "Group Id: {}\n".format(self.groupId)
         return out
 
     def toProtocolTreeNode(self) -> Any:

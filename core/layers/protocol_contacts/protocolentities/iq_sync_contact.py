@@ -49,8 +49,8 @@ class ContactGetSyncIqProtocolEntity(SyncIqProtocolEntity):
 
     def setGetSyncProps(self, numbers, mode, context) -> Any:
         assert type(numbers) is list, "numbers must be a list"
-        assert mode in self.__class__.MODES, "mode must be in %s" % self.__class__.MODES
-        assert context in self.__class__.CONTEXTS, "context must be in %s" % self.__class__.CONTEXTS
+        assert mode in self.__class__.MODES, "mode must be in {}".format(self.__class__.MODES)
+        assert context in self.__class__.CONTEXTS, "context must be in {}".format(self.__class__.CONTEXTS)
 
         self.numbers = numbers
         self.mode = mode
@@ -58,9 +58,9 @@ class ContactGetSyncIqProtocolEntity(SyncIqProtocolEntity):
 
     def __str__(self):
         out  = super().__str__()
-        out += "Mode: %s\n" % self.mode
-        out += "Context: %s\n" % self.context
-        out += "numbers: %s\n" % (",".join(self.numbers))
+        out += "Mode: {}\n".format(self.mode)
+        out += "Context: {}\n".format(self.context)
+        out += "numbers: {}\n".format(",".join(self.numbers))
         return out
 
     def toProtocolTreeNode(self) -> Any:
@@ -174,10 +174,10 @@ class ContactResultSyncIqProtocolEntity(SyncIqProtocolEntity):
     def __str__(self):
         out  = super(SyncIqProtocolEntity, self).__str__()
         if self.wait is not None:
-            out += "Wait: %s\n" % self.wait
-        out += "Version: %s\n" % self.version
-        out += "In Numbers: %s\n" % (",".join(self.inNumbers))
-        out += "Out Numbers: %s\n" % (",".join(self.outNumbers))
+            out += "Wait: {}\n".format(self.wait)
+        out += "Version: {}\n".format(self.version)
+        out += "In Numbers: {}\n".format(",".join(self.inNumbers))
+        out += "Out Numbers: {}\n".format(",".join(self.outNumbers))
 
         return out
 

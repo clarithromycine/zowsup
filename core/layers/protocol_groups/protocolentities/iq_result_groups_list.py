@@ -29,7 +29,7 @@ class ListGroupsResultIqProtocolEntity(ResultIqProtocolEntity):
         out = super().__str__()
         out += "Groups:\n"
         for g in self.groupsList:
-            out += "%s\n" % g
+            out += "{}\n".format(g)
         return out
 
     def getGroups(self) -> Any:

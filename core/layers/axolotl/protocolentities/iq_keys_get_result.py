@@ -201,7 +201,7 @@ class MissingParametersException(Exception):
             parameters = list(parameters)
         assert len(parameters) > 0
         for p in parameters:
-            assert p in self.__PARAMS, "%s is unrecognized param" % p
+            assert p in self.__PARAMS, "{} is unrecognized param".format(p)
 
         self._parameters = parameters
 

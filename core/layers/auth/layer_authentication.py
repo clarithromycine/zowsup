@@ -74,6 +74,6 @@ class YowAuthenticationProtocolLayer(YowProtocolLayer):
         errorType = nodeEntity.getErrorType()
 
         if not errorType and nodeEntity.code is None:
-            raise NotImplementedError("Unhandled stream:error node:\n%s" % node)
+            raise NotImplementedError("Unhandled stream:error node:\n{}".format(node))
                 
         await self.toUpper(nodeEntity)

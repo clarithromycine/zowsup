@@ -35,7 +35,7 @@ class ChatstateProtocolEntity(ProtocolEntity):
 
     def __str__(self):
         out  = "CHATSTATE:\n"
-        out += "State: %s\n" % self._state
+        out += "State: {}\n".format(self._state)
         return out
 
     @staticmethod

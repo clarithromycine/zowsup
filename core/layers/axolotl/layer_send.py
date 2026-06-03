@@ -92,12 +92,12 @@ class AxolotlSendLayer(AxolotlBaseLayer):
         # type: (dict) -> None
         for jid, error in errors.items():
             if isinstance(error, MissingParametersException):
-                logger.error("Failed to create prekeybundle for %s, user had missing parameters: %s, "
-                             "is that a valid user?" % (jid, error.parameters))                
+                logger.error("Failed to create prekeybundle for {}, user had missing parameters: {}, "
+                             "is that a valid user?".format(jid, error.parameters))                
             elif isinstance(error, exceptions.UntrustedIdentityException):
-                logger.error("Failed to create session for %s as user's identity is not trusted. " % jid)
+                logger.error("Failed to create session for {} as user's identity is not trusted. ".format(jid))
             else:
-                logger.error("Failed to process keys for %s, is that a valid user? Exception: %s" % error)
+                logger.error("Failed to process keys for {}, is that a valid user? Exception: {}".format(jid, error))
 
     async def processPlaintextNodeAndSend(self, node, retryReceiptEntity = None) -> Any:
             
@@ -154,7 +154,7 @@ class AxolotlSendLayer(AxolotlBaseLayer):
                 return self.sentQueue.pop(i)
             
     async def sendEncEntities(self, node, encEntities, participant=None,tctoken=None) -> Any:
-        logger.debug("sendEncEntities(node=[omitted], encEntities=[omitted], participant=%s)" % participant)
+        logger.debug("sendEncEntities(node=[omitted], encEntities=[omitted], participant={})".format(participant))
 
         message_attrs = MessageMetaAttributes.from_message_protocoltreenode(node)
         message_attrs.participant = participant        
@@ -220,7 +220,7 @@ class AxolotlSendLayer(AxolotlBaseLayer):
 
     async def ensureSessionsAndSendToContacts(self, node, targets) -> Any:
 
-        logger.debug("ensureSessionsAndSendToContacts(node=[omitted], targets=%s)" % targets)
+        logger.debug("ensureSessionsAndSendToContacts(node=[omitted], targets={})".format(targets))
         targetToSend = []
         targetsWithoutSession = []
 
@@ -315,7 +315,7 @@ class AxolotlSendLayer(AxolotlBaseLayer):
         case the participant's jid would go in the parent's EncryptedMessage and not into the enc node.
         """
         logger.debug(
-            "sendToGroupWithSessions(node=[omitted], jidsNeedSenderKey=%s, retryCount=%d)" % (jidsNeedSenderKey, retryCount)
+            "sendToGroupWithSessions(node=[omitted], jidsNeedSenderKey={}, retryCount={})".format(jidsNeedSenderKey, retryCount)
         )
         jidsNeedSenderKey = jidsNeedSenderKey or []
         groupJid = node["to"]
@@ -345,7 +345,7 @@ class AxolotlSendLayer(AxolotlBaseLayer):
         await self.sendEncEntities(node, encEntities, participant)
 
     async def ensureSessionsAndSendToGroup(self, node, jids) -> Any:
-        logger.debug("ensureSessionsAndSendToGroup(node=[omitted], jids=%s)" % jids)
+        logger.debug("ensureSessionsAndSendToGroup(node=[omitted], jids={})".format(jids))
 
         allJids = []
         jidsNoSession = []    
@@ -385,8 +385,8 @@ class AxolotlSendLayer(AxolotlBaseLayer):
             - request participants keys
             - send message with dist key only + conversation, only for this participat
         """
-        logger.debug("sendToGroup(node=[omitted], retryReceiptEntity=[%s])" %
-                     ("[retry_count={}, retry_jid={}]".format(
+        logger.debug("sendToGroup(node=[omitted], retryReceiptEntity=[{}])".format(
+                     "[retry_count={}, retry_jid={}]".format(
                          retryReceiptEntity.getRetryCount(), retryReceiptEntity.getRetryJid())
                       ) if retryReceiptEntity is not None else None)
 

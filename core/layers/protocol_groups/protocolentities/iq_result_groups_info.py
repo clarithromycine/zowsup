@@ -68,13 +68,13 @@ class InfoGroupsResultIqProtocolEntity(ResultIqProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "Group ID: %s\n" % self.groupId
-        out += "Created: %s\n" % self.creationTimestamp
-        out += "Creator JID: %s\n" % self.creatorJid
-        out += "Subject: %s\n" % self.subject
-        out += "Subject Timestamp: %s\n" % self.subjectTime
-        out += "Subject owner JID: %s\n" % self.subjectOwnerJid
-        out += "Participants: %s\n" % self.participants
+        out += "Group ID: {}\n".format(self.groupId)
+        out += "Created: {}\n".format(self.creationTimestamp)
+        out += "Creator JID: {}\n".format(self.creatorJid)
+        out += "Subject: {}\n".format(self.subject)
+        out += "Subject Timestamp: {}\n".format(self.subjectTime)
+        out += "Subject owner JID: {}\n".format(self.subjectOwnerJid)
+        out += "Participants: {}\n".format(self.participants)
         return out
 
     def toProtocolTreeNode(self) -> Any:

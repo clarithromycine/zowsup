@@ -31,8 +31,9 @@ class Group:
         return self._creationTime
 
     def __str__(self):
-        return "ID: %s, Subject: %s, Creation: %s, Creator: %s, Subject Owner: %s, Subject Time: %s\nParticipants: %s" %\
-                (self.getId(), self.getSubject(), self.getCreationTime(), self.getCreator(),  self.getSubjectOwner(), self.getSubjectTime(), ", ".join(self._participants.keys()))
+        return "ID: {}, Subject: {}, Creation: {}, Creator: {}, Subject Owner: {}, Subject Time: {}\nParticipants: {}".format(
+            self.getId(), self.getSubject(), self.getCreationTime(), self.getCreator(),  self.getSubjectOwner(), self.getSubjectTime(), ", ".join(self._participants.keys())
+        )
 
     def getParticipants(self) -> Any:
         return self._participants

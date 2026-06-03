@@ -20,7 +20,7 @@ class RemoveGroupsNotificationProtocolEntity(GroupsNotificationProtocolEntity):
                       subject,
                       participants) -> Any:
 
-        assert type(participants) is list, "Must be a list of jids, got %s instead." % type(participants)
+        assert type(participants) is list, "Must be a list of jids, got {} instead.".format(type(participants))
 
         self.subject = subject
         self.participants = participants

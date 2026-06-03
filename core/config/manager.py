@@ -64,7 +64,7 @@ class ConfigManager:
                     fname = self.NAME_FILE_CONFIG
 
                 fpath = os.path.join(config_dir, fname)
-                logger.debug("Trying %s" % fpath)
+                logger.debug("Trying {}".format(fpath))
                 if os.path.isfile(fpath):
                     return self._load_path(fpath)
 
@@ -90,10 +90,10 @@ class ConfigManager:
         :return:
         :rtype:
         """
-        logger.debug("_load_path(path=%s)" % path)
+        logger.debug("_load_path(path={})".format(path))
         if os.path.isfile(path):
             configtype = self.guess_type(path)
-            logger.debug("Detected config type: %s" % self._type_to_str(configtype))
+            logger.debug("Detected config type: {}".format(self._type_to_str(configtype)))
             if configtype in self.TYPES:
                 logger.debug("Opening config for reading")
                 with open(path) as f:
@@ -103,7 +103,7 @@ class ConfigManager:
             else:
                 raise ValueError("Unsupported config type")
         else:
-            logger.debug("_load_path couldn't find the path: %s" % path)
+            logger.debug("_load_path couldn't find the path: {}".format(path))
 
     def load_data(self, datadict) -> Any:
         logger.debug("Loading config")
@@ -126,12 +126,12 @@ class ConfigManager:
             for config_type, transform in self.TYPES.items():
                 config_type_str = self.TYPE_NAMES[config_type]
                 try:
-                    logger.debug("Trying to parse as %s" % config_type_str)
+                    logger.debug("Trying to parse as {}".format(config_type_str))
                     if transform().reverse(data):
-                        logger.debug(f"Successfully detected {config_type_str} as config type for {config_path}")
+                        logger.debug("Successfully detected {} as config type for {}".format(config_type_str, config_path))
                         return config_type
                 except Exception as ex:
-                    logger.debug(f"{config_path} was not parseable as {config_type_str}, reason: {ex}")
+                    logger.debug("{} was not parseable as {}, reason: {}".format(config_path, config_type_str, ex))
 
     def get_str_transform(self, serialize_type) -> Any:
         if serialize_type in self.TYPES:

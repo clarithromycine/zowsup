@@ -27,9 +27,9 @@ class ResultRequestUploadIqProtocolEntity(ResultIqProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "URL: %s\n" % self.url
+        out += "URL: {}\n".format(self.url)
         if self.ip:
-            out += "IP: %s\n" % self.ip
+            out += "IP: {}\n".format(self.ip)
         return out
 
     def toProtocolTreeNode(self) -> Any:

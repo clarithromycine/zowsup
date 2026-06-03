@@ -27,7 +27,7 @@ class ReadDecoder:
             index = self.readInt8(data)
             token = self.tokenDictionary.getToken(index, True)
             if not token:
-                raise ValueError("Invalid token %s" % token)
+                raise ValueError("Invalid token {}".format(token))
 
         return token
 
@@ -35,7 +35,7 @@ class ReadDecoder:
         pos = n2 + n * 256
         token = self.tokenDictionary.getToken(pos, True)
         if not token:
-            raise ValueError("Invalid token %s" % pos)
+            raise ValueError("Invalid token {}".format(pos))
 
         return token
 
@@ -49,7 +49,7 @@ class ReadDecoder:
             if tag == 236:
                 tag = data.pop(0) + 237
             token = self.getToken(tag, data)#self.tokenDictionary.getToken(tag)
-            raise Exception("expecting STREAM_START in streamStart, instead got token: %s" % token)
+            raise Exception("expecting STREAM_START in streamStart, instead got token: {}".format(token))
         attribCount = (size - 2 + size % 2) / 2
         self.readAttributes(attribCount, data)
 
@@ -70,7 +70,7 @@ class ReadDecoder:
             elif dec in (10, 11):
                 string += chr(dec - 10 + 45)
             else:
-                raise Exception("Bad nibble %s" % dec)
+                raise Exception("Bad nibble {}".format(dec))
         return string
 
     def readPacked8(self, n, data) -> Any:
@@ -86,7 +86,7 @@ class ReadDecoder:
         if remove == 0:
             for i in range(0, dataSize):
                 char = chr(hexData[i]) if type(hexData[i]) is int else hexData[i] #python2/3 compat
-                val = ord(binascii.unhexlify("0%s" % char))
+                val = ord(binascii.unhexlify("0{}".format(char)))
                 if i == (dataSize - 1) and val > 11 and n != 251: continue
                 out.append(self.unpackByte(n, val))
         else:
@@ -99,7 +99,7 @@ class ReadDecoder:
             return self.unpackHex(n2)
         if n == 255:
             return self.unpackNibble(n2)
-        raise ValueError("bad packed type %s" % n)
+        raise ValueError("bad packed type {}".format(n))
 
     def unpackHex(self, n) -> Any:
         if n in range(0, 10):
@@ -107,14 +107,14 @@ class ReadDecoder:
         if n in range(10, 16):
             return 65 + (n - 10)
 
-        raise ValueError("bad hex %s" % n)
+        raise ValueError("bad hex {}".format(n))
 
     def unpackNibble(self, n) -> Any:
         if n in range(0, 10):
             return n + 48
         if n in (10, 11):
             return 45 + (n - 10)
-        raise ValueError("bad nibble %s" % n)
+        raise ValueError("bad nibble {}".format(n))
 
 
     def readHeader(self, data, offset = 0) -> Any:

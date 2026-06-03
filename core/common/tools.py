@@ -148,7 +148,7 @@ class StorageTools:
     def writeProfileData(profile_name: Union[str, int], name: str, val: Union[str, bytes]) -> None:
         logger.debug(f"writeProfileData(profile_name={profile_name}, name={name}, val=[omitted])")
         path = os.path.join(StorageTools.getStorageForProfile(profile_name), name)
-        logger.debug("Writing %s" % path)
+        logger.debug("Writing {}".format(path))
 
         with open(path, 'w' if type(val) is str else 'wb') as attrFile:
             attrFile.write(val)
@@ -159,11 +159,11 @@ class StorageTools:
         path = StorageTools.getStorageForProfile(profile_name)
         dataFilePath = os.path.join(path, name)
         if os.path.isfile(dataFilePath):
-            logger.debug("Reading %s" % dataFilePath)
+            logger.debug("Reading {}".format(dataFilePath))
             with open(dataFilePath, 'rb') as attrFile:
                 return attrFile.read()
         else:
-            logger.debug("%s does not exist" % dataFilePath)
+            logger.debug("{} does not exist".format(dataFilePath))
 
         return default
 

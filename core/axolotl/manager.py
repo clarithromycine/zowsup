@@ -163,7 +163,7 @@ class AxolotlManager:
         # to avoid the hassle of encoding issues and associated unnecessary crashes,
         # don't log the message content.
         # see https://github.com/tgalal/yowsup/issues/2732
-        logger.debug("encrypt(username=%s, message=[omitted])" % username)
+        logger.debug("encrypt(username={}, message=[omitted])".format(username))
         """
         :param username:
         :type username: str
@@ -173,6 +173,8 @@ class AxolotlManager:
         :rtype:
         """
         recipientId,recipientType,deviceId = WATools.jidDecode(username)
+
+        
 
         cipher = self._get_session_cipher(recipientId,recipientType,deviceId)        
         return cipher.encrypt(message + self._generate_random_padding())

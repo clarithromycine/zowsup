@@ -29,9 +29,9 @@ class MultiDevicePairSuccessIqProtocolEntity(IqProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "platform: %s\n" % self.platform
-        out += "device-identity: %s\n" % self.device_identity
-        out += "jid: %s\n" % self.jid
+        out += "platform: {}\n".format(self.platform)
+        out += "device-identity: {}\n".format(self.device_identity)
+        out += "jid: {}\n".format(self.jid)
         return out
 
     @staticmethod

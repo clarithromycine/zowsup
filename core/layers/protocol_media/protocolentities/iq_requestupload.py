@@ -26,7 +26,7 @@ class RequestUploadIqProtocolEntity(IqProtocolEntity):
         assert (b64Hash and size) or filePath, "Either specify hash and size, or specify filepath and let me generate the rest"
 
         if filePath:
-            assert os.path.exists(filePath), "Either specified path does not exist, or yowsup doesn't have permission to read: %s" % filePath
+            assert os.path.exists(filePath), "Either specified path does not exist, or yowsup doesn't have permission to read: {}".format(filePath)
             b64Hash = self.__class__.getFileHashForUpload(filePath)
 
             size = os.path.getsize(filePath)
@@ -47,11 +47,11 @@ class RequestUploadIqProtocolEntity(IqProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "Media Type: %s\n" % self.mediaType
-        out += "B64Hash: %s\n" % self.b64Hash
-        out += "Size: %s\n" % self.size
+        out += "Media Type: {}\n".format(self.mediaType)
+        out += "B64Hash: {}\n".format(self.b64Hash)
+        out += "Size: {}\n".format(self.size)
         if self.origHash:
-            out += "OrigHash: %s\n" % self.origHash
+            out += "OrigHash: {}\n".format(self.origHash)
         return out
 
     def toProtocolTreeNode(self) -> Any:
@@ -69,7 +69,7 @@ class RequestUploadIqProtocolEntity(IqProtocolEntity):
 
     @staticmethod
     def fromProtocolTreeNode(node):
-        assert node.getAttributeValue("type") == "set", "Expected set as iq type in request upload, got %s" % node.getAttributeValue("type")
+        assert node.getAttributeValue("type") == "set", "Expected set as iq type in request upload, got {}".format(node.getAttributeValue("type"))
         entity = IqProtocolEntity.fromProtocolTreeNode(node)
         entity.__class__ = RequestUploadIqProtocolEntity
 

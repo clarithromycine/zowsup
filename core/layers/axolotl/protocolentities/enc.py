@@ -10,7 +10,7 @@ class EncProtocolEntity(ProtocolEntity):
     TYPES = (TYPE_PKMSG, TYPE_MSG, TYPE_SKMSG,TYPE_FRSKMSG,TYPE_MSMSG)
 
     def __init__(self, type, version, data, mediaType = None, jid = None,count=None) -> None:
-        assert type in self.__class__.TYPES, "Unknown message enc type %s" % type
+        assert type in self.__class__.TYPES, "Unknown message enc type {}".format(type)
         super().__init__("enc")
         self.type = type
         self.version = int(version)

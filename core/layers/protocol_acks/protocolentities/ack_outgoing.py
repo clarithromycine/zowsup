@@ -31,10 +31,10 @@ class OutgoingAckProtocolEntity(AckProtocolEntity):
 
     def __str__(self):
         out  = super().__str__()
-        out += "Type: %s\n" % self._type
-        out += "To: %s\n" % self._to
+        out += "Type: {}\n".format(self._type)
+        out += "To: {}\n".format(self._to)
         if self._participant:
-            out += "Participant: %s\n" % self._participant
+            out += "Participant: {}\n".format(self._participant)
         return out
 
     @staticmethod

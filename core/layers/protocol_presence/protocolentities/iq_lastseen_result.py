@@ -14,7 +14,7 @@ class ResultLastseenIqProtocolEntity(ResultIqProtocolEntity):
 
     def __str__(self):
         out = super(ResultIqProtocolEntity, self).__str__()
-        out += "Seconds: %s\n" % self.seconds
+        out += "Seconds: {}\n".format(self.seconds)
         return out
 
     def toProtocolTreeNode(self) -> Any:

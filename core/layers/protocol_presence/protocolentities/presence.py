@@ -53,13 +53,13 @@ class PresenceProtocolEntity(ProtocolEntity):
     def __str__(self):
         out  = "Presence:\n"
         if self._type:
-            out += "Type: %s\n" % self._type
+            out += "Type: {}\n".format(self._type)
         if self.name:
-            out += "Name: %s\n" % self.name
+            out += "Name: {}\n".format(self.name)
         if self._from:
-            out += "From: %s\n" % self._from
+            out += "From: {}\n".format(self._from)
         if self.last:
-            out += "Last seen: %s\n" % self.last
+            out += "Last seen: {}\n".format(self.last)
         return out
 
     @staticmethod

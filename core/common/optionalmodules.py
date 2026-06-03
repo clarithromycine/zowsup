@@ -21,7 +21,7 @@ class OptionalModule:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if isinstance(exc_val, ImportError):
-            failMessage = self.failMessage if self.failMessage is not None else ("%s import failed" % self.modulename)
+            failMessage = self.failMessage if self.failMessage is not None else ("{} import failed".format(self.modulename))
             if failMessage:
                 logger.error(failMessage)
             if self.require:

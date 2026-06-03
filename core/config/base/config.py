@@ -8,10 +8,10 @@ class Config:
         return self[item] is not None
 
     def __getitem__(self, item) -> Any:
-        return getattr(self, "_%s" % item)
+        return getattr(self, "_{}".format(item))
 
     def __setitem__(self, key, value) -> Any:
-        setattr(self, key, value)
+        setattr(self, "_{}".format(key), value)
 
     def keys(self) -> Any:
         return [var[1:] for var in vars(self)]

@@ -25,8 +25,8 @@ class DirtyIbProtocolEntity(IbProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "Type: %s\n" % self._type
-        out += "Timestamp: %s\n" % self.timestamp
+        out += "Type: {}\n".format(self._type)
+        out += "Timestamp: {}\n".format(self.timestamp)
         return out
 
     @staticmethod

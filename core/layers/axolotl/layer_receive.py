@@ -72,12 +72,12 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
             self.reset_retries(node["id"])
 
         except exceptions.InvalidKeyIdException:
-            logger.warning("Invalid KeyId for %s, going to send the receipt to ignore subsequence push", encMessageProtocolEntity.getAuthor(False))
+            logger.warning("Invalid KeyId for {}, going to send the receipt to ignore subsequence push".format(encMessageProtocolEntity.getAuthor(False)))
             await self.toLower(OutgoingReceiptProtocolEntity(node["id"], node["from"], participant=node["participant"]).toProtocolTreeNode())
                    
             
         except exceptions.InvalidMessageException:
-            logger.warning("InvalidMessage for %s", encMessageProtocolEntity.getAuthor(False))     
+            logger.warning("InvalidMessage for {}".format(encMessageProtocolEntity.getAuthor(False)))     
             if node["id"] in self._retries and self._retries[node["id"]] >=3:
                 #重复三次，如果都是invalid可能是对方的异常，放弃,也有可能是本地的prekey变更，导致对方用的key无法解密
                 await self.toLower(OutgoingReceiptProtocolEntity(node["id"], node["from"], participant=node["participant"]).toProtocolTreeNode())   
@@ -86,7 +86,7 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
                 await self.send_retry(node, self.manager.registration_id)                
 
         except exceptions.NoSessionException:            
-            logger.warning("No session for %s, getting their keys now", encMessageProtocolEntity.getAuthor(False))
+            logger.warning("No session for {}, getting their keys now".format(encMessageProtocolEntity.getAuthor(False)))   
             #self.toLower(OutgoingReceiptProtocolEntity(node["id"], node["from"], participant=node["participant"]).toProtocolTreeNode())  
 
             conversationIdentifier = (node["from"], node["participant"])
@@ -107,7 +107,7 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
 
         except UntrustedIdentityException as e:
             if self.getProp(PROP_IDENTITY_AUTOTRUST, False):
-                logger.warning("Autotrusting identity for %s", e.getName())
+                logger.warning("Autotrusting identity for {}".format(e.getName()))
                 self.manager.trust_identity(e.getName(), e.getIdentityKey())
                 return await self.handleEncMessage(node)
             else:                
@@ -179,9 +179,9 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
             await self.toUpper(node)
             return True
         except exceptions.NoSessionException:
-            logger.warning("Got retry to %s, going to send a retry", encMessageProtocolEntity.getAuthor(False))
+            logger.warning("Got retry to {}, going to send a retry".format(encMessageProtocolEntity.getAuthor(False)))
             if node["id"] in self._retries and self._retries[node["id"]] >= 3:
-                logger.warning("Too many retries for group msg from %s, giving up", encMessageProtocolEntity.getAuthor(False))
+                logger.warning("Too many retries for group msg from {}, giving up".format(encMessageProtocolEntity.getAuthor(False)))
                 await self.toLower(OutgoingReceiptProtocolEntity(node["id"], node["from"], participant=node["participant"]).toProtocolTreeNode())
             else:
                 await self.send_retry(node, self.manager.registration_id)
@@ -192,8 +192,8 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
         try:
             m.ParseFromString(serializedData)
         except Exception:
-            logger.error("DUMP: %s", serializedData)
-            logger.error("bytes: %s", [s for s in serializedData])
+            logger.error("DUMP: {}".format(serializedData))
+            logger.error("bytes: {}".format([s for s in serializedData]))
             raise
         if not m or not serializedData:
             raise exceptions.InvalidMessageException()

@@ -14,7 +14,7 @@ class ChallengeProtocolEntity(ProtocolEntity):
 
     def __str__(self):
         out = "Challenge\n"
-        out += "Nonce: %s\n" % self.nonce
+        out += "Nonce: {}\n".format(self.nonce)
         return out
 
     @staticmethod

@@ -11,11 +11,11 @@ class SuccessProtocolEntity(ProtocolEntity):
 
     def __str__(self):
         out  = "Account:\n"
-        out += "Location: %s\n" % self.location
-        out += "Creation: %s\n" % self.creation
-        out += "Props: %s\n" % self.props
-        out += "t: %s\n" % self.t
-        out += "Lid: %s\n" % self.lid
+        out += "Location: {}\n".format(self.location)
+        out += "Creation: {}\n".format(self.creation)
+        out += "Props: {}\n".format(self.props)
+        out += "t: {}\n".format(self.t)
+        out += "Lid: {}\n".format(self.lid)
         return out
 
     def toProtocolTreeNode(self) -> Any:

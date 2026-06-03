@@ -82,13 +82,13 @@ class InviteGroupsNotificationProtocolEntity(GroupsNotificationProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "Creator: %s\n" % self.getCreatorJid()
-        out += "Reason: %s\n" % self.getReason()
-        out += "Creation timestamp: %s\n" % self.getCreationTimestamp()
-        out += "Subject: %s\n" % self.getSubject()
-        out += "Subject owner: %s\n" % self.getSubjectOwnerJid()
-        out += "Subject timestamp: %s\n" % self.getSubjectTimestamp()
-        out += "Participants: %s\n" % self.getParticipants()
+        out += "Creator: {}\n".format(self.getCreatorJid())
+        out += "Reason: {}\n".format(self.getReason())
+        out += "Creation timestamp: {}\n".format(self.getCreationTimestamp())
+        out += "Subject: {}\n".format(self.getSubject())
+        out += "Subject owner: {}\n".format(self.getSubjectOwnerJid())
+        out += "Subject timestamp: {}\n".format(self.getSubjectTimestamp())
+        out += "Participants: {}\n".format(self.getParticipants())
         return out
 
     def toProtocolTreeNode(self) -> Any:

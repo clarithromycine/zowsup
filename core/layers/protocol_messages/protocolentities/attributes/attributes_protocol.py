@@ -93,7 +93,7 @@ class ProtocolAttributes:
 
     @type.setter
     def type(self, value: Any) -> None:
-        assert value in self.TYPES, "Unknown type: %s" % value
+        assert value in self.TYPES, "Unknown type: {}".format(value)
         self._type = value
 
     @property

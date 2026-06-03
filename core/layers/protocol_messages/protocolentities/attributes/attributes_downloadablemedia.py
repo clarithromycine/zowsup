@@ -37,7 +37,7 @@ class DownloadableMediaMessageAttributes(MediaAttributes):
         self._direct_path = direct_path
 
     def __str__(self):
-        return "[mimetype=%s, file_length=%d, file_sha256=%s, media_key=%s, media_key_timestamp=%s, file_enc_sha256=%s,url=%s, direct_path=%s]" % (
+        return "[mimetype={}, file_length={}, file_sha256={}, media_key={}, media_key_timestamp={}, file_enc_sha256={}, url={}, direct_path={}]".format(
             self.mimetype, self.file_length, base64.b64encode(self.file_sha256) if self.file_sha256 else None,
             base64.b64encode(self.media_key) if self.media_key else None,
             str(self.media_key_timestamp),

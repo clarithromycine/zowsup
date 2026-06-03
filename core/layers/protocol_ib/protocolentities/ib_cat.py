@@ -26,5 +26,5 @@ class CatIbProtocolEntity(IbProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "ib-cat: %s\n" % base64.b64encode(self.catdata)
+        out += "ib-cat: {}\n".format(base64.b64encode(self.catdata.encode()).decode())
         return out

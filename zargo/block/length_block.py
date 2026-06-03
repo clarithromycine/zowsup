@@ -6,7 +6,7 @@ class LengthBlock() :
         self.length = length
 
     def __str__(self) -> Any:
-        return "LengthBlock(length=%d)" % self.length
+        return "LengthBlock(length={})".format(self.length)
 
         
         

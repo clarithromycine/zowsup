@@ -298,7 +298,7 @@ class WARequest:
             logger.info("Preview request, skip response handling and return None")
             return None
         if not self.response.status_code == WARequest.OK:
-            logger.error("Request not success, status was %s" % self.response.status)
+            logger.error("Request not success, status was {}".format(self.response.status))
             return {}
         return self.response.json()
 
@@ -315,7 +315,7 @@ class WARequest:
         self.response = WARequest.sendRequest(host, port, path, headers, params, "POST",env=self.env)
 
         if not self.response.status_code == WARequest.OK:
-            logger.error("Request not success, status was %s" % self.response.status)
+            logger.error("Request not success, status was {}".format(self.response.status))
             return {}
 
         self.sent = True             

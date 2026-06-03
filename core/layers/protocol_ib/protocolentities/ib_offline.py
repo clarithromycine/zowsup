@@ -22,7 +22,7 @@ class OfflineIbProtocolEntity(IbProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "ib-offline count: %s\n" % self.count
+        out += "ib-offline count: {}\n".format(self.count)
         return out
 
     @staticmethod

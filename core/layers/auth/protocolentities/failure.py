@@ -10,11 +10,11 @@ class FailureProtocolEntity(ProtocolEntity):
 
     def __str__(self):
         out  = "Failure:\n"
-        out += "Reason: %s\n" % self.reason
+        out += "Reason: {}\n".format(self.reason)
         if self.violation_reason is not None:
-            out += "ReasonDetail: %s\n" % self.violation_reason
+            out += "ReasonDetail: {}\n".format(self.violation_reason)
         if self.violation_type is not None:
-            out += "ViolationType: %s\n" % self.violation_type
+            out += "ViolationType: {}\n".format(self.violation_type)
             
         return out
 

@@ -69,7 +69,7 @@ class Main(ConsoleMain):
 
         if botId:
             logger.info(self.env.networkEnv)
-            logger.info("Starting bot: %s", botId)
+            logger.info("Starting bot: {}".format(botId))
         
         
         # Always start InteractiveThread, it handles both account init and commands

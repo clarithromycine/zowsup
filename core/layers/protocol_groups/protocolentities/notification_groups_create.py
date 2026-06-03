@@ -93,8 +93,8 @@ class CreateGroupsNotificationProtocolEntity(GroupsNotificationProtocolEntity):
         out += "Subject: {}\n".format(self.getSubject())
         out += "Subject owner: {}\n".format(self.getSubjectOwnerJid())
         out += "Subject timestamp: {}\n".format(self.getSubjectTimestamp())
-        out += "Participants: %s\n" % self.getParticipants()
-        out += "Key: %s\n" % self.key
+        out += "Participants: {}\n".format(self.getParticipants())
+        out += "Key: {}\n".format(self.key)
         return out
 
     def toProtocolTreeNode(self) -> Any:

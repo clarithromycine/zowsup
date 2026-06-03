@@ -46,7 +46,7 @@ class MediaMessageProtocolEntity(ProtomessageProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "\nmediatype=%s" % self.media_type
+        out += "\nmediatype={}".format(self.media_type)
         return out
 
     @property
@@ -56,7 +56,7 @@ class MediaMessageProtocolEntity(ProtomessageProtocolEntity):
     @media_type.setter
     def media_type(self, value: Any) -> None:
         if value not in MediaMessageProtocolEntity.TYPES_MEDIA:
-            logger.warn("media type: '%s' is not supported" % value)
+            logger.warning("media type: '{}' is not supported".format(value))
         self._media_type = value
 
     def toProtocolTreeNode(self) -> Any:

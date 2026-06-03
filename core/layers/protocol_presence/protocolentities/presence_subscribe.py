@@ -21,7 +21,7 @@ class SubscribePresenceProtocolEntity(PresenceProtocolEntity):
 
     def __str__(self):
         out  = super().__str__()
-        out += "To: %s\n" % self.jid
+        out += "To: {}\n".format(self.jid)
         return out
     
     def getId(self) -> Any:

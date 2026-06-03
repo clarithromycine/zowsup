@@ -6,7 +6,7 @@ class InlineBlock() :
         self.header = header
 
     def __str__(self) -> Any:
-        return "InlineBlock(header=%s)" % (self.header)
+        return "InlineBlock(header={})".format(self.header)
 
         
         

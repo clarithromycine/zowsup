@@ -26,5 +26,5 @@ class UnifiedSessionIbProtocolEntity(IbProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "ib-unifieid_session: id=%s\n" % base64.b64encode(self.id)
+        out += "ib-unifieid_session: id={}\n".format(base64.b64encode(self.id.encode()).decode())
         return out

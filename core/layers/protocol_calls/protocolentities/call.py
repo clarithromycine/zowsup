@@ -22,13 +22,13 @@ class CallProtocolEntity(ProtocolEntity):
     def __str__(self):
         out = "Call\n"
         if self.getFrom() is not None:
-            out += "From: %s\n" % self.getFrom()
+            out += "From: {}\n".format(self.getFrom())
         if self.getTo() is not None:
-            out += "To: %s\n" % self.getTo()
+            out += "To: {}\n".format(self.getTo())
         if self.getType() is not None:
-            out += "Type: %s\n" % self.getType()
+            out += "Type: {}\n".format(self.getType())
         if self.getCallId() is not None:
-            out += "Call ID: %s\n" % self.getCallId()
+            out += "Call ID: {}\n".format(self.getCallId())
         return out
 
     def getFrom(self, full = True) -> Any:

@@ -34,7 +34,7 @@ class StickerAttributes:
                             
         attrs.append(("downloadable", self.downloadablemedia_attributes))
 
-        return "[%s]" % " ".join(map(lambda item: "%s=%s" % item, attrs))
+        return "[{}]".format(" ".join(map(lambda item: "{}={}".format(*item), attrs)))
 
     @property
     def downloadablemedia_attributes(self) -> Any:

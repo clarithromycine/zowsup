@@ -29,7 +29,7 @@ class ReceiptProtocolEntity(ProtocolEntity):
 
     def __str__(self):
         out  = "Receipt:\n"
-        out += "ID: %s\n" % self._id
+        out += "ID: {}\n".format(self._id)
         return out
 
     @staticmethod

@@ -59,7 +59,7 @@ class ExternalAdReplyAttributes:
         if self._show_ad_attribution is not None:
             attribs.append(("show_ad_attribution",str(self.show_ad_attribution)))
 
-        return "[%s]" % " ".join(map(lambda item: "%s=%s" % item, attribs))        
+        return "[{}]".format(" ".join(map(lambda item: "{}={}".format(*item), attribs)))        
 
 
     @property

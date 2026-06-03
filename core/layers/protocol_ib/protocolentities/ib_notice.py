@@ -21,7 +21,7 @@ class NoticeIbProtocolEntity(IbProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "ib-notices: %s\n" % base64.b64encode(self.jwsdata)
+        out += "ib-notices: {}\n".format(base64.b64encode(self.jwsdata.encode()).decode())
         return out
     
 

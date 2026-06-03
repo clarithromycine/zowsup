@@ -265,7 +265,7 @@ class InteractiveThread:
         
         # If we have an initial bot, try to login
         if self.bot and self.bot.botId is not None:
-            self.logger.info("Waiting BOT %s Login" % self.bot.botId)
+            self.logger.info("Waiting BOT {} Login".format(self.bot.botId))
             # Run bot in background task to handle its event loop
             bot_task = asyncio.ensure_future(self.bot._async_run())
             
@@ -280,12 +280,12 @@ class InteractiveThread:
                 while True:
                     elapsed = time.time() - start_time
                     if elapsed > login_timeout:
-                        self.logger.info("BOT %s connection timeout" % self.bot.botId)
+                        self.logger.info("BOT {} connection timeout".format(self.bot.botId))
                         self.bot = None
                         break
                     
                     if self.bot.status == ZowBotStatus.STATUS_RUNNING:
-                        self.logger.info("BOT %s ready." % self.bot.botId)
+                        self.logger.info("BOT {} ready.".format(self.bot.botId))
                         break
                     elif self.bot.status in (ZowBotStatus.STATUS_INITIAL, ZowBotStatus.STATUS_UNKNOWN):
                         # Use wait_for to make asyncio.sleep interruptible
@@ -294,7 +294,7 @@ class InteractiveThread:
                         except asyncio.TimeoutError:
                             pass  # Expected - just continue the loop
                     elif self.bot.botLayer.detect40x:
-                        self.logger.info("BOT %s login failed" % self.bot.botId)
+                        self.logger.info("BOT {} login failed".format(self.bot.botId))
                         self.bot = None
                         break
                     else:
@@ -398,6 +398,7 @@ class InteractiveThread:
                     self.logger.info("Exiting...")
                     await self._async_disconnect()
                     break
+
                 except Exception as e:
                     self.logger.error(f"Error in prompt loop: {e}", exc_info=True)
                     # Try again without raising to continue the loop
@@ -502,7 +503,7 @@ class InteractiveThread:
             # Load profile to get environment settings
             profile = YowProfile(SysVar.ACCOUNT_PATH + account_num)
             if profile.config.os_name is not None:
-                self.logger.debug(f"Local Profile found - OS: {profile.config.os_name}")
+                self.logger.info(f"Local Profile found - OS: {profile.config.os_name}")
                 if self.env:
                     self.env.deviceEnv = DeviceEnv(SysVar.ENV_NAME_MAPPING.get(profile.config.os_name, "android"))
             

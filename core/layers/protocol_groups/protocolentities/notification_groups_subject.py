@@ -32,8 +32,8 @@ class SubjectGroupsNotificationProtocolEntity(GroupsNotificationProtocolEntity):
 
     def __str__(self):
         out = super().__str__()
-        out += "New subject: %s\n" % self.getSubject()
-        out += "Set by: %s\n" % self.getSubjectOwner()
+        out += "New subject: {}\n".format(self.getSubject())
+        out += "Set by: {}\n".format(self.getSubjectOwner())
         return out
 
     def toProtocolTreeNode(self) -> Any:
