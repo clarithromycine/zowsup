@@ -10,7 +10,7 @@ class ArgoFieldWireType :
         self.omittable = omittable
 
     def __str__(self) -> Any:
-        return "ArgoFieldWireType(name=%s, type=%s, omittable=%s)" % (self.name,self.type,str(self.omittable))
+        return "ArgoFieldWireType(name={}, type={}, omittable={})".format(self.name, self.type, self.omittable)
     
 
 

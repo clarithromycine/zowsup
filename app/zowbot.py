@@ -149,7 +149,7 @@ class ZowBot:
             if event.get("detail") is not None:
                 self.logger.info("Event {}, detail={}".format(zowsup_pb2.BotEvent.Event.Name(event["event"]),json.dumps(event["detail"])))                    
             else:
-                self.logger.info("Event %s" % zowsup_pb2.BotEvent.Event.Name(event["event"]))
+                self.logger.info("Event {}".format(zowsup_pb2.BotEvent.Event.Name(event["event"])))
             
                                 
         if message is not None:            
@@ -427,7 +427,7 @@ class ZowBot:
         try:
             fn = self.cmdList[name] if name in self.cmdList else None
             if fn is None:
-                logger.info("command %s not found" % name)
+                logger.info("command {} not found".format(name))
                 return None, {"code": -2, "msg": "Command Not Found"}
             
             try:

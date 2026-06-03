@@ -81,4 +81,4 @@ class RC2:
             content_bytes = cipher.encrypt(rc_bytes)                                        
             RC2.write_file(filePath,header_bytes + key_bytes + iv_bytes + content_bytes)                
         except Exception as e:
-            logger.error("rc2 generating error: %s", e, exc_info=True)
+            logger.error("rc2 generating error: {}".format(e), exc_info=True)

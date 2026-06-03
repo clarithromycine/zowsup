@@ -78,8 +78,8 @@ class WAHandshakeAsync:
     # ---- async perform ----
 
     async def perform(self, client_config, stream: AsyncSegmentedStream, s, rs=None, e=None):
-        logger.debug("async perform(client_config=%s, stream=%s, s=%s, rs=%s, e=%s)",
-                      client_config, stream, s, rs, e)
+        logger.debug("async perform(client_config={}, stream={}, s={}, rs={}, e={})".format(
+                      client_config, stream, s, rs, e))
 
         dh = X25519DH()
         if e is not None:

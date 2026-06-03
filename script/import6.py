@@ -35,8 +35,6 @@ class Import6(ConsoleMain):
             sys.exit(1)
 
         auto = ("auto" in options)
-
-
         
         data = params[0].split(",")
 

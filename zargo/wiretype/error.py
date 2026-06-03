@@ -8,7 +8,7 @@ class ErrorWireType :
         self.inner = inner
 
     def __str__(self) -> Any:
-        return "ErrorWireType(inner=%s)" % (self.inner)
+        return "ErrorWireType(inner={})".format(self.inner)
     
 
 

@@ -152,12 +152,12 @@ class Cmd_Msg_Send(BotSendCommand):
 
         if "broadcast" in options:
             #广播@broadcast发送            
-            self.logger.info("Send broadcast msg (ID=%s)" % messageEntity.getId())           
+            self.logger.info("Send broadcast msg (ID={})".format(messageEntity.getId()))           
             messageEntity.to = options["bcid"]
             messageEntity.phash = options["phash"]            
             await self.bot.botLayer.toLower(messageEntity)    
         else:
-            self.logger.info("Send Msg (ID=%s)" % messageEntity.getId())
+            self.logger.info("Send Msg (ID={})".format(messageEntity.getId()))
             target = Jid.normalize(to.split(",")[0])
             if target.endswith("@g.us"):
                 entity = OutgoingChatstateProtocolEntity(ChatstateProtocolEntity.STATE_TYPING, target,Jid.normalize(self.bot.botId))

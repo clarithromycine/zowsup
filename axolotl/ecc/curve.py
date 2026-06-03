@@ -36,11 +36,11 @@ class Curve:
 
             type = _bytes[offset] & 0xFF
             if type != Curve.DJB_TYPE:
-                raise InvalidKeyException("Unknown key type: %s " % type)
+                raise InvalidKeyException("Unknown key type: {}".format(type))
             keyBytes = _bytes[offset+1:][:32]
             return DjbECPublicKey(bytes(keyBytes))
         else:
-            raise InvalidKeyException("Unknown key type: %s" % type)
+            raise InvalidKeyException("Unknown key type: {}".format(type))
 
     @staticmethod
     def decodePrivatePoint(_bytes):
@@ -59,7 +59,7 @@ class Curve:
         if publicKey.getType() == Curve.DJB_TYPE:
             return _curve.calculateAgreement(privateKey.getPrivateKey(), publicKey.getPublicKey())
         else:
-            raise InvalidKeyException("Unknown type: %s" % publicKey.getType())
+            raise InvalidKeyException("Unknown type: {}".format(publicKey.getType()))
 
     @staticmethod
     def verifySignature(ecPublicSigningKey, message, signature):
@@ -73,7 +73,7 @@ class Curve:
             result = _curve.verifySignature(ecPublicSigningKey.getPublicKey(), message, signature)
             return result == 0
         else:
-            raise InvalidKeyException("Unknown type: %s" % ecPublicSigningKey.getType())
+            raise InvalidKeyException("Unknown type: {}".format(ecPublicSigningKey.getType()))
 
     @staticmethod
     def calculateSignature(privateSigningKey, message):
@@ -86,4 +86,4 @@ class Curve:
             res = _curve.calculateSignature(rand, privateSigningKey.getPrivateKey(), message)
             return res
         else:
-            raise InvalidKeyException("Unknown type: %s" % privateSigningKey.getType())
+            raise InvalidKeyException("Unknown type: {}".format(privateSigningKey.getType()))

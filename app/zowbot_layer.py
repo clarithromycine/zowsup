@@ -270,7 +270,7 @@ class ZowBotLayer(YowInterfaceLayer):
             if self._qrTask:
                 self._qrTask.cancel()
             waNum,a,deviceid = WATools.jidDecode(self.getProp("jid"))
-            self.logger.info("Companion device register success(%s_%d)" % (waNum,deviceid))        
+            self.logger.info("Companion device register success({}_{})".format(waNum, deviceid))        
             self.setProp("jid",None)
             await asyncio.sleep(5)                                       
             self.getStack().setProfile(SysVar.ACCOUNT_PATH+waNum+"_"+str(deviceid))                       
@@ -312,11 +312,11 @@ class ZowBotLayer(YowInterfaceLayer):
     async def onIb(self,entity):
 
         if isinstance(entity,GpiaRequestIbProtocolEntity):
-            self.logger.info("Ib-gpia-request: %s" % entity.nonce)
+            self.logger.info("Ib-gpia-request: {}".format(entity.nonce))
             await self.gpia([entity.nonce],{})
         
         if isinstance(entity,SafetynetRequestIbProtocolEntity):
-            self.logger.info("Ib-safetynet-request: %s" % entity.nonce)
+            self.logger.info("Ib-safetynet-request: {}".format(entity.nonce))
             await self.safetynet([entity.nonce],{})
 
 
@@ -333,7 +333,7 @@ class ZowBotLayer(YowInterfaceLayer):
     async def onNotification(self,entity):        
 
         if isinstance(entity,MexUpdateNotificationProtocolEntity):            
-            self.logger.info("Notification: Received a MexUpdate Notification: %s" % entity.jsonObj)            
+            self.logger.info("Notification: Received a MexUpdate Notification: {}".format(entity.jsonObj))            
             return
         
         if isinstance(entity,ServerPushConfigNotificationProtocolEntity):
@@ -346,11 +346,11 @@ class ZowBotLayer(YowInterfaceLayer):
             if entity.collections is not None:
                 for  item in entity.collections:
                     collectionNames.append(item["name"])
-            self.logger.info("Notification: Received a ServerSync Notification, collections=%s" % ",".join(collectionNames))
+            self.logger.info("Notification: Received a ServerSync Notification, collections={}".format(",".join(collectionNames)))
             try:
                 await self.syncData([','.join(collectionNames)] ,{})
             except Exception as e:
-                self.logger.warning("syncData failed, continuing: %s", e)
+                self.logger.warning("syncData failed, continuing: {}".format(e))
             
         if isinstance(entity,AccountSyncNotificationProtocolEntity):
             self.logger.info("Notification: Received a AccountSync Notification")            
@@ -457,7 +457,7 @@ class ZowBotLayer(YowInterfaceLayer):
             await self._sendIq(entity, on_get_encrypt_success, on_get_encrypt_error)                 
 
         if isinstance(entity,LinkCodeCompanionRegNotificationProtocolEntity):
-            self.logger.info("Notification: Received a LinkCodeCompanionReg, stage=%s",entity.stage)
+            self.logger.info("Notification: Received a LinkCodeCompanionReg, stage={}".format(entity.stage))
 
             if entity.stage == "primary_hello":                
                 linkCode = self.bot.pairLinkCode
@@ -487,7 +487,7 @@ class ZowBotLayer(YowInterfaceLayer):
                 self.pairingStatus = "WAIT_PAIRINGCODE"
                 self.companionHelloEntity = entity  
 
-                logger.debug("bot_type: %s", self.bot.bot_type)
+                logger.debug("bot_type: {}".format(self.bot.bot_type))
 
                 if self.bot.bot_type == ZowBotType.TYPE_RUN_TEMP:
                     #如果是临时模式TYPE_RUN_TEMP模式，直接输入，不需要再调用接口
@@ -532,7 +532,7 @@ class ZowBotLayer(YowInterfaceLayer):
                 await self._sendIq(entity, on_pair_device_success, on_pair_device_error)                
 
         if isinstance(entity,WaOldCodeNotificationProtocolEntity):
-            self.logger.info(f"Notification: Received a wa_old registration code: {entity.code} in {entity.timestamp}")  
+            self.logger.info("Notification: Received a wa_old registration code: {} in {}".format(entity.code, entity.timestamp))  
             if self.getProp("TRANSFER6_MODE",False):
                 if int(entity.timestamp)>=self.bot.startts:
                     self.bot.wa_old = entity.code     
@@ -548,15 +548,15 @@ class ZowBotLayer(YowInterfaceLayer):
             return 
                     
         if isinstance(entity,CreateGroupsNotificationProtocolEntity):
-            self.logger.info("Notification: Group %s created" % entity.groupId)
+            self.logger.info("Notification: Group {} created".format(entity.groupId))
             return 
         
         if isinstance(entity,AddGroupsNotificationProtocolEntity):            
-            self.logger.info(f"Notification: Group {entity.getGroupId()} add participant {entity.getParticipants()[0]}")
+            self.logger.info("Notification: Group {} add participant {}".format(entity.getGroupId(), entity.getParticipants()[0]))
             return
         
         if isinstance(entity,RemoveGroupsNotificationProtocolEntity):             
-            self.logger.info(f"Notification: Group {entity.getGroupId()} remove participant {entity.getParticipants()[0]}")       
+            self.logger.info("Notification: Group {} remove participant {}".format(entity.getGroupId(), entity.getParticipants()[0]))       
             return    
         
         if isinstance(entity,SetPictureNotificationProtocolEntity):
@@ -888,7 +888,7 @@ class ZowBotLayer(YowInterfaceLayer):
         if random.random() < 0.8:
             await self.toLower(messageProtocolEntity.ack())            
         else:
-            logger.debug("Not sending received ack for message %s" % messageProtocolEntity.getId())
+            logger.debug("Not sending received ack for message {}".format(messageProtocolEntity.getId()))
         
         # Always send read ack
         await self.toLower(messageProtocolEntity.ack(read=True))
@@ -940,7 +940,7 @@ class ZowBotLayer(YowInterfaceLayer):
                     message_type = zowsup_pb2.MessageType.AD
         
         elif msg_type == 'reaction':
-            self.logger.debug("reaction entity: %s", messageProtocolEntity)
+            self.logger.debug("reaction entity: {}".format(messageProtocolEntity))
             if isinstance(messageProtocolEntity, ReactionMessageProtocolEntity):
                 message_type = zowsup_pb2.MessageType.REACTION
                 text = (messageProtocolEntity.message_attributes.reaction.text 
@@ -1086,7 +1086,7 @@ class ZowBotLayer(YowInterfaceLayer):
                             self.db._store.updateContact(value["jid"],value["lid"],key)      
                             jid.append(value["jid"])
                         else:
-                            logger.info("%s not found",key)
+                            logger.info("{} not found".format(key))
                     if len(jid)>0:
                         cmdParams[0]=','.join(jid)
                         await redo_func(cmdParams,options)                
@@ -1230,7 +1230,7 @@ class ZowBotLayer(YowInterfaceLayer):
                     raise Exception(f"Unexpected response type: {type(entity_result)}")
         
         except asyncio.TimeoutError as e:
-            logger.warning("syncData timeout (collections=%s): %s", cmdParams[0], e)
+            logger.warning("syncData timeout (collections={}): {}".format(cmdParams[0], e))
         except Exception as e:
-            logger.error("syncData error: %s", e, exc_info=True)
+            logger.error("syncData error: {}".format(e), exc_info=True)
 

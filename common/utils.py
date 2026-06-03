@@ -114,7 +114,7 @@ class Utils:
     def outputResult(obj) -> Any:
         #被特殊字符包裹的结果
         Utils._OUTPUT.append(obj)  
-        logger.info("@@@@@{\"result\":%s}@@@@@" % json.dumps(obj))
+        logger.info("@@@@@{\"result\":}@@@@@" % json.dumps(obj))
 
     @staticmethod
     def normalize_jid(jid_str: str) -> str:

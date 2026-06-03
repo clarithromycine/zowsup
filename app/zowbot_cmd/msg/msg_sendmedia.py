@@ -71,7 +71,7 @@ class Cmd_Msg_Sendmedia(BotSendCommand):
 
         mediaType = params[1]
         if not mediaType in ["image","video","audio","document"]:
-            self.logger.info("sendmedia type %s is not supported now" % mediaType)
+            self.logger.info("sendmedia type {} is not supported now".format(mediaType))
             return 
 
         try:

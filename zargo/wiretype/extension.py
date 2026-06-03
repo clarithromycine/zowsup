@@ -8,7 +8,7 @@ class ExtensionWireType :
         self.inner = inner
 
     def __str__(self) -> Any:
-        return "ExtensionWireType(inner=%s)" % (self.inner)
+        return "ExtensionWireType(inner={})".format(self.inner)
     
 
 

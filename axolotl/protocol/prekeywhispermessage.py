@@ -20,10 +20,10 @@ class PreKeyWhisperMessage(CiphertextMessage):
             try:
                 self.version = ByteUtil.highBitsToInt(serialized[0])
                 if self.version > CiphertextMessage.CURRENT_VERSION:
-                    raise InvalidVersionException("Unknown version %s" % self.version)
+                    raise InvalidVersionException("Unknown version {}".format(self.version))
 
                 if self.version < CiphertextMessage.CURRENT_VERSION:
-                    raise LegacyMessageException("Legacy version: %s" % self.version)
+                    raise LegacyMessageException("Legacy version: {}".format(self.version))
 
                 preKeyWhisperMessage = whisperprotos.PreKeyWhisperMessage()
                 preKeyWhisperMessage.ParseFromString(serialized[1:])

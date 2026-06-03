@@ -269,7 +269,7 @@ class WARequest:
         if encrypt_params:
             logger.debug("Encrypting parameters")
             if logger.level <= logging.DEBUG:
-                logger.debug("pre-encrypt (encoded) parameters = \n%s", (self.urlencodeParams(self.params)))
+                logger.debug("pre-encrypt (encoded) parameters = \n{}".format(self.urlencodeParams(self.params)))
             authorization,params = self.encryptParams(self.params, self.ENC_PUBKEY)            
         else:
             ## params will be logged right before sending
@@ -374,14 +374,14 @@ class WARequest:
             session.mount("https://", WARequest.TLS_ADAPTER)
         if env.networkEnv is not None and env.networkEnv.type!="direct":
             proxy = env.networkEnv            
-            logger.debug("PROXY REQUEST TO %s" % rawpath)
+            logger.debug("PROXY REQUEST TO {}".format(rawpath))
             proxies = {
-                "http":  "socks5://%s:%s@%s:%d" % (proxy.username, proxy.password, proxy.host, proxy.port),
-                "https":  "socks5://%s:%s@%s:%d" % (proxy.username, proxy.password, proxy.host, proxy.port)
+                "http":  "socks5://{}:{}@{}:{}".format(proxy.username, proxy.password, proxy.host, proxy.port),
+                "https":  "socks5://{}:{}@{}:{}".format(proxy.username, proxy.password, proxy.host, proxy.port)
             }               
-            response = session.request(reqType,"https://%s:%d%s" % (host,port,path),headers=headers,proxies=proxies,data=data)            
+            response = session.request(reqType,"https://{}:{}{}".format(host, port, path),headers=headers,proxies=proxies,data=data)            
         else:
-            logger.debug("REQUEST TO %s" % rawpath)
-            response = session.request(reqType,"https://%s:%d%s" % (host,port,path),headers=headers,data=data)
+            logger.debug("REQUEST TO {}".format(rawpath))
+            response = session.request(reqType,"https://{}:{}{}".format(host, port, path),headers=headers,data=data)
                 
         return response

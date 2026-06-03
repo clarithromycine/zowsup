@@ -53,7 +53,7 @@ class WATools:
        jid = Jid.normalize(jid) 
        s = jid.split("@")[1]
        i,t,d = WATools.jidDecode(jid)
-       return "%s.%d:%d@%s" % (i,t,d,s)
+       return "{}.{}:{}@{}".format(i,t,d,s)
     
     @staticmethod
     def jidDecode(jid: str) -> List[Union[str, int]]:

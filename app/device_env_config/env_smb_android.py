@@ -28,7 +28,7 @@ class EnvSmbAndroid:
         self.key = "wt9VMkXhC2ODULqh718Itr60VOm9tYtDWKmVD+48S96rbE9zYW0K0L+6Y82FKtRku9juFnml6nDUAMxHHf0c2A=="
 
     def __str__(self):
-        return "%d-%s-%s" % (self.platform,self.osName,self.version)
+        return "{}-{}-{}".format(self.platform, self.osName, self.version)
 
     @staticmethod
     def randomEnv():
