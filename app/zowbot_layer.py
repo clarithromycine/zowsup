@@ -280,8 +280,7 @@ class ZowBotLayer(YowInterfaceLayer):
             await asyncio.sleep(5)
             await self.getStack().broadcastEvent(YowLayerEvent(YowNetworkLayer.EVENT_STATE_CONNECT))
             return
-        
-        
+                
         if self.isConnected:     
             self.callback(event={
                 "event":zowsup_pb2.BotEvent.Event.LOGOUT            
@@ -289,9 +288,6 @@ class ZowBotLayer(YowInterfaceLayer):
 
         self.isConnected = False
 
-
-                   
-            
         if (not self.detect40x)  and (not self.getProp("USER_REQUEST_QUIT")) and self.loginFailCount<3 and (not self.bot.quitIfConflict):      
             self.bot.wa_old = None               
             self.loginEvent.clear()
@@ -299,7 +295,7 @@ class ZowBotLayer(YowInterfaceLayer):
             await self.getStack().broadcastEvent(YowLayerEvent(YowNetworkLayer.EVENT_STATE_CONNECT))  
                     
         else:                                                      
-            if not self.getProp("HC_MODE") and not self.getProp("BC_MODE"):
+            if not self.getProp("HC_MODE") :
                 self.bot.status = ZowBotStatus.STATUS_STOPPED              
                 self.callback(event={
                     "event":zowsup_pb2.BotEvent.Event.QUIT
@@ -311,7 +307,6 @@ class ZowBotLayer(YowInterfaceLayer):
                 #HC模式休息1秒就好，啥都不用做                        
                 self.setProp("THREADQUIT",True)
                 await asyncio.sleep(1)                    
-
 
     @ProtocolEntityCallback("ib")
     async def onIb(self,entity):
@@ -416,8 +411,6 @@ class ZowBotLayer(YowInterfaceLayer):
                     #######################APP STATE SYNC START###############################
 
                     #  critical_block critical_unblock_low
-                
-
                     if not self.db:
                         return 
                     
@@ -595,18 +588,6 @@ class ZowBotLayer(YowInterfaceLayer):
 
                 })                
             return                
-                                        
-    def setCmdRedirect(self,cmdId,cmdName,cmdParams,options,context):        
-        if cmdId in self.cmdEventMap: 
-            obj = self.cmdEventMap[cmdId]
-            obj["error"] = "redirect"
-            obj["result"] = {
-                "cmdName":cmdName,
-                "cmdParams":cmdParams,
-                "options":options,
-                "context":context
-            }
-            obj["event"].set()
 
     def setCmdResult(self,cmdId,result):
         self.bot.setCmdResult(cmdId,result)
@@ -622,7 +603,6 @@ class ZowBotLayer(YowInterfaceLayer):
                 "last":entity.getLast()
             })
             return
-                
                          
     @ProtocolEntityCallback("iq")
     async def onIq(self, entity):          
@@ -635,7 +615,6 @@ class ZowBotLayer(YowInterfaceLayer):
         self.pingCount+=1
         if self.pingCount % 10 == 0:        
             self.callback(event={"event":zowsup_pb2.BotEvent.Event.HEARTBEAT})
-
                         
         if isinstance(entity,ResultIqProtocolEntity):
             #这里主要处理一些非指令产生的回复,例如ping            
@@ -786,8 +765,6 @@ class ZowBotLayer(YowInterfaceLayer):
         self.bot.lastOnlineTime = int(time.time()) 
 
         self.loginFailCount = 0
-        
-
         #self.setProp(PROP_IDENTITY_AUTOTRUST, True)
         
     @ProtocolEntityCallback("stream:error")
@@ -1056,9 +1033,6 @@ class ZowBotLayer(YowInterfaceLayer):
 
         # Send message acks with probabilistic behavior
         await self._async_send_message_acks(messageProtocolEntity)        
-        
-
-
                                                                 
     @ProtocolEntityCallback("receipt")
     async def onReceipt(self, entity):
@@ -1093,11 +1067,8 @@ class ZowBotLayer(YowInterfaceLayer):
             
     async def assureContactsAndSend(self,cmdParams,options,send_func,redo_func):        
         to,*other = cmdParams
-
         isCompanion = "_" in self.bot.botId
-
         jid = Jid.normalize(to)
-
         if jid.endswith("@g.us"):
             # Group JIDs need no contact-sync — send directly
             await send_func(cmdParams, options)
@@ -1131,7 +1102,6 @@ class ZowBotLayer(YowInterfaceLayer):
             logger.info("lid-target, direct send")  
             await send_func(cmdParams,options)                             
 
-
     async def getContactList(self, cmdParams, options):
         query = {
             "variables": {
@@ -1156,7 +1126,6 @@ class ZowBotLayer(YowInterfaceLayer):
         except Exception as e:
             logger.error(f"getContactList error: {e}")
             raise     
-        
     
     def getContextValue(self,ctxId,key):
         if ctxId not in self.ctxMap:
@@ -1222,11 +1191,8 @@ class ZowBotLayer(YowInterfaceLayer):
         }    
     
     async def syncData(self,cmdParams,options):
-                
         request = {}             
-
         collectionNames = cmdParams[0].split(",")
-                                
         for name in collectionNames:
             request[name] = {                    
                 "version":"0",
@@ -1236,9 +1202,7 @@ class ZowBotLayer(YowInterfaceLayer):
         entity = AppSyncStateIqProtocolEntity(                            
             request = request
         )            
-
         #直接用服务器返回的版本去请求，表明companion有一致的数据
-                            
         try :
             while entity is not None:
                 result_dict = await self._sendIqAsync(entity)

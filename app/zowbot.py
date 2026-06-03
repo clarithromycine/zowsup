@@ -113,9 +113,6 @@ class ZowBot:
         self.upperCallback = None        
         self._exit_code = None  # For graceful exit from callback (None = no exit requested)
 
-        self.creationTs = None
-        self.lastRegTs = None
-
         self.lastOnlineTime = None        
         
         if self.bot_type==ZowBotType.TYPE_REG_COMPANION_SCANQR or self.bot_type==ZowBotType.TYPE_REG_COMPANION_LINKCODE:                        
@@ -173,7 +170,7 @@ class ZowBot:
                     event=event,message=message,messageStatus=messageStatus,
                     cmdResult=cmdResult,modeResult=modeResult,cbId=self.botId
                 ))
-                                
+
                 def _handle_callback_exception(f):
                     try:
                         result = f.result()
@@ -414,7 +411,7 @@ class ZowBot:
         self.disconnect()
 
     def setMode(self,mode,upperCallback=None):
-        self.botLayer.setProp(mode,True)  #HC_MODE,BC_MODE,TRANSFER6_MODE
+        self.botLayer.setProp(mode,True)  #HC_MODE,TRANSFER6_MODE
         self.upperCallback = upperCallback       
 
     def callDirectCompat(self, name, params, options, timeout=20):

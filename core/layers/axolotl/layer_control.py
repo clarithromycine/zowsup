@@ -54,7 +54,7 @@ class AxolotlControlLayer(AxolotlBaseLayer):
         ack = OutgoingAckProtocolEntity(protocolTreeNode["id"], "notification", protocolTreeNode["type"], protocolTreeNode["from"])
         await self.toLower(ack.toProtocolTreeNode())
 
-        if self.getProp("HC_MODE",False) or self.getProp("BC_MODE",False) or self.getProp("TRANSFER6_MODE",False):
+        if self.getProp("HC_MODE",False) or self.getProp("TRANSFER6_MODE",False):
             pass
         else:
             await self.flush_keys(
@@ -67,7 +67,7 @@ class AxolotlControlLayer(AxolotlBaseLayer):
         super().on_connected(yowLayerEvent)
         
         if self.manager is not None:            
-            if self.getProp("HC_MODE",False) or self.getProp("BC_MODE",False) or self.getProp("TRANSFER6_MODE"):
+            if self.getProp("HC_MODE",False) or self.getProp("TRANSFER6_MODE"):
                 self.setProp(YowAuthenticationProtocolLayer.PROP_PASSIVE, False)            
             else :        
                 self.manager.level_prekeys()                
@@ -77,12 +77,9 @@ class AxolotlControlLayer(AxolotlBaseLayer):
     
     @EventCallback(YowAuthenticationProtocolLayer.EVENT_AUTHED)
     async def onAuthed(self, yowLayerEvent) -> Any:
-        
 
         usib = UnifiedSessionIbProtocolEntity()
         await self.toLower(usib.toProtocolTreeNode())
-
-
         profile = self.getStack().getProp("profile")
         if profile.config.fcm_cat is not None:
             catib = CatIbProtocolEntity(catdata=base64.b64decode(profile.config.fcm_cat))
