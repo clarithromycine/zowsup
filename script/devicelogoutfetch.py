@@ -50,8 +50,8 @@ class LogoutFetch(ConsoleMain):
                 db = AxolotlManagerFactory().get_manager(SysVar.ACCOUNT_PATH+number,number)
                 signedprekey = db.load_latest_signed_prekey(generate=True)
 
-                publicKey = str(base64.b64encode(db.identity.publicKey.serialize()),'UTF-8')
-                privateKey = str(base64.b64encode(db.identity.privateKey.serialize()),'UTF-8') 
+                publicKey = Utils.b64str(db.identity.publicKey.serialize())
+                privateKey = Utils.b64str(db.identity.privateKey.serialize())
 
                 kp = config.client_static_keypair
 
@@ -60,8 +60,8 @@ class LogoutFetch(ConsoleMain):
                 fullData = {
                     "jid":config.phone,
                     "registrationID":db.registration_id,
-                    "identityPublicKey":str(base64.b64encode(db.identity.publicKey.serialize()[1:]),'UTF-8'),
-                    "identityPrivateKey":str(base64.b64encode(db.identity.privateKey.serialize()),'UTF-8') ,
+                    "identityPublicKey":Utils.b64str(db.identity.publicKey.serialize()[1:]),
+                    "identityPrivateKey":Utils.b64str(db.identity.privateKey.serialize()),
                     "phoneUUID":config.fdid,
                     "deviceUUID":str(uuid.UUID(int=int.from_bytes(config.expid, 'little'))),
                     "osVersion":self.env.deviceEnv.getOSVersion(),
@@ -74,12 +74,12 @@ class LogoutFetch(ConsoleMain):
                     "country": lc,
                     "cc":config.cc,
                     "in":config.phone[len(config.cc):],
-                    "clientStaticPrivateKey":str(base64.b64encode(kp.private.data),"UTF-8"),
-                    "clientStaticPublicKey":str(base64.b64encode(kp.public.data),"UTF-8"),
+                    "clientStaticPrivateKey":Utils.b64str(kp.private.data),
+                    "clientStaticPublicKey":Utils.b64str(kp.public.data),
                     "signPreKeyID":signedprekey.getId(),
-                    "signPreKeyPublicKey":str(base64.b64encode(signedprekey.getKeyPair().publicKey.serialize()[1:]),"UTF-8"),
-                    "signPreKeyPrivateKey":str(base64.b64encode(signedprekey.getKeyPair().privateKey.serialize()),"UTF-8"),
-                    "signPreKeySignature":str(base64.b64encode(signedprekey.getSignature()),"UTF-8"),
+                    "signPreKeyPublicKey":Utils.b64str(signedprekey.getKeyPair().publicKey.serialize()[1:]),
+                    "signPreKeyPrivateKey":Utils.b64str(signedprekey.getKeyPair().privateKey.serialize()),
+                    "signPreKeySignature":Utils.b64str(signedprekey.getSignature()),
                     "whatsappVersion":self.env.deviceEnv.getVersion()
                 }
 

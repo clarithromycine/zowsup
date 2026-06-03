@@ -91,17 +91,17 @@ async def _qr_code_task(layer, interval):
                 advSecretKey = random.randbytes(32)
                 logger.debug("{},{},{},{}".format(
                     str(ref, "utf8"),
-                    str(base64.b64encode(keypair.public.data), "utf8"),
-                    str(base64.b64encode(identity.publicKey.serialize()[1:]), "utf8"),
-                    str(base64.b64encode(advSecretKey), "utf8")
+                    Utils.b64str(keypair.public.data),
+                    Utils.b64str(identity.publicKey.serialize()[1:]),
+                    Utils.b64str(advSecretKey)
                 ))
                 qr = qrcode.QRCode()
                 qr.border = 1
                 qr.add_data("{},{},{},{}".format(
                     str(ref, "utf8"),
-                    str(base64.b64encode(keypair.public.data), "utf8"),
-                    str(base64.b64encode(identity.publicKey.serialize()[1:]), "utf8"),
-                    str(base64.b64encode(advSecretKey), "utf8")
+                    Utils.b64str(keypair.public.data),
+                    Utils.b64str(identity.publicKey.serialize()[1:]),
+                    Utils.b64str(advSecretKey)  
                 ))
                 qr.make()
                 qr.print_ascii(out=None, tty=False, invert=False)
@@ -241,7 +241,7 @@ class ZowBotLayer(YowInterfaceLayer):
             phone=phone,
             device=int(deviceid),           
             client_static_keypair=keypair,
-            device_identity=str(base64.b64encode(device_identity.SerializeToString()),'UTF-8')
+            device_identity=Utils.b64str(device_identity.SerializeToString())   
         )
         account_dir = Path(SysVar.ACCOUNT_PATH+phone+"_"+str(deviceid))
         Utils.assureDir(account_dir)        
