@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class Cmd_Misc_Bizintegrity(BotCommand):
 
     COMMAND = "misc.bizintegrity"
-    DESCRIPTION = "Integrity check"    
+    DESCRIPTION = "Business integrity check"    
 
     async def execute(self, params, options):
 

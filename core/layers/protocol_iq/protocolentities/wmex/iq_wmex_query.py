@@ -32,9 +32,10 @@ class WmexQueryIqProtocolEntity(IqProtocolEntity):
 
     @staticmethod
     def loadDict():
-        with open("data/argo_dict.json", encoding='utf8') as f:            
-            WmexQueryIqProtocolEntity._queryIdMap =json.loads(f.read())
-
+        with open("data/mex_argo_dict.json", encoding='utf8') as f:            
+            rawJson = json.loads(f.read())
+            WmexQueryIqProtocolEntity._queryIdMap = {k: str(v["doc_id"]) for k, v in rawJson.items()}
+            
     def __str__(self):
         out = super().__str__()
         out += "query_name: {}\n".format(self.query_name)
