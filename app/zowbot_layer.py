@@ -132,8 +132,8 @@ class ZowBotLayer(YowInterfaceLayer):
 
         self.db = None
         
-        self.mode = None        
-        self.logger = logging.getLogger(self.bot.botId if self.bot.botId is not None else "unknown")
+        self.mode = None                
+        self.logger = bot.logger
         self.msgMap = {}    
         self.loginEvent = threading.Event()        
         self.cmdEventMap = {}         

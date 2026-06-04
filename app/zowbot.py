@@ -69,7 +69,10 @@ class BotCmd:
 class ZowBot: 
                     
     def __init__(self,bot_id,env,bot_type=ZowBotType.TYPE_RUN_SINGLETON,auto=False):     
-        self.botId = bot_id                
+        self.botId = bot_id          
+
+        self.logger = logging.getLogger(("BOT-"+self.botId) if self.botId is not None else __name__)
+                      
         stackBuilder = YowStackBuilder()
         self.botLayer = ZowBotLayer(self)        
         self.env = env if env is not None else BotEnv(deviceEnv=DeviceEnv("android"),networkEnv=NetworkEnv("direct"))
@@ -85,6 +88,8 @@ class ZowBot:
             self.profile = YowProfile(path+self.botId)   
             self.env.networkEnv.updateProxyByWaNum(self.botId)            
             self.botLayer.db = self.profile.axolotl_manager  
+
+        
             
         self._stack = stackBuilder\
             .pushDefaultLayers()\
@@ -92,7 +97,7 @@ class ZowBot:
             .build()
                 
         
-        self.logger = logging.getLogger(("BOT-"+self.botId) if self.botId is not None else __name__)
+        
 
         self._stack.setProp("env",self.env)        
         self._stack.setProp("ID_TYPE",self.idType)
