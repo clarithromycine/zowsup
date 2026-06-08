@@ -10,8 +10,8 @@ Since the original yowsup project has not been maintained for a long time, we fo
 - UPDATE TIME : 2026-06-02
 
 - WHATSAPP VERSION : 
-    2.26.17.72(Android) 
-    2.26.17.72(SMB Android) 
+    2.26.21.75(Android) 
+    2.26.21.75(SMB Android) 
     2.26.13.74(iOS) 
     2.26.13.74(SMB iOS) 
 

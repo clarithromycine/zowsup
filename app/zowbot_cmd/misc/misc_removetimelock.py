@@ -34,6 +34,7 @@ class Cmd_Misc_Removetimelock(BotCommand):
                 query_obj=query_obj
             )
             result = await self.send_iq_expect(entity, WmexResultIqProtocolEntity)                        
+            print(result)
             return self.success(
                 result = result.result_obj["data"],                
             )

@@ -22,8 +22,8 @@ class EnvAndroid:
         #在线计算地址_MD5_CLASSES, classes.dex拖进去就可以
         # https://the-x.cn/zh-cn/hash/MessageDigestAlgorithm.aspx        
 
-        self.version = "2.26.17.72"
-        self.md5Classes = "C0PnWG0hgPtvfFkVtdTWbQ=="
+        self.version = "2.26.21.75"
+        self.md5Classes = "7Mw/3sNQ9WPeHIMWcWm0bg=="
         #self.key = "RFObk0NHtvEmCSluaRRbWDCd+U7QqKWi2UB4qOr/hwE+PZWmlkSqG5JGRlMsJ5+LzShVq1XyyLwWk623gAyI/w=="   
         self.key = "sdvJhddpcZ+tuNfeaKAEhS+L3M1rg7jC3ka49uKKKbOnggnuN2gUAZLlhItnagVE7d0SPOTPPplfGOowd6240Q=="
 

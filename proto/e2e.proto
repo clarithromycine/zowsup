@@ -261,6 +261,14 @@ message Message {
     optional string conversion_source = 2;
   	optional bytes conversion_data = 3;
   	optional uint32 conversion_delay_seconds = 4;
+    optional string ctwa_signals = 5;
+    optional bytes ctwa_payload = 6;
+    optional ContextInfo context_info = 7;
+    optional string native_flow_call_button_payload = 8;
+    optional string deeplink_payload = 9;
+    optional MessageContextInfo message_context_info = 10;
+    optional uint32 callEntryPoint = 11;
+
   }
   message Chat {
     optional string display_name = 1; // push name of the receiver of NFC message
