@@ -36,7 +36,7 @@ class Cmd_Msg_Sendmedia(BotSendCommand):
         bot = self.bot
 
         if "waitMsgId" not in options:
-            await bot.botLayer.assureContactsAndSend(
+            await self.assureContactsAndSend(
                 params,
                 options,
                 send_func=self.sendMediaMsgDirect,

@@ -488,7 +488,7 @@ class ZowBot:
                 else:                                   
                     obj["event"].set()    
         else:
-            e = threading.Event()
+            e = asyncio.Event()
             e.set()            
             self.cmdEventMap[cmdId] = {"result":result,"event":e}          
 
