@@ -45,50 +45,6 @@ from app.zowbot_values import ZowBotType
 logger = logging.getLogger(__name__)
 
 
-async def _qr_code_task(layer, interval):
-    """Asyncio task: display QR codes for companion device scanning."""
-    try:
-        while True:
-            refs = layer.getProp("refs")
-            if len(refs) > 0:
-                ref = refs.pop(0)
-                regInfo = layer.getProp("reg_info")
-                keypair = regInfo["keypair"]
-                identity = regInfo["identity"]
-                advSecretKey = random.randbytes(32)
-                logger.debug(
-                    "{},{},{},{}".format(
-                        str(ref, "utf8"),
-                        Utils.b64str(keypair.public.data),
-                        Utils.b64str(identity.publicKey.serialize()[1:]),
-                        Utils.b64str(advSecretKey),
-                    )
-                )
-                qr = qrcode.QRCode()
-                qr.border = 1
-                qr.add_data(
-                    "{},{},{},{}".format(
-                        str(ref, "utf8"),
-                        Utils.b64str(keypair.public.data),
-                        Utils.b64str(identity.publicKey.serialize()[1:]),
-                        Utils.b64str(advSecretKey),
-                    )
-                )
-                qr.make()
-                qr.print_ascii(out=None, tty=False, invert=False)
-                sys.stdout.flush()
-                layer.setProp("refs", refs)
-            else:
-                await layer.getStack().broadcastEvent(
-                    YowLayerEvent(YowNetworkLayer.EVENT_STATE_DISCONNECT)
-                )
-                return
-            for i in range(0, interval):
-                await asyncio.sleep(1)
-    except asyncio.CancelledError:
-        logger.debug("QR code task cancelled")
-
-
 class PairingManager:
     """Manages companion device pairing: QR scan, link code, device identity, and history sync."""
 
@@ -103,6 +59,51 @@ class PairingManager:
         self.status = None  # e.g. "WAIT_PAIRINGCODE"
         self.code = None  # pairing code input
         self.companion_hello_entity = None
+
+    # ── QR code display task ─────────────────────────────────────────────
+
+    async def _run_qr_display(self, interval):
+        """Asyncio task: display QR codes for companion device scanning."""
+        try:
+            while True:
+                refs = self.layer.getProp("refs")
+                if len(refs) > 0:
+                    ref = refs.pop(0)
+                    regInfo = self.layer.getProp("reg_info")
+                    keypair = regInfo["keypair"]
+                    identity = regInfo["identity"]
+                    advSecretKey = random.randbytes(32)
+                    logger.debug(
+                        "{},{},{},{}".format(
+                            str(ref, "utf8"),
+                            Utils.b64str(keypair.public.data),
+                            Utils.b64str(identity.publicKey.serialize()[1:]),
+                            Utils.b64str(advSecretKey),
+                        )
+                    )
+                    qr = qrcode.QRCode()
+                    qr.border = 1
+                    qr.add_data(
+                        "{},{},{},{}".format(
+                            str(ref, "utf8"),
+                            Utils.b64str(keypair.public.data),
+                            Utils.b64str(identity.publicKey.serialize()[1:]),
+                            Utils.b64str(advSecretKey),
+                        )
+                    )
+                    qr.make()
+                    qr.print_ascii(out=None, tty=False, invert=False)
+                    sys.stdout.flush()
+                    self.layer.setProp("refs", refs)
+                else:
+                    await self.layer.getStack().broadcastEvent(
+                        YowLayerEvent(YowNetworkLayer.EVENT_STATE_DISCONNECT)
+                    )
+                    return
+                for i in range(0, interval):
+                    await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            logger.debug("QR code task cancelled")
 
     # ── Profile generation ──────────────────────────────────────────────────
 
@@ -168,7 +169,7 @@ class PairingManager:
             await self.layer._sendIq(ack)
             self.layer.setProp("refs", entity.refs)
             # Start QR display asyncio task
-            self.layer._qrTask = asyncio.ensure_future(_qr_code_task(self.layer, 20))
+            self.layer._qrTask = asyncio.ensure_future(self._run_qr_display(20))
             return
 
         elif self.layer.getProp("botType") == ZowBotType.TYPE_REG_COMPANION_LINKCODE:
