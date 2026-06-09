@@ -1,0 +1,258 @@
+"""MessageHandler — incoming message parsing, callback, and ack delivery."""
+
+import base64
+import logging
+import random
+import time
+
+from proto import zowsup_pb2
+from core.layers.protocol_messages.protocolentities import *
+from core.layers.protocol_media.protocolentities import *
+from core.layers.protocol_messages.protocolentities.attributes import ProtocolAttributes
+from common.utils import Utils
+
+logger = logging.getLogger(__name__)
+
+
+class MessageHandler:
+    """Handles all incoming message processing: parsing, callback dispatch, and acks."""
+
+    def __init__(self, layer):
+        """
+        Args:
+            layer: ZowBotLayer instance
+        """
+        self.layer = layer
+
+    # ── Public protocol callback handlers ──────────────────────────────────
+
+    async def on_message(self, messageProtocolEntity):
+        """Handle incoming message: parse, callback, ack."""
+
+        # Parse JID and LID from message entity
+        jid, lid = self._parse_jid_and_lid(messageProtocolEntity)
+
+        if self.layer.db:
+            notify = messageProtocolEntity.getNotify()
+            # Don't store a JID-formatted string as a display name
+            contact_name = None if (notify and "@" in notify) else notify
+            self.layer.db._store.updateContact(jid=jid, lid=lid, name=contact_name)
+
+        # Parse message type and extract text
+        msg_type, text = self._parse_message_type(messageProtocolEntity)
+
+        if isinstance(messageProtocolEntity, ProtocolMessageProtocolEntity):
+            protocol_attrs = None
+            if messageProtocolEntity.message_attributes is not None:
+                protocol_attrs = messageProtocolEntity.message_attributes.protocol
+
+            if protocol_attrs is not None and protocol_attrs.type in (
+                ProtocolAttributes.TYPE_HISTORY_SYNC_NOTIFICATION,
+                ProtocolAttributes.TYPE_APP_STATE_SYNC_KEY_SHARE,
+            ):
+                # History sync — send hist_sync ack and return (no callback, no READ)
+                await self.layer.toLower(messageProtocolEntity.ack(histSync=True))
+                return
+
+            elif messageProtocolEntity.category == "peer":
+                # App state sync key share — ack and return
+                await self.layer.toLower(messageProtocolEntity.ack(peerMsg=True))
+                return
+
+        self.layer.callback(
+            message={
+                "type": msg_type,
+                "text": text,
+                "msgId": messageProtocolEntity.getId(),
+                "from": messageProtocolEntity.getFrom(False),
+                "to": messageProtocolEntity.getTo(False) if messageProtocolEntity.fromme else self.layer.bot.botId,
+                "timestamp": int(time.time()),
+                "raw": base64.b64encode(messageProtocolEntity.raw),
+            }
+        )
+
+        # Send message acks with probabilistic behavior
+        await self._async_send_message_acks(messageProtocolEntity)
+
+    async def on_receipt(self, entity):
+        """Handle message receipt (read/delivered notifications)."""
+
+        if entity.getParticipant() is not None:
+            num = entity.getFrom(False) + "::" + entity.getParticipant(False)
+        else:
+            num = entity.getFrom(False)
+
+        if entity.getType() == "read":
+            self.layer.callback(
+                messageStatus={
+                    "msgId": entity.getId(),
+                    "target": num,
+                    "status": zowsup_pb2.MessageStatus.READ,
+                }
+            )
+        else:
+            self.layer.callback(
+                messageStatus={
+                    "msgId": entity.getId(),
+                    "target": num,
+                    "status": zowsup_pb2.MessageStatus.DELIVERED,
+                }
+            )
+
+        await self.layer.toLower(entity.ack())
+
+    def on_ack(self, entity):
+        """Handle message ack (sent confirmation / error)."""
+
+        if entity.getId() in self.layer.ackQueue:
+
+            if entity._from is not None:
+                num = entity._from[0 : entity._from.rfind("@", 0)]
+            else:
+                num = "UNKNOWN"
+
+            if entity.getError() is None:
+                self.layer.callback(
+                    messageStatus={
+                        "msgId": entity.getId(),
+                        "target": num,
+                        "status": zowsup_pb2.MessageStatus.SENT,
+                    }
+                )
+            else:
+                self.layer.callback(
+                    messageStatus={
+                        "msgId": entity.getId(),
+                        "target": num,
+                        "status": zowsup_pb2.MessageStatus.ERROR,
+                        "errorCode": entity.getError(),
+                    }
+                )
+
+            self.layer.ackQueue.pop(self.layer.ackQueue.index(entity.getId()))
+
+    # ── Internal helpers ────────────────────────────────────────────────────
+
+    async def _async_send_message_acks(self, messageProtocolEntity):
+        """Send message acknowledgments (received + read) with probabilistic behavior."""
+
+        if random.random() < 0.8:
+            await self.layer.toLower(messageProtocolEntity.ack())
+        else:
+            logger.debug(
+                "Not sending received ack for message {}".format(messageProtocolEntity.getId())
+            )
+
+        # Always send read ack
+        await self.layer.toLower(messageProtocolEntity.ack(read=True))
+
+    def _parse_jid_and_lid(self, messageProtocolEntity):
+        """Parse and extract JID and LID from messageProtocolEntity.
+
+        Returns:
+            tuple: (jid, lid)
+        """
+        _from = messageProtocolEntity.getFrom()
+
+        if _from.endswith("lid"):
+            lid = Utils.normalize_jid(_from)
+            jid = messageProtocolEntity.getSenderPn()
+            # sender_pn is sometimes absent; fall back to notify if it looks like a JID
+            if not jid:
+                notify = messageProtocolEntity.getNotify()
+                if notify and notify.endswith("s.whatsapp.net"):
+                    jid = notify
+        else:
+            jid = Utils.normalize_jid(_from)
+            lid = messageProtocolEntity.getSenderLid()
+
+        return jid, lid
+
+    def _parse_message_type(self, messageProtocolEntity):
+        """Parse message type and extract text from messageProtocolEntity.
+
+        Returns:
+            tuple: (message_type, text)
+        """
+        msg_type = messageProtocolEntity.getType()
+        message_type = zowsup_pb2.MessageType.UNKNOWN_MEDIA
+        text = ""
+
+        if msg_type == "text":
+            message_type = zowsup_pb2.MessageType.TEXT
+            if isinstance(messageProtocolEntity, TextMessageProtocolEntity):
+                text = messageProtocolEntity.getBody()
+            elif isinstance(messageProtocolEntity, ExtendedTextMessageProtocolEntity):
+                text = messageProtocolEntity.text
+                if (
+                    messageProtocolEntity.context_info is not None
+                    and messageProtocolEntity.context_info.external_ad_reply is not None
+                ):
+                    message_type = zowsup_pb2.MessageType.AD
+
+        elif msg_type == "reaction":
+            self.layer.logger.debug("reaction entity: {}".format(messageProtocolEntity))
+            if isinstance(messageProtocolEntity, ReactionMessageProtocolEntity):
+                message_type = zowsup_pb2.MessageType.REACTION
+                text = (
+                    messageProtocolEntity.message_attributes.reaction.text
+                    if messageProtocolEntity.message_attributes.reaction
+                    else "[reaction]"
+                )
+
+        elif msg_type == "poll":
+            message_type = zowsup_pb2.MessageType.POLL
+            if isinstance(messageProtocolEntity, PollCreationMessageProtocolEntity):
+                text = "[poll create]"
+            elif isinstance(messageProtocolEntity, PollUpdateMessageProtocolEntity):
+                text = "[poll update]"
+
+        elif msg_type == "media":
+            if isinstance(messageProtocolEntity, ExtendedTextMediaMessageProtocolEntity):
+                message_type = zowsup_pb2.MessageType.URL
+                text = messageProtocolEntity.text
+                if (
+                    messageProtocolEntity.media_specific_attributes.context_info is not None
+                    and messageProtocolEntity.media_specific_attributes.context_info.external_ad_reply
+                    is not None
+                ):
+                    message_type = zowsup_pb2.MessageType.AD
+                    text = (
+                        messageProtocolEntity.media_specific_attributes.context_info.external_ad_reply.source_url
+                    )
+
+            elif isinstance(
+                messageProtocolEntity, ImageDownloadableMediaMessageProtocolEntity
+            ):
+                message_type = zowsup_pb2.MessageType.IMAGE
+                text = "[image]"
+
+            elif isinstance(
+                messageProtocolEntity, VideoDownloadableMediaMessageProtocolEntity
+            ):
+                message_type = zowsup_pb2.MessageType.VIDEO
+                text = "[video]"
+
+            elif isinstance(
+                messageProtocolEntity, AudioDownloadableMediaMessageProtocolEntity
+            ):
+                message_type = zowsup_pb2.MessageType.AUDIO
+                text = "[audio]"
+
+            elif isinstance(
+                messageProtocolEntity, DocumentDownloadableMediaMessageProtocolEntity
+            ):
+                message_type = zowsup_pb2.MessageType.DOCUMENT
+                text = "[document]"
+
+            elif isinstance(
+                messageProtocolEntity, StickerDownloadableMediaMessageProtocolEntity
+            ):
+                message_type = zowsup_pb2.MessageType.STICKER
+                text = "[sticker]"
+
+            else:
+                message_type = zowsup_pb2.MessageType.UNKNOWN_MEDIA
+                text = "[media]"
+
+        return message_type, text

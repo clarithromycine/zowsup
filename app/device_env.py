@@ -1,95 +1,47 @@
-from .device_env_config import * 
+from .device_env_config import *
 from conf.constants import SysVar
 
+
 class DeviceEnv:
+    """Device environment proxy — delegates property access to the underlying env object.
+
+    Usage:
+        env = DeviceEnv("android")                # random device profile
+        env = DeviceEnv("android", envObj={...})  # specific device profile
+
+    All getter/setter calls (e.g. ``getOSName()``, ``setVersion()``) are
+    automatically forwarded to ``self.obj`` via ``__getattr__``.
+    """
 
     ENV_MAP = {
-        "android":EnvAndroid,
-        "ios":EnvIos,
-        "smb_android":EnvSmbAndroid,
-        "smb_ios":EnvSmbIos,
+        "android": EnvAndroid,
+        "ios": EnvIos,
+        "smb_android": EnvSmbAndroid,
+        "smb_ios": EnvSmbIos,
     }
 
-    def __init__(self,name,random=False,envObj=None):
-
+    def __init__(self, name, random=False, envObj=None):
         if random or envObj is None:
             self.obj = DeviceEnv.ENV_MAP[name].randomEnv()
-            
         else:
-            self.obj = DeviceEnv.ENV_MAP[name](                
+            self.obj = DeviceEnv.ENV_MAP[name](
                 osVersion=envObj["osVersion"],
                 deviceName=envObj["deviceName"],
                 buildVersion=envObj["buildVersion"],
                 manufacturer=envObj["manufacturer"],
-                deviceModelType=envObj["deviceModelType"]
-            )     
+                deviceModelType=envObj["deviceModelType"],
+            )
 
-    def setVersion(self,version:str):
-        self.obj.setVersion(version)
+    def __getattr__(self, name):
+        """Auto-delegate any undefined attribute access to ``self.obj``.
 
-    def setMd5Classes(self,md5Classes:str):
-        self.obj.setMd5Classes(md5Classes)
+        This eliminates 25+ manual pass-through methods like::
 
-    def setKey(self,key):
-        self.obj.setKey(key)
+            def getOSName(self):       return self.obj.getOSName()
+            def setVersion(self, v):   self.obj.setVersion(v)
+            ...
+        """
+        return getattr(self.obj, name)
 
-    def setDeviceModelType(self,value:str):
-        self.obj.setDeviceModelType(value)
-
-    def setPlatform(self,value):
-        self.obj.setPlatform(value)
-
-    def setManufacturer(self,value:str):
-        self.obj.setManufacturer(value)
-
-    def setDeviceName(self,value:str):
-        self.obj.setDeviceName(value)
-
-    def setOSVersion(self,value:str):
-        self.obj.setOSVersion(value)
-
-    def setBuildVersion(self,value:str):
-        self.obj.setBuildVersion(value)
-
-    def setOSName(self,value:str):
-        self.obj.setOSName(value)
-
-    def getPlatform(self):
-        return self.obj.getPlatform()
-    
-    def getVersion(self):
-        return self.obj.getVersion()
-    
-    def getManufacturer(self):
-        return self.obj.getManufacturer()
-    
-    def getDeviceName(self):
-        return self.obj.getDeviceName()
-    
-    def getDeviceName2(self):
-        return self.obj.getDeviceName2()    
-    
-    def getOSVersion(self):
-        return self.obj.getOSVersion()
-    
-    def getBuildVersion(self):
-        return self.obj.getBuildVersion()
-    
-    def getOSName(self):
-        return self.obj.getOSName()
-    
-    def getToken(self,number):
-        return self.obj.getToken(number)
-    
-    def getUserAgent(self):
-        return self.obj.getUserAgent()
-    
-    def getDeviceModelType(self):
-        return self.obj.getDeviceModelType()
-    
-
-
-            
-
-
-    
+    def __repr__(self):
+        return f"DeviceEnv(obj={self.obj!r})"

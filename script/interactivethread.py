@@ -191,10 +191,7 @@ class InteractiveThread:
             self.logger.debug(f"Failed to create completer: {e}")
             return None
 
-    def waitLogin(self):
-        if self.bot is None:
-            return False
-        return self.bot.waitLogin()
+
     
     def _run_thread_wrapper(self):
         """Wrapper to run async event loop in thread context"""

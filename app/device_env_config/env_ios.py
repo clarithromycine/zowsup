@@ -1,7 +1,7 @@
 import random
-from .env_tools import EnvTools
+from .env_tools import EnvTools, DeviceEnvBase
 
-class EnvIos:
+class EnvIos(DeviceEnvBase):
 
     DEVICE_NAME = ["iPhone_14_Pro_Max","iPhone_15_Pro_Max","iPhone_XS_Max","iPhone_13","iPhone_14","iPhone_15","iPhone_16","iPhone_16_Pro_Max","iPhone_17","iPhone_17_Pro_Max","iPhone_17_Pro"]
     OS_VERSION =  ["16.7.1","16.7.2","16.7.3","16.7.6","16.7.7","16.7.8","16.7.9","16.7.10","18.0.1","18.1.1","26.0","26.0.1","26.1","26.2"]  
@@ -92,52 +92,8 @@ class EnvIos:
         return EnvTools.getIosToken(self,phoneNumber,_TOKEN)
 
     def getUserAgent(self):
-        return EnvTools.getIosUserAgent(self)        
-    
+        return EnvTools.getIosUserAgent(self)
 
-    def setPlatform(self,value):
-        self.platform=value
-
-    def setVersion(self,value):
-        self.version=value
-
-    def setManufacturer(self,value):
-        self.manufacturer=value
-
-    def setDeviceName(self,value):
-        self.deviceName=value
-
-    def setOSVersion(self,value):
-        self.osVersion=value
-
-    def setBuildVersion(self,value):
-        self.buildVersion=value
-
-    def setOSName(self,value):
-        self.osName=value
-
-    def setDeviceModelType(self,value):
-        self.deviceModelType=value
-
-    def getPlatform(self):
-        return self.platform
-    
-    def getVersion(self):
-        return self.version
-    
-    def getManufacturer(self):
-        return self.manufacturer
-    
-    def getDeviceName(self):
-        return self.deviceName
-    
-    def getOSVersion(self):
-        return self.osVersion
-    
-
-    def getOSName(self):
-        return self.osName
-        
     def getDeviceName2(self):        
         if self.deviceName in EnvIos.DEVICE_NAME_FOR_RUN:
             return EnvIos.DEVICE_NAME_FOR_RUN[self.deviceName]

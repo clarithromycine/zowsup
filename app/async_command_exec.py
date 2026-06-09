@@ -66,7 +66,7 @@ class AsyncCommandExec:
 
         while True:
 
-            if self.bot.botLayer.loginEvent.is_set():
+            if self.bot.botLayer.loginEventComplete:
                 return True
             
             elapsed = asyncio.get_event_loop().time() - start_time

@@ -1,7 +1,7 @@
 import random
-from .env_tools import EnvTools
+from .env_tools import EnvTools, DeviceEnvBase
 
-class EnvSmbIos:
+class EnvSmbIos(DeviceEnvBase):
 
 
     DEVICE_NAME = ["iPhone_14_Pro_Max","iPhone_15_Pro_Max","iPhone_XS_Max","iPhone_13","iPhone_14","iPhone_15","iPhone_16","iPhone_16_Pro_Max","iPhone_17","iPhone_17_Pro_Max","iPhone_17_Pro"]
@@ -92,45 +92,6 @@ class EnvSmbIos:
 
     def getUserAgent(self):
         return EnvTools.getIosUserAgent(self)
-    
-    def setPlatform(self,value):
-        self.platform=value
-
-    def setVersion(self,value):
-        self.version=value
-
-    def setManufacturer(self,value):
-        self.manufacturer=value
-
-    def setDeviceName(self,value):
-        self.deviceName=value
-
-    def setOSVersion(self,value):
-        self.osVersion=value
-
-    def setOSName(self,value):
-        self.osName=value
-
-    def setDeviceModelType(self,value):
-        self.deviceModelType=value
-
-    def getPlatform(self):
-        return self.platform
-    
-    def getVersion(self):
-        return self.version
-    
-    def getManufacturer(self):
-        return self.manufacturer
-    
-    def getOSName(self):
-        return self.osName
-    
-    def getOSVersion(self):
-        return self.osVersion    
-    
-    def getDeviceName(self):
-        return self.deviceName
 
     def getDeviceName2(self):        
         if self.deviceName in EnvSmbIos.DEVICE_NAME_FOR_RUN:
