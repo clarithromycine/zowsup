@@ -17,5 +17,5 @@ __all__ = [
     "NotificationHandler",
     "IqManager",
     "ConnectionManager",
-    "PairingManager",
+    "PairingManager"    
 ]

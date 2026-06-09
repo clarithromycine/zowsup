@@ -44,7 +44,7 @@ from app.bot_env import BotEnv
 from app.device_env import DeviceEnv
 from app.network_env import NetworkEnv
 from app.param_not_enough_exception import ParamsNotEnoughException
-from app.zowbot_layer import ZowBotLayer
+from app.layer.zowbot_layer import ZowBotLayer
 from app.zowbot_values import ZowBotStatus, ZowBotType
 from common.utils import Utils
 
@@ -346,9 +346,7 @@ class ZowBot:
             return self._exit_code if self._exit_code is not None else 0
 
 
-                                               
-    def waitLogin(self):
-        return self.botLayer.waitLogin()
+
     
     def setUpperCallback(self,upperCallback):
         self.upperCallback = upperCallback            
