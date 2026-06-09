@@ -3,7 +3,7 @@
 from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 import logging
 import uuid
-import threading
+import asyncio
 from app.param_not_enough_exception import ParamsNotEnoughException
 from core.common.tools import Jid
 from app.zowbot_cmd.base_send import BotSendCommand
@@ -56,7 +56,7 @@ class Cmd_Msg_Send(BotSendCommand):
             return "JUSTWAIT"
         else:
             ctxId = str(uuid.uuid4())
-            self.bot.botLayer.ctxMap[ctxId] = {"event": threading.Event()}
+            self.bot.botLayer.ctxMap[ctxId] = {"event": asyncio.Event()}
             options["ctxId"] = ctxId
             
             await self.assureContactsAndSend(
@@ -67,10 +67,12 @@ class Cmd_Msg_Send(BotSendCommand):
             )
             
             # Wait for message ID callback
-            ret = self.bot.botLayer.ctxMap[ctxId]["event"].wait(
-                int(options["waitMsgId"])
-            )
-            if not ret:
+            try:
+                await asyncio.wait_for(
+                    self.bot.botLayer.ctxMap[ctxId]["event"].wait(),
+                    timeout=int(options["waitMsgId"])
+                )
+            except asyncio.TimeoutError:
                 return "TIMEOUT"
             else:
                 msgId = self.bot.botLayer.getContextValue(ctxId, "msgId")

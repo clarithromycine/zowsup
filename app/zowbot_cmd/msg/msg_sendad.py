@@ -2,8 +2,8 @@
 
 from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 import base64
+import asyncio
 import logging
-import threading
 import time
 import uuid
 
@@ -42,7 +42,7 @@ class Cmd_Msg_Sendad(BotSendCommand):
             return "JUSTWAIT"
         else:
             ctxId = str(uuid.uuid4())            
-            bot.botLayer.ctxMap[ctxId] = {"event": threading.Event()}
+            bot.botLayer.ctxMap[ctxId] = {"event": asyncio.Event()}
             options["ctxId"] = ctxId                        
             await self.assureContactsAndSend(params, options, send_func=self.sendAdDirect, redo_func=self.execute)
 

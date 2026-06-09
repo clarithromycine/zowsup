@@ -5,7 +5,7 @@ import logging
 import traceback
 import traceback
 import uuid
-import threading
+import asyncio
 
 from app.zowbot_cmd.base_send import BotSendCommand
 from core.common.tools import Jid
@@ -45,7 +45,7 @@ class Cmd_Msg_Sendmedia(BotSendCommand):
             return "JUSTWAIT"
         else:
             ctxId = str(uuid.uuid4())
-            bot.botLayer.ctxMap[ctxId] = {"event": threading.Event()}
+            bot.botLayer.ctxMap[ctxId] = {"event": asyncio.Event()}
             options["ctxId"] = ctxId
             
             await self.assureContactsAndSend(
@@ -56,10 +56,12 @@ class Cmd_Msg_Sendmedia(BotSendCommand):
             )
             
             # Wait for message ID callback
-            ret = bot.botLayer.ctxMap[ctxId]["event"].wait(
-                int(options["waitMsgId"])
-            )
-            if not ret:
+            try:
+                await asyncio.wait_for(
+                    bot.botLayer.ctxMap[ctxId]["event"].wait(),
+                    timeout=int(options["waitMsgId"])
+                )
+            except asyncio.TimeoutError:
                 return "TIMEOUT"
             else:
                 msgId = bot.botLayer.getContextValue(ctxId, "msgId")
