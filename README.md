@@ -25,6 +25,9 @@ IMPORTANT NOTICE:  0.9.0 architecture is not compatible with 0.6.5, so if you ha
  * **Asyncio command architecture** — all commands are now fully async (`async def execute()`), powered by `asyncio` event loop
  * **`AsyncCommandExec`** replaces the old threading-based command executor; login wait is non-blocking
  * **`BotCommand` base class** — unified base for every command module with built-in IQ helpers (`send_iq`, `send_iq_expect`), parameter helpers, and structured `success` / `fail` response builders
+ * **`ZowBotLayer` decomposition** — protocol layer split into 8 focused managers (`ConnectionManager`, `IqManager`, `PairingManager`, `MessageHandler`, `NotificationHandler`, `MediaManager`, `ContactManager`, `SyncManager`)
+ * **`DeviceEnv` simplification** — eliminated 25+ manual pass-through methods via `__getattr__` auto-delegation
+ * **Thread model cleanup** — all `threading.Event` replaced with `asyncio.Event` in async command modules
  * New commands: `account.getname`, `account.info`, `contact.getdevices`, `contact.getprofile`, `contact.list`, `contact.setmsgdisappearing`, `md.devices`, `md.inputcode`, `msg.quotedreply`, `msg.sendad`, `msg.sendinteractive`, `msgshortlink.*`, `newsletter.*`, `misc.*`
 
 ## What's New 0.6.5
@@ -53,22 +56,73 @@ IMPORTANT NOTICE:  0.9.0 architecture is not compatible with 0.6.5, so if you ha
 
 ```
 script/main.py
-    └── ZowBot                     # Core bot instance (asyncio event loop)
-          ├── ZowBotLayer          # Protocol layer — handles IQ send/receive
-          ├── AsyncCommandExec     # Async command executor (non-blocking login wait)
-          └── zowbot_cmd/          # Command modules (one file per command)
-                ├── BotCommand     # Base class: execute(), send_iq(), success(), fail()
-                ├── account/       # Account management commands
-                ├── contact/       # Contact commands
-                ├── group/         # Group management commands
-                ├── md/            # Multi-device (companion) commands
-                ├── msg/           # Messaging commands
-                ├── msgshortlink/  # Message short-link commands
-                ├── newsletter/    # Newsletter / channel commands
-                └── misc/          # Miscellaneous / utility commands
+    └── ZowBot                         # Core bot instance (asyncio event loop)
+          ├── ZowBotLayer (facade)      # Thin protocol facade — delegates to managers
+          │     ├── ConnectionManager   # Connection lifecycle (login/logout/reconnect)
+          │     ├── IqManager           # IQ request/response + heartbeat
+          │     ├── PairingManager      # QR / LinkCode companion registration
+          │     ├── MessageHandler      # Incoming message parsing + ack delivery
+          │     ├── NotificationHandler # Server push notification dispatch
+          │     ├── MediaManager        # Media download & decryption
+          │     ├── ContactManager      # Contact sync & pre-send assurance
+          │     └── SyncManager         # App-state sync / FCM / device logout
+          ├── AsyncCommandExec          # Async command executor (non-blocking login wait)
+          └── zowbot_cmd/              # Command modules (one file per command)
+                ├── BotCommand          # Base class: execute(), send_iq(), success(), fail()
+                ├── account/            # Account management commands
+                ├── contact/            # Contact commands
+                ├── group/              # Group management commands
+                ├── md/                 # Multi-device (companion) commands
+                ├── msg/                # Messaging commands
+                ├── msgshortlink/       # Message short-link commands
+                ├── newsletter/         # Newsletter / channel commands
+                └── misc/               # Miscellaneous / utility commands
 ```
 
-Each command is an independent class that inherits `BotCommand` and implements a single `async def execute(params, options)` method. The `AsyncCommandExec` engine waits for the bot to finish login (via `asyncio.sleep` polling on `loginEvent`) before dispatching the command, then disconnects cleanly on completion.
+Each command is an independent class that inherits `BotCommand` and implements a single `async def execute(params, options)` method. The `AsyncCommandExec` engine waits for the bot to finish login (via `asyncio.sleep` polling on `loginEventComplete`) before dispatching the command, then disconnects cleanly on completion.
+
+
+## Project Architecture
+
+```
+zowsup/
+├── app/                          # Application layer
+│   ├── zowbot.py                 # Core ZowBot (asyncio event loop, command queue)
+│   ├── zowbot_layer.py           # Thin protocol facade (delegates to managers)
+│   ├── async_command_exec.py     # Async command executor
+│   ├── zowbot_values.py          # Bot type & status enums
+│   ├── bot_env.py / device_env.py / network_env.py  # Environment wrappers
+│   ├── layer/                    # Protocol layer managers (extracted from ZowBotLayer)
+│   │   ├── connection.py         # ConnectionManager
+│   │   ├── iq_manager.py         # IqManager
+│   │   ├── pairing.py            # PairingManager
+│   │   ├── message_handler.py    # MessageHandler
+│   │   ├── notification_handler.py  # NotificationHandler
+│   │   ├── media.py              # MediaManager
+│   │   ├── contacts.py           # ContactManager
+│   │   └── sync.py               # SyncManager
+│   ├── device_env_config/        # Device environment profiles
+│   │   ├── env_tools.py          # DeviceEnvBase + EnvTools utilities
+│   │   ├── env_android.py        # Android device profile
+│   │   ├── env_ios.py            # iOS device profile
+│   │   ├── env_smb_android.py    # SMB Android device profile
+│   │   └── env_smb_ios.py        # SMB iOS device profile
+│   └── zowbot_cmd/               # Bot command modules
+├── core/                         # Protocol stack (from yowsup)
+│   ├── layers/                   # ~20 protocol layers
+│   ├── stacks/                   # YowStack / YowStackBuilder
+│   ├── profile/                  # YowProfile (account config + axolotl)
+│   └── axolotl/ / common/ / config/ / registration/
+├── axolotl/                      # Signal protocol (E2E encryption)
+├── consonance/                   # Noise protocol (transport security)
+├── zargo/                        # WhatsApp Argo wire-type decoder
+├── zwam/                         # WAM (WhatsApp Application Metrics)
+├── proto/                        # Protobuf definitions
+├── conf/                         # Configuration (config.conf, constants)
+├── common/                       # Shared utilities
+├── script/                       # Entry points (main, registration, import/export)
+└── data/                         # Static data (MCC/MNC, supported devices)
+```
 
 
 ## Quick start for the project
