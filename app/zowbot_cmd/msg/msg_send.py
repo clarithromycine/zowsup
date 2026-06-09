@@ -17,7 +17,6 @@ from core.layers.protocol_messages.protocolentities.attributes.attributes_disapp
 from core.layers.protocol_messages.protocolentities.attributes.attributes_extendedtext import ExtendedTextAttributes
 from core.layers.protocol_messages.protocolentities.attributes.attributes_message_meta import MessageMetaAttributes
 from core.layers.protocol_messages.protocolentities.message_extendedtext import ExtendedTextMessageProtocolEntity
-from proto import zowsup_pb2
 
 logger = logging.getLogger(__name__)
 

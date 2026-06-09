@@ -6,14 +6,12 @@ import uuid
 import threading
 import time
 from core.common.tools import Jid
-from app.zowbot_cmd.base import BotCommand
 from app.zowbot_cmd.base_send import BotSendCommand
 from core.layers.protocol_messages.protocolentities.attributes.attributes_context_info import ContextInfoAttributes
 from core.layers.protocol_messages.protocolentities.attributes.attributes_extendedtext import ExtendedTextAttributes
 from core.layers.protocol_messages.protocolentities.attributes.attributes_message import MessageAttributes
 from core.layers.protocol_messages.protocolentities.attributes.attributes_message_meta import MessageMetaAttributes
 from core.layers.protocol_messages.protocolentities.message_extendedtext import ExtendedTextMessageProtocolEntity
-from proto import zowsup_pb2
 logger = logging.getLogger(__name__)
 
 

@@ -12,7 +12,6 @@ import traceback,base64
 from core.config.v1.serialize import ConfigSerialize
 from core.config.transforms.dict_json import DictJsonTransform
 from core.axolotl.factory import AxolotlManagerFactory
-from proto import zowsup_pb2 
 import json
 import uuid
 

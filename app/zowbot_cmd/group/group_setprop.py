@@ -46,7 +46,7 @@ class Cmd_Group_SetProp(BotCommand):
 
 
 
-            if params[1] in ["member_link_mode","member_add_mode","member_share_group_history_mode"]
+            if params[1] in ["member_link_mode","member_add_mode","member_share_group_history_mode"]:
                 query_obj = {
                     "variables": {
                         "groupJid": params[0],

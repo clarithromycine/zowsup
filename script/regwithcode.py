@@ -12,7 +12,6 @@ import traceback
 import json,base64,uuid
 from core.config.v1.serialize import ConfigSerialize
 from core.config.transforms.dict_json import DictJsonTransform
-from proto import zowsup_pb2
 
 logger = logging.getLogger(__name__)
 
