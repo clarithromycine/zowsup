@@ -48,6 +48,7 @@ class MessageProtocolEntity(ProtocolEntity):
         self.sender_lid = messageMetaAttributes.sender_lid                
         self.sender_pn  = messageMetaAttributes.sender_pn
         self.peer_recipient_pn = messageMetaAttributes.peer_recipient_pn
+        self.participant_pn = messageMetaAttributes.participant_pn
 
     def getFromMe(self) -> Any:
         return self.fromme        
@@ -75,11 +76,16 @@ class MessageProtocolEntity(ProtocolEntity):
             return None
                 
         return self.participant if full else self.participant.split('@')[0]
+    
+    def getParticipantPn(self, full = True) -> Any:
+        if self.participant_pn is None:
+            return None
+        return self.participant_pn if full else self.participant_pn.split('@')[0]
 
     def getAuthor(self, full = True) -> Any:        
 
         if self.isGroupMessage(): 
-            return self.getParticipant(full)
+            return self.getParticipantPn(full)  or self.getParticipant(full)
         
         _from = self.getFrom(full)
         

@@ -21,8 +21,8 @@ class EncryptedMessageProtocolEntity(MessageProtocolEntity):
             , "Must have at least a list of minumum 1 enc entity"
         self.encEntities = encEntities
 
-    def getEnc(self, encType) -> Any:
-        for enc in self.encEntities:
+    def getEnc(self, encType) -> Any:        
+        for enc in self.encEntities:            
             if enc.type == encType:
                 return enc
 

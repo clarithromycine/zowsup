@@ -56,8 +56,8 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
         if node.getChild("enc")["v"] == "2" and node["from"] not in self.v2Jids:
             self.v2Jids.append(node["from"])
         try:
-            handled = False            
-            if encMessageProtocolEntity.getEnc(EncProtocolEntity.TYPE_SKMSG):
+            handled = False                        
+            if encMessageProtocolEntity.getEnc(EncProtocolEntity.TYPE_SKMSG):                
                 handled = await self.handleSenderKeyMessage(node)                           
                            
             if not handled:                                                                 
@@ -170,7 +170,7 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
         try:
             plaintext = self.manager.group_decrypt (
                 groupid=encMessageProtocolEntity.getFrom(True),
-                participantid=encMessageProtocolEntity.getParticipant(False),
+                participantid=encMessageProtocolEntity.getParticipantPn(False) or encMessageProtocolEntity.getParticipant(False),
                 data=enc.getData()
             )
             self.parseAndHandleMessageProto(encMessageProtocolEntity, plaintext)
