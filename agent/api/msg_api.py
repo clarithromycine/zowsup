@@ -21,7 +21,7 @@ router = APIRouter(tags=["msg"])
 _VALID_MEDIA_TYPES = {"image", "video", "audio", "document"}
 
 
-@router.post("/api/sendmsg", response_model=CmdResult)
+@router.post("/api/sendmsg", response_model=CmdResult, response_model_exclude_none=True)
 async def send_message(req: SendMsgRequest):
     """Send a text, ad, or media message."""
 

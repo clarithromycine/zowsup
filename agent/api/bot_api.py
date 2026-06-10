@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import subprocess
 import sys
@@ -14,6 +15,7 @@ from agent.manager.account_store import account_store
 from agent.schemas import (
     BotInfo, BotStartRequest, BatchStartRequest, BatchStopRequest,
     BatchResult, BotImportRequest, BotExportRequest, BotExportEntry,
+    BotStatus,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,17 +38,51 @@ async def get_bot(bot_id: str):
 
 @router.post("/api/startbot", response_model=BatchResult)
 async def start_bots(req: BatchStartRequest):
-    results = []; success = 0; errors = 0
+    """Start bots concurrently. Mode: 'sync' (wait for logins) or 'fire' (return immediately)."""
     all_requests = list(req.bots) + [BotStartRequest(bot_id=bid) for bid in req.bot_ids]
-    for bot_req in all_requests:
+
+    # ── Phase 1: Launch all bots concurrently ──
+    async def _launch_one(bot_req: BotStartRequest) -> BotInfo:
         try:
-            info = bot_manager.start_bot(bot_id=bot_req.bot_id, env=bot_req.env.value if bot_req.env else None, proxy=bot_req.proxy, auto_login=bot_req.auto_login)
-            results.append(info); success += 1
+            bot = await asyncio.to_thread(
+                bot_manager.launch_bot,
+                bot_id=bot_req.bot_id,
+                env=bot_req.env.value if bot_req.env else None,
+                proxy=bot_req.proxy,
+                auto_login=bot_req.auto_login,
+            )
+            return BotInfo(bot_id=bot_req.bot_id, status=BotStatus.INITIAL, env=bot_req.env.value if bot_req.env else "")
         except ValueError as e:
-            results.append(BotInfo(bot_id=bot_req.bot_id, status="ERROR", error=str(e))); errors += 1
+            return BotInfo(bot_id=bot_req.bot_id, status=BotStatus.ERROR, error=str(e))
         except Exception as e:
-            results.append(BotInfo(bot_id=bot_req.bot_id, status="ERROR", error=str(e))); errors += 1
-    return BatchResult(results=results, success_count=success, error_count=errors)
+            return BotInfo(bot_id=bot_req.bot_id, status=BotStatus.ERROR, error=str(e))
+
+    launch_results = await asyncio.gather(*[_launch_one(r) for r in all_requests])
+    launched_bots = [r for r in launch_results if r.status != BotStatus.ERROR]
+
+    # ── Fire mode: return immediately ──
+    if req.mode == "fire":
+        success = len(launched_bots)
+        errors = len(launch_results) - success
+        return BatchResult(results=launch_results, success_count=success, error_count=errors)
+
+    # ── Sync mode: wait for all logins concurrently ──
+    async def _wait_one(bot_id: str) -> BotInfo:
+        try:
+            bot = await asyncio.to_thread(bot_manager.get_bot_instance, bot_id)
+            if bot is None:
+                return BotInfo(bot_id=bot_id, status=BotStatus.ERROR, error="Bot instance lost")
+            return await asyncio.to_thread(bot_manager.wait_bot_login, bot)
+        except Exception as e:
+            return BotInfo(bot_id=bot_id, status=BotStatus.ERROR, error=str(e))
+
+    login_results = await asyncio.gather(*[_wait_one(r.bot_id) for r in launched_bots])
+
+    # Merge: errors from phase 1 + results from phase 2
+    final_results = [r for r in launch_results if r.status == BotStatus.ERROR] + list(login_results)
+    success = sum(1 for r in login_results if r.status == BotStatus.RUNNING)
+    errors = len(final_results) - success
+    return BatchResult(results=final_results, success_count=success, error_count=errors)
 
 
 @router.post("/api/stopbot", response_model=BatchResult)

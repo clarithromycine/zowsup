@@ -85,9 +85,15 @@ GET /api/bot/{bot_id}
 POST /api/startbot
 ```
 
+Launches bot threads **concurrently**. Two modes:
+
+- `"sync"` (default) — wait for all logins to complete, then return results
+- `"fire"` — return immediately with `INITIAL` status; login results arrive via WebSocket events
+
 **Request**
 ```json
 {
+  "mode": "sync",
   "bots": [
     {"bot_id": "8613800138000", "env": "android", "auto_login": true, "proxy": "socks5://host:port"}
   ],
@@ -97,6 +103,7 @@ POST /api/startbot
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `mode` | string | no | `"sync"` (default) or `"fire"` |
 | `bots` | array | no | Full config (per-bot env / proxy) |
 | `bots[].bot_id` | string | yes | Phone number |
 | `bots[].env` | string | no | Device env; auto-detected from config if omitted |
@@ -105,12 +112,24 @@ POST /api/startbot
 | `bot_ids` | string[] | no | Plain ID list (auto-detect env, default settings) |
 
 > `bots` and `bot_ids` can be used together — they are merged automatically.
+> In `"fire"` mode, bot statuses are `INITIAL`; monitor via `WS /api/bot/{id}/events`.
 
-**Response** `200`
+**Response** `200` (sync mode)
 ```json
 {
   "results": [
     {"bot_id": "8613800138000", "status": "RUNNING", "env": "android", "started_at": 1718000000}
+  ],
+  "success_count": 1,
+  "error_count": 0
+}
+```
+
+**Response** `200` (fire mode)
+```json
+{
+  "results": [
+    {"bot_id": "8613800138000", "status": "INITIAL", "env": "android"}
   ],
   "success_count": 1,
   "error_count": 0

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["cmd"])
 
 
-@router.post("/api/bot/cmd", response_model=CmdResult)
+@router.post("/api/bot/cmd", response_model=CmdResult, response_model_exclude_none=True)
 async def execute_cmd(req: BotCmdRequest):
     # Check bot exists before attempting execution
     info = bot_manager.get_bot(req.bot_id)

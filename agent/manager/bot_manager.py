@@ -19,6 +19,7 @@ from app.device_env import DeviceEnv
 from app.network_env import NetworkEnv
 from agent.manager.account_store import account_store
 from agent.schemas import BotInfo, BotStatus
+from conf.constants import SysVar
 
 logger = logging.getLogger(__name__)
 
@@ -46,15 +47,14 @@ class BotManager:
 
     # ── Public API ──────────────────────────────────────────────────────────
 
-    def start_bot(
+    def launch_bot(
         self,
         bot_id: str,
         env: str | None = None,
         proxy: Optional[str] = None,
         auto_login: bool = True,
-        login_timeout: float = 30.0,
-    ) -> BotInfo:
-        """Start a new bot. Returns BotInfo after login or on failure.
+    ) -> ZowBot:
+        """Create and launch a bot thread. Returns immediately — does NOT wait for login.
 
         Raises ValueError if bot is already running.
         """
@@ -63,64 +63,72 @@ class BotManager:
                 existing = self._bots[bot_id]
                 if existing.thread and existing.thread.is_alive():
                     raise ValueError(f"Bot '{bot_id}' is already running")
-                # Thread dead — clean up stale entry
                 del self._bots[bot_id]
 
-        # Auto-detect env from account config if not specified
         if env is None:
             env = self._detect_env_from_config(bot_id)
 
-        # Build environment
         device_env = DeviceEnv(env)
         network_env = NetworkEnv("direct")
         bot_env = BotEnv(deviceEnv=device_env, networkEnv=network_env)
 
-        # Apply proxy if specified
         if proxy and proxy.upper() != "DIRECT":
             network_env.updateProxyStr(proxy, rawProxyStr=proxy)
 
-        logger.info(f"Creating bot '{bot_id}' env={env} proxy={proxy}")
+        logger.info(f"Launching bot '{bot_id}' env={env} proxy={proxy}")
 
-        # Construct bot (may raise if account data missing — let it propagate)
         bot = ZowBot(
             bot_id=bot_id,
             env=bot_env,
             bot_type=ZowBotType.TYPE_RUN_IN_CLUSTER,
             auto=auto_login,
         )
-
-        # Register upper callback for event forwarding
         bot.setUpperCallback(self._on_bot_event)
 
-        # Track before starting thread so duplicate detection works
         with self._lock:
             self._bots[bot_id] = bot
 
-        # Start in background thread
         bot.runAsThread(daemon=True)
-
-        # Register/update in account store
         account_store.register(bot_id, env=env)
+        return bot
 
-        # Wait for login to complete (blocking, with timeout)
+    def wait_bot_login(self, bot: ZowBot, login_timeout: float = 30.0) -> BotInfo:
+        """Wait for a launched bot to complete login. Returns BotInfo.
+
+        Safe to call from any thread.
+        """
+        bot_id = next((bid for bid, b in self._bots.items() if b is bot), "unknown")
         login_completed = bot.wait_logged_in(timeout=login_timeout)
+
         if login_completed:
             status = bot.getStatus()
             if status == BotInternalStatus.STATUS_RUNNING:
                 logger.info(f"Bot '{bot_id}' logged in successfully")
-                account_store.update_status(bot_id, "running", env=bot.env.deviceEnv.getOSName() if bot.env else env)
+                raw_os = bot.env.deviceEnv.getOSName() if bot.env else ""
+                os_env = SysVar.ENV_NAME_MAPPING.get(raw_os, raw_os) if raw_os else ""
+                account_store.update_status(bot_id, "running", env=os_env or account_store.get(bot_id).get("env", ""))
             else:
-                logger.warning(
-                    f"Bot '{bot_id}' login failed (status={status}, "
-                    f"check logs for details like 401/403/405)"
-                )
+                logger.warning(f"Bot '{bot_id}' login failed (status={status})")
                 account_store.update_status(bot_id, "stopped")
         else:
-            logger.warning(
-                f"Bot '{bot_id}' login did not complete within {login_timeout}s"
-            )
+            logger.warning(f"Bot '{bot_id}' login did not complete within {login_timeout}s")
 
         return self._build_bot_info(bot_id, bot)
+
+    def start_bot(
+        self,
+        bot_id: str,
+        env: str | None = None,
+        proxy: Optional[str] = None,
+        auto_login: bool = True,
+        login_timeout: float = 30.0,
+    ) -> BotInfo:
+        """Start a bot and wait for login. Convenience wrapper over launch + wait.
+
+        Raises ValueError if bot is already running.
+        """
+        bot = self.launch_bot(bot_id, env=env, proxy=proxy, auto_login=auto_login)
+        return self.wait_bot_login(bot, login_timeout=login_timeout)
 
     def stop_bot(self, bot_id: str, join_timeout: float = 10.0) -> BotInfo | None:
         """Stop a running bot. Returns final BotInfo or None if not found."""
@@ -232,10 +240,14 @@ class BotManager:
         if bot.startts and agent_status == BotStatus.RUNNING:
             uptime = time.time() - bot.startts
 
+        # Map OS name (e.g. "SMBA") back to env_name (e.g. "smb_android")
+        raw_os = bot.env.deviceEnv.getOSName() if bot.env and bot.env.deviceEnv else ""
+        env = SysVar.ENV_NAME_MAPPING.get(raw_os, raw_os) if raw_os else ""
+
         return BotInfo(
             bot_id=bot_id,
             status=agent_status,
-            env=bot.env.deviceEnv.getOSName() if bot.env and bot.env.deviceEnv else "",
+            env=env,
             started_at=int(bot.startts) if bot.startts else None,
             uptime_seconds=int(uptime) if uptime else None,
         )

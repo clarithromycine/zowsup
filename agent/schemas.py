@@ -44,9 +44,11 @@ class BatchStartRequest(BaseModel):
 
     bots    — list of full BotStartRequest objects (env, proxy, auto_login per bot)
     bot_ids — list of plain bot_id strings (auto-detect env, default settings)
+    mode    — "sync" (default, concurrent launch + wait for all logins) or "fire" (return immediately)
     """
     bots: list[BotStartRequest] = Field(default_factory=list, description="Full config per bot")
     bot_ids: list[str] = Field(default_factory=list, description="Plain bot IDs (auto-detect env)")
+    mode: str = Field("sync", description="sync | fire")
 
 
 class BatchStopRequest(BaseModel):
