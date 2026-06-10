@@ -37,20 +37,33 @@ class Cmd_Msg_Sendad(BotSendCommand):
                 options["bcid"] = bcid
                 options["phash"] = phash        
                 
-        if "waitMsgId" not in options:
+        if "waitid" not in options:
             await self.assureContactsAndSend(params, options, send_func=self.sendAdDirect, redo_func=self.execute)            
             return "JUSTWAIT"
         else:
+            print("ASDASDSADASDSAD")
             ctxId = str(uuid.uuid4())            
             bot.botLayer.ctxMap[ctxId] = {"event": asyncio.Event()}
             options["ctxId"] = ctxId                        
             await self.assureContactsAndSend(params, options, send_func=self.sendAdDirect, redo_func=self.execute)
 
+            try:
+                await asyncio.wait_for(
+                    self.bot.botLayer.ctxMap[ctxId]["event"].wait(),
+                    timeout=int(options["waitid"])
+                )
+            except asyncio.TimeoutError:
+                return "TIMEOUT"
+            else:
+                msgId = self.bot.botLayer.getContextValue(ctxId, "msgId")
+                del self.bot.botLayer.ctxMap[ctxId]
+                return msgId
     
 
     async def sendAdDirect(self,params,options):        
         to,text,*others = params
         title = options["title"] if  "title" in options else None
+        body = options["body"] if "body" in options else None
         url = options["url"] if "url" in options else None        
         
         thumbnail = base64.b64decode(options["thumbnailb64"]) if "thumbnailb64" in options else None
@@ -97,6 +110,7 @@ class Cmd_Msg_Sendad(BotSendCommand):
                 
                 external_ad_reply=ExternalAdReplyAttributes(
                     title=title,
+                    body = body,
                     media_type=1,
                     thumbnail_url=url,     
                     media_url=options["thumbnailurl"] if "thumbnailurl" in options else None,
@@ -127,7 +141,7 @@ class Cmd_Msg_Sendad(BotSendCommand):
 
         await self.bot.botLayer.toLower(messageEntity)          
           
-        if "waitMsgId" in options:
+        if "waitid" in options:
             self.bot.botLayer.ctxMap[options["ctxId"]]["msgId"] = messageEntity.getId()
             self.bot.botLayer.ctxMap[options["ctxId"]]["event"].set()            
         

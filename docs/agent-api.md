@@ -173,6 +173,55 @@ POST /api/bot/cmd
 
 ---
 
+### Send Message
+
+```
+POST /api/sendmsg
+```
+
+High-level wrapper over `msg.send` and `msg.sendad`. Accepts text or ad content.
+
+**Text message**
+
+```json
+{
+  "bot_id": "8613800138000",
+  "to": "8613800138001@s.whatsapp.net",
+  "content": {"text": "Hello World"}
+}
+```
+
+**Ad message**
+
+```json
+{
+  "bot_id": "8613800138000",
+  "to": "8613800138001@s.whatsapp.net",
+  "content": {
+    "ad": {
+      "title": "Product Name",
+      "titlebody": "Short description",
+      "titleurl": "https://example.com",
+      "text": "Check out this product!"
+    }
+  }
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `bot_id` | string | yes | Target bot |
+| `to` | string | yes | Recipient JID (`number@s.whatsapp.net`) |
+| `content.text` | string | *one of* | Plain text → calls `msg.send` |
+| `content.ad.title` | string | *one of* | Ad title → calls `msg.sendad` |
+| `content.ad.titlebody` | string | no | Ad subtitle (currently unused) |
+| `content.ad.titleurl` | string | yes | Ad source URL |
+| `content.ad.text` | string | yes | Ad body text |
+
+**Response** `200` — same `CmdResult`
+
+---
+
 ### Import Accounts
 
 ```

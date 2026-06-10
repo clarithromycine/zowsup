@@ -63,6 +63,29 @@ class BotCmdRequest(BaseModel):
     timeout: int = Field(30, ge=1, le=300, description="Timeout in seconds (1-300)")
 
 
+class AdContent(BaseModel):
+    """Ad message content for msg.sendad."""
+    title: str = Field(..., description="Ad title")
+    body: Optional[str] = Field(None, description="Ad title body text")
+    url: str = Field(..., description="Ad URL / source URL")
+    text: str = Field(..., description="Ad body text")
+    thumbnailb64: Optional[str] = Field(None, description="Ad thumbnail image as base64 string")
+
+
+class SendMsgContent(BaseModel):
+    """Content for /api/sendmsg — exactly one field must be set."""
+    text: Optional[str] = Field(None, description="Plain text message → msg.send")
+    ad: Optional[AdContent] = Field(None, description="Ad message → msg.sendad")
+
+
+class SendMsgRequest(BaseModel):
+    """High-level send message request."""
+    bot_id: str = Field(..., description="Bot identifier")
+    to: str = Field(..., description="Recipient JID, e.g. 8613800138000@s.whatsapp.net")
+    content: SendMsgContent = Field(..., description="Message content (text or ad)")
+    waitid: Optional[int] = Field(None, ge=1, le=300, description="If set, wait for message ID and return it (timeout in seconds)")
+
+
 class BotImportRequestItem(BaseModel):
     """Single import data item."""
     data: str = Field(..., description="6-segment CSV: phone,pk1,sk1,pk2,sk2,sixth")

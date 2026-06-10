@@ -82,9 +82,11 @@ async def lifespan(app: FastAPI):
 
     from agent.api.bot_api import router as bot_router
     from agent.api.cmd_api import router as cmd_router
+    from agent.api.msg_api import router as msg_router
     from agent.api.log_api import router as log_router
     app.include_router(bot_router)
     app.include_router(cmd_router)
+    app.include_router(msg_router)
     app.include_router(log_router)
 
     import logging
