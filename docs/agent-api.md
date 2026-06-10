@@ -1,30 +1,30 @@
 # ZowSup Agent API
 
-HTTP REST + WebSocket 服务，提供多账号 WhatsApp 机器人的远程管理能力。
+HTTP REST + WebSocket service for remote multi-bot WhatsApp management.
 
-## 启动
+## Startup
 
 ```bash
 python -m agent [--accesskey KEY] [--host 127.0.0.1] [--port 8000]
 ```
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `--accesskey` | 无（免认证） | 设置后所有接口需携带密钥 |
-| `--host` | `0.0.0.0` | 监听地址 |
-| `--port` | `8000` | 监听端口 |
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--accesskey` | none (no auth) | When set, all endpoints require the key |
+| `--host` | `0.0.0.0` | Listen address |
+| `--port` | `8000` | Listen port |
 
-## 认证
+## Authentication
 
-- **REST**：Header `X-Access-Key: <key>`
-- **WebSocket**：Query 参数 `?access_key=<key>`
-- 未配置 `--accesskey` 时认证自动跳过
+- **REST**: Header `X-Access-Key: <key>`
+- **WebSocket**: Query param `?access_key=<key>`
+- Auth is automatically skipped when `--accesskey` is not set.
 
 ---
 
 ## REST API
 
-### 健康检查
+### Health Check
 
 ```
 GET /api/health
@@ -37,7 +37,7 @@ GET /api/health
 
 ---
 
-### 账号列表
+### List Accounts
 
 ```
 GET /api/listbot
@@ -57,29 +57,29 @@ GET /api/listbot
 ]
 ```
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `bot_id` | string | 电话号码 |
+| Field | Type | Description |
+|-------|------|-------------|
+| `bot_id` | string | Phone number |
 | `status` | enum | `INITIAL` / `RUNNING` / `STOPPING` / `STOPPED` / `ERROR` |
 | `env` | string | `android` / `smb_android` / `ios` / `smb_ios` |
-| `started_at` | int | Unix 时间戳 |
-| `uptime_seconds` | int | 运行时长（秒） |
-| `error` | string | 错误信息（仅 ERROR 状态） |
+| `started_at` | int | Unix timestamp |
+| `uptime_seconds` | int | Uptime in seconds |
+| `error` | string | Error message (only when status is `ERROR`) |
 
 ---
 
-### 单个账号
+### Get Single Account
 
 ```
 GET /api/bot/{bot_id}
 ```
 
-**Response** `200` — 同上的单个 `BotInfo` 对象  
-**Response** `404` — 账号不存在
+**Response** `200` — same `BotInfo` object as above  
+**Response** `404` — account not found
 
 ---
 
-### 启动机器人
+### Start Bots
 
 ```
 POST /api/startbot
@@ -95,16 +95,16 @@ POST /api/startbot
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `bots` | array | 否 | 完整配置（可按 bot 指定 env / proxy） |
-| `bots[].bot_id` | string | 是 | 电话号码 |
-| `bots[].env` | string | 否 | 设备环境，不填则自动从 config 检测 |
-| `bots[].auto_login` | bool | 否 | 是否自动登录，默认 `true` |
-| `bots[].proxy` | string | 否 | 代理地址 |
-| `bot_ids` | string[] | 否 | 简单 ID 列表（自动检测 env，默认配置） |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `bots` | array | no | Full config (per-bot env / proxy) |
+| `bots[].bot_id` | string | yes | Phone number |
+| `bots[].env` | string | no | Device env; auto-detected from config if omitted |
+| `bots[].auto_login` | bool | no | Auto-login on start, defaults to `true` |
+| `bots[].proxy` | string | no | Proxy address |
+| `bot_ids` | string[] | no | Plain ID list (auto-detect env, default settings) |
 
-> `bots` 和 `bot_ids` 可以同时使用，会自动合并。
+> `bots` and `bot_ids` can be used together — they are merged automatically.
 
 **Response** `200`
 ```json
@@ -119,7 +119,7 @@ POST /api/startbot
 
 ---
 
-### 停止机器人
+### Stop Bots
 
 ```
 POST /api/stopbot
@@ -130,11 +130,11 @@ POST /api/stopbot
 {"bot_ids": ["8613800138000", "8613800138001"]}
 ```
 
-**Response** `200` — 同上的 `BatchResult`
+**Response** `200` — same `BatchResult` as above
 
 ---
 
-### 执行命令
+### Execute Command
 
 ```
 POST /api/bot/cmd
@@ -151,29 +151,29 @@ POST /api/bot/cmd
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `bot_id` | string | 是 | 目标机器人 |
-| `command` | string | 是 | 命令名，如 `msg.send`、`misc.prekeycount` |
-| `args` | string[] | 否 | 位置参数 |
-| `options` | object | 否 | 命名参数 |
-| `timeout` | int | 否 | 超时秒数（1-300），默认 30 |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `bot_id` | string | yes | Target bot |
+| `command` | string | yes | Command name, e.g. `msg.send`, `misc.prekeycount` |
+| `args` | string[] | no | Positional arguments |
+| `options` | object | no | Keyword options |
+| `timeout` | int | no | Timeout in seconds (1-300), defaults to 30 |
 
-**Response** `200` — 命令成功
+**Response** `200` — success
 ```json
 {"retcode": 0, "result": {...}, "error": null}
 ```
 
-**Response** `200` — 命令失败（retcode ≠ 0）
+**Response** `200` — command failed (retcode ≠ 0)
 ```json
 {"retcode": -2, "result": null, "error": "Command Not Found"}
 ```
 
-**Response** `404` — 机器人不存在
+**Response** `404` — bot not found
 
 ---
 
-### 导入账号
+### Import Accounts
 
 ```
 POST /api/importbot
@@ -189,16 +189,16 @@ POST /api/importbot
 }
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `accounts[].data` | string | 是 | 6 段 CSV（phone,pk1,sk1,pk2,sk2,6th） |
-| `accounts[].env` | string | 否 | 设备环境，默认 `android` |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `accounts[].data` | string | yes | 6-segment CSV (phone,pk1,sk1,pk2,sk2,6th) |
+| `accounts[].env` | string | no | Device env, defaults to `android` |
 
 **Response** `200` — `BatchResult`
 
 ---
 
-### 导出账号
+### Export Accounts
 
 ```
 POST /api/exportbot
@@ -225,28 +225,28 @@ POST /api/exportbot
 }
 ```
 
-> `data` 为 `null` 表示该账号导出失败；`env` 为账号当前设备环境。
+> `data` is `null` if export failed for that account; `env` is the account's current device environment.
 
 ---
 
-### 日志
+### Logs
 
-#### 拉取最近日志
+#### Fetch Recent Logs
 
 ```
 GET /api/bot/{bot_id}/logs/recent?lines=50
 ```
 
-| Query | 默认 | 说明 |
-|-------|------|------|
-| `lines` | 50 | 返回行数（1-1000） |
+| Query | Default | Description |
+|-------|---------|-------------|
+| `lines` | 50 | Number of lines to return (1-1000) |
 
 **Response** `200`
 ```json
 {"bot_id": "8613800138000", "lines": ["[2026-06-10 12:00:00] INFO Login..."]}
 ```
 
-#### 清除日志
+#### Clear Logs
 
 ```
 DELETE /api/bot/{bot_id}/logs
@@ -261,32 +261,32 @@ DELETE /api/bot/{bot_id}/logs
 
 ## WebSocket API
 
-### 实时日志流
+### Real-time Log Stream
 
 ```
 ws://host:port/api/bot/{bot_id}/logs?tail=10&access_key=<key>
 ```
 
-| Query | 默认 | 说明 |
-|-------|------|------|
-| `tail` | 0 | 连接时先推送历史 N 行 |
-| `access_key` | — | 认证密钥 |
+| Query | Default | Description |
+|-------|---------|-------------|
+| `tail` | 0 | Send the last N lines on connect |
+| `access_key` | — | Auth key |
 
-连接成功后先发送 `tail` 行历史，之后实时推送新日志。  
-认证失败返回 close code `4003`。
+Sends `tail` historical lines first, then streams new log lines in real time.  
+Auth failure results in close code `4003`.
 
-### 实时事件流
+### Real-time Event Stream
 
 ```
 ws://host:port/api/bot/{bot_id}/events?tail=5&access_key=<key>
 ```
 
-| Query | 默认 | 说明 |
-|-------|------|------|
-| `tail` | 0 | 连接时先推送历史 N 条事件 |
-| `access_key` | — | 认证密钥 |
+| Query | Default | Description |
+|-------|---------|-------------|
+| `tail` | 0 | Send the last N events on connect |
+| `access_key` | — | Auth key |
 
-推送 JSON 格式的结构化事件：
+Pushes structured JSON events:
 
 ```json
 {"type": "message", "bot_id": "8613800138000", "data": {...}}
@@ -294,18 +294,18 @@ ws://host:port/api/bot/{bot_id}/events?tail=5&access_key=<key>
 
 ---
 
-## 错误响应
+## Error Responses
 
-所有 REST 接口在出错时返回：
+All REST endpoints return errors as:
 
 ```json
-{"detail": "错误描述"}
+{"detail": "Error description"}
 ```
 
-| HTTP Status | 含义 |
-|-------------|------|
-| 403 | 认证失败 |
-| 404 | 资源不存在 |
-| 422 | 请求参数校验失败 |
-| 500 | 服务端内部错误 |
-| 504 | 命令执行超时 |
+| HTTP Status | Meaning |
+|-------------|---------|
+| 403 | Authentication failed |
+| 404 | Resource not found |
+| 422 | Request validation failed |
+| 500 | Internal server error |
+| 504 | Command execution timed out |
