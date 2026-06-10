@@ -1,9 +1,9 @@
 """WebSocket log viewer with auto-reconnect.
 
 Usage:
-    python tools/wslog.py <bot_id> [--host HOST] [--port PORT] [--tail N]
-    python tools/wslog.py 263783604300
-    python tools/wslog.py 263783604300 --host 192.168.1.100 --port 8000 --tail 50
+    python agent/wslog.py <bot_id> [--host HOST] [--port PORT] [--tail N]
+    python agent/wslog.py 263783604300
+    python agent/wslog.py 263783604300 --host 192.168.1.100 --port 8000 --tail 50
 """
 
 import asyncio
