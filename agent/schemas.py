@@ -7,7 +7,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ── Bot Status Enum ──────────────────────────────────────────────────────────
@@ -19,6 +19,7 @@ class BotStatus(str, Enum):
     STOPPING = "STOPPING"
     STOPPED = "STOPPED"
     ERROR = "ERROR"
+    AUTH_FAILED = "AUTH_FAILED"
 
 
 class BotEnv(str, Enum):
@@ -54,6 +55,28 @@ class BatchStartRequest(BaseModel):
 class BatchStopRequest(BaseModel):
     """Request to stop multiple bots at once."""
     bot_ids: list[str] = Field(..., min_length=1, description="List of bot IDs to stop")
+
+
+class PurgeRequest(BaseModel):
+    """Request to purge (delete) one or more bot accounts.
+
+    mode:
+        "auto" — purge ALL accounts with status=auth_failed (ignores bot_ids).
+        "list" — purge only the specified bot_ids that have status=auth_failed.
+    """
+    mode: str = Field("list", description="'auto' (all auth_failed) or 'list' (specific bot_ids)")
+    bot_ids: list[str] = Field(default_factory=list, description="Bot IDs to purge (only used when mode='list')")
+
+
+class PurgeResultEntry(BaseModel):
+    """Result of purging a single account."""
+    success: bool
+    error: Optional[str] = None
+
+
+class PurgeResponse(BaseModel):
+    """Result of a purge operation."""
+    results: dict[str, PurgeResultEntry]
 
 
 class BotCmdRequest(BaseModel):
@@ -128,12 +151,15 @@ class BotExportEntry(BaseModel):
 
 class BotInfo(BaseModel):
     """Information about a running or stopped bot."""
+    model_config = ConfigDict(exclude_none=True)
+
     bot_id: str
     status: BotStatus
     env: str = ""
     started_at: Optional[int] = None
     uptime_seconds: Optional[int] = None
     error: Optional[str] = None
+    fail_reason: Optional[str] = None
 
 
 class BatchResult(BaseModel):
@@ -159,6 +185,11 @@ class LogLinesResponse(BaseModel):
 class HealthResponse(BaseModel):
     """Health check response."""
     status: str = "ok"
+    thread_count: int = 0
+    db_bot_count: int = 0
+    running_bot_count: int = 0
+    memory_bytes: int = 0
+    cpu_time_seconds: float = 0.0
 
 
 class ErrorResponse(BaseModel):

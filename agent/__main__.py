@@ -1,5 +1,5 @@
 """
-Entry point for the ZowSup Agent.
+Entry point for the Zowsup Agent.
 
 Usage:
     python -m agent [--accesskey KEY] [--host HOST] [--port PORT]
@@ -26,7 +26,7 @@ if _project_root not in sys.path:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(
-        description="ZowSup Agent — Multi-bot WhatsApp protocol management service",
+        description="Zowsup Agent — Multi-bot WhatsApp protocol management service",
     )
     parser.add_argument(
         "--accesskey",

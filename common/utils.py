@@ -47,40 +47,6 @@ class Utils:
 
     _OUTPUT = []
     
-    VIOLATION_TYPE_MAP = {
-        1: "UNKNOWN",
-        2: "HATESPEECH",
-        3: "SUICIDE_OR_SELFINJURY",
-        4: "ADULT_SEXUAL_EXPLOITATION",
-        5: "ADULT_SEXUAL_SOLICITATION",
-        6: "BULLYING_AND_HARASSMENT",
-        7: "CHILD_SEXUAL_EXPLOITATION",
-        8: "COORDINATING_HARM_AND_PROMOTING_CRIME",
-        9: "CYBERSECURITY",
-        10: "DANGEROUS_INDIVIDUALS_AND_ORGS",
-        11: "FRAUD_AND_DECEPTION",
-        12: "GRAPHIC_VIOLENCE",
-        13: "HARMFUL_HEALTH",
-        14: "HATE",
-        15: "HUMAN_EXPLOITATION",
-        16: "INTELLECTUALPROPERTY_RIGHTS",
-        17: "PLATFORM_POLICY",
-        18: "PORN",
-        19: "PRIVACY_VIOLATION",
-        20: "REGULATED_GOODS",
-        21: "SPAM",
-        22: "SSI",
-        23: "VIOLENCE_AND_INCITEMENT",
-        24: "IP_TRADEMARK_REPORTED",
-        25: "IP_COUNTERFEIT_REPORTED",
-        26: "IP_COPYRIGHT_REPORTED",
-        27: "IP_REPEAT_INFRINGEMENT_REPORTED"
-    }
-
-    @staticmethod
-    def violationTypeName(violation_type) -> Any:
-        return Utils.VIOLATION_TYPE_MAP.get(violation_type, "UNKNOWN")
-    
     @staticmethod
     def getIdTypeByOsName(os_name: str) -> Any:
         """

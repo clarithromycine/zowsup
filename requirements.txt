@@ -42,5 +42,5 @@ greenlet
 six
 aiofiles>=23.0.0
 Flask>=3.0.0
-
+psutil>=5.9.0
 

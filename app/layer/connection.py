@@ -124,15 +124,11 @@ class ConnectionManager:
         self.loginFailCount += 1
 
         if entity.reason in ("403", "401", "405", "404"):
-            if entity.violation_type is not None:
-                reason = entity.reason + ":" + Utils.violationTypeName(int(entity.violation_type))
-            else:
-                reason = entity.reason
 
             self.layer.callback(
                 event={
                     "event": zowsup_pb2.BotEvent.Event.LOGIN_FAIL,
-                    "detail": reason,
+                    "detail": entity.reason,
                 }
             )
 

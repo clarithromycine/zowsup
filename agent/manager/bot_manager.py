@@ -20,22 +20,20 @@ from app.network_env import NetworkEnv
 from agent.manager.account_store import account_store
 from agent.schemas import BotInfo, BotStatus
 from conf.constants import SysVar
+from proto import zowsup_pb2
 
 logger = logging.getLogger(__name__)
 
-# Mapping from internal ZowBotStatus string → agent BotStatus enum
-_STATUS_MAP: dict[str, BotStatus] = {
-    BotInternalStatus.STATUS_INITIAL: BotStatus.INITIAL,
-    BotInternalStatus.STATUS_RUNNING: BotStatus.RUNNING,
-    BotInternalStatus.STATUS_STOPPING: BotStatus.STOPPING,
-    BotInternalStatus.STATUS_STOPPED: BotStatus.STOPPED,
-    BotInternalStatus.STATUS_ERROR: BotStatus.ERROR,
-    BotInternalStatus.STATUS_UNKNOWN: BotStatus.INITIAL,
-}
-
-
 def _internal_to_agent_status(internal: str) -> BotStatus:
-    return _STATUS_MAP.get(internal, BotStatus.INITIAL)
+    """Map internal ZowBotStatus string → agent BotStatus enum.
+
+    All standard statuses share the same string value so direct conversion works.
+    Only UNKNOWN (internal-only) needs a fallback to INITIAL.
+    """
+    try:
+        return BotStatus(internal)
+    except ValueError:
+        return BotStatus.INITIAL
 
 
 class BotManager:
@@ -102,11 +100,24 @@ class BotManager:
 
         if login_completed:
             status = bot.getStatus()
+            # The LOGIN_FAIL callback fires asynchronously via executor;
+            # briefly wait for _auth_fail_reason to arrive if login didn't succeed
+            auth_fail = getattr(bot, "_auth_fail_reason", None)
+            if status != BotInternalStatus.STATUS_RUNNING and auth_fail is None:
+                for _ in range(10):
+                    time.sleep(0.05)
+                    auth_fail = getattr(bot, "_auth_fail_reason", None)
+                    if auth_fail:
+                        break
+
             if status == BotInternalStatus.STATUS_RUNNING:
                 logger.info(f"Bot '{bot_id}' logged in successfully")
                 raw_os = bot.env.deviceEnv.getOSName() if bot.env else ""
                 os_env = SysVar.ENV_NAME_MAPPING.get(raw_os, raw_os) if raw_os else ""
                 account_store.update_status(bot_id, "running", env=os_env or account_store.get(bot_id).get("env", ""))
+            elif auth_fail:
+                logger.warning(f"Bot '{bot_id}' login failed with auth error ({auth_fail})")
+                account_store.update_status(bot_id, "auth_failed", auth_detail=auth_fail)
             else:
                 logger.warning(f"Bot '{bot_id}' login failed (status={status})")
                 account_store.update_status(bot_id, "stopped")
@@ -178,9 +189,11 @@ class BotManager:
             if bid in running:
                 result.append(running[bid])
             else:
+                db_status = row.get("status", "")
+                agent_status = BotStatus.AUTH_FAILED if db_status == "auth_failed" else BotStatus.STOPPED
                 result.append(BotInfo(
                     bot_id=bid,
-                    status=BotStatus.STOPPED,
+                    status=agent_status,
                     env=row.get("env", ""),
                     started_at=row.get("started_at"),
                 ))
@@ -198,9 +211,11 @@ class BotManager:
 
         row = account_store.get(bot_id)
         if row:
+            db_status = row.get("status", "")
+            agent_status = BotStatus.AUTH_FAILED if db_status == "auth_failed" else BotStatus.STOPPED
             return BotInfo(
                 bot_id=bot_id,
-                status=BotStatus.STOPPED,
+                status=agent_status,
                 env=row.get("env", ""),
                 started_at=row.get("started_at"),
             )
@@ -233,6 +248,16 @@ class BotManager:
         Uses the independently-tracked bot_id rather than bot.botId, because
         the connection layer may set bot.botId=None on login failure (403/401/405).
         """
+        # Check for auth failure first (tracked via LOGIN_FAIL event in _on_bot_event)
+        auth_fail = getattr(bot, "_auth_fail_reason", None)
+        if auth_fail:
+            return BotInfo(
+                bot_id=bot_id,
+                status=BotStatus.AUTH_FAILED,
+                env=self._resolve_env(bot),
+                fail_reason=auth_fail,
+            )
+
         internal_status = bot.getStatus()
         agent_status = _internal_to_agent_status(internal_status)
 
@@ -251,6 +276,11 @@ class BotManager:
             started_at=int(bot.startts) if bot.startts else None,
             uptime_seconds=int(uptime) if uptime else None,
         )
+
+    def _resolve_env(self, bot: ZowBot) -> str:
+        """Resolve env string from a bot instance."""
+        raw_os = bot.env.deviceEnv.getOSName() if bot.env and bot.env.deviceEnv else ""
+        return SysVar.ENV_NAME_MAPPING.get(raw_os, raw_os) if raw_os else ""
 
     def _detect_env_from_config(self, bot_id: str) -> str:
         """Read account config.json to determine the correct device environment.
@@ -273,6 +303,15 @@ class BotManager:
         """Upper callback registered on each bot. Forwards structured events."""
         from agent.manager.log_broadcaster import log_broadcaster
         bot_id = cbId or "unknown"
+
+        # Track auth failure (401/403/405) on the bot instance
+        if event and isinstance(event, dict) and event.get("event") == zowsup_pb2.BotEvent.Event.LOGIN_FAIL:
+            detail = event.get("detail", "")
+            reason = detail.split(":")[0] if ":" in detail else detail
+            with self._lock:
+                bot = self._bots.get(bot_id)
+                if bot:
+                    bot._auth_fail_reason = reason
 
         if event:
             log_broadcaster.emit_event(bot_id, "event", event)
@@ -312,6 +351,79 @@ class BotManager:
             return None, {"code": -404, "msg": f"Bot '{bot_id}' not found"}
 
         return bot.callDirectCompat(cmd_name, args, options, timeout=int(timeout))
+
+    # ── Account Cleanup ─────────────────────────────────────────────────────
+
+    def purge_accounts(self, mode: str = "list", bot_ids: list[str] | None = None) -> dict[str, dict]:
+        """Purge auth-failed / orphaned accounts.
+
+        mode="auto": purge ALL accounts that are either:
+          - status=auth_failed in the DB, OR
+          - in the DB but missing a local data directory (orphaned entries).
+          (bot_ids is ignored in auto mode.)
+        mode="list": purge only the specified bot_ids that have status=auth_failed.
+
+        Returns a dict mapping bot_id → {"success": bool, "error": str | None}.
+        """
+        from pathlib import Path
+        import shutil
+
+        # Resolve which bot_ids to purge
+        if mode == "auto":
+            rows = account_store.list_all()
+            target_ids = []
+            for row in rows:
+                bid = row["bot_id"]
+                acct_dir = Path(SysVar.ACCOUNT_PATH) / bid
+                if row.get("status") == "auth_failed" or not acct_dir.exists():
+                    target_ids.append(bid)
+            if not target_ids:
+                logger.info("purge_accounts(auto): nothing to purge")
+                return {}
+        else:
+            if not bot_ids:
+                return {}
+            # Only purge bots that have status=auth_failed in the DB
+            target_ids = [
+                bid for bid in bot_ids
+                if account_store.get(bid) and account_store.get(bid).get("status") == "auth_failed"
+            ]
+            skipped = set(bot_ids) - set(target_ids)
+            if skipped:
+                logger.info(f"purge_accounts(list): skipped {skipped} (not auth_failed or not in DB)")
+
+        if not target_ids:
+            return {}
+
+        results: dict[str, dict] = {}
+        for bot_id in target_ids:
+            try:
+                errors: list[str] = []
+
+                # 1. Stop bot if running
+                try:
+                    self.stop_bot(bot_id, join_timeout=5.0)
+                except Exception as e:
+                    errors.append(f"stop: {e}")
+
+                # 2. Remove from account store DB
+                account_store.remove(bot_id)
+
+                # 3. Delete local data directory
+                acct_dir = Path(SysVar.ACCOUNT_PATH) / bot_id
+                if acct_dir.exists():
+                    shutil.rmtree(acct_dir)
+                    logger.info(f"Purged account data directory: {acct_dir}")
+
+                results[bot_id] = {
+                    "success": True,
+                    "error": "; ".join(errors) if errors else None,
+                }
+            except Exception as e:
+                logger.error(f"Failed to purge account '{bot_id}': {e}")
+                results[bot_id] = {"success": False, "error": str(e)}
+
+        return results
 
 
 # Singleton instance

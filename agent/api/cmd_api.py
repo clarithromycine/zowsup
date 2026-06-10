@@ -18,9 +18,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["cmd"])
 
 
-@router.post("/api/bot/cmd", response_model=CmdResult, response_model_exclude_none=True)
+@router.post("/api/botcmd", response_model=CmdResult, response_model_exclude_none=True)
 async def execute_cmd(req: BotCmdRequest):
-    # Check bot exists before attempting execution
     info = bot_manager.get_bot(req.bot_id)
     if info is None:
         raise HTTPException(status_code=404, detail=f"Bot '{req.bot_id}' not found")
@@ -44,4 +43,5 @@ async def execute_cmd(req: BotCmdRequest):
             error=error.get("msg", "unknown error"),
         )
 
-    return CmdResult(retcode=0, result=result)
+    # Bot returned its own {"retcode": 0, "result": ...} — pass through directly
+    return result

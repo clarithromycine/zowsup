@@ -41,7 +41,6 @@ class Cmd_Msg_Sendad(BotSendCommand):
             await self.assureContactsAndSend(params, options, send_func=self.sendAdDirect, redo_func=self.execute)            
             return "JUSTWAIT"
         else:
-            print("ASDASDSADASDSAD")
             ctxId = str(uuid.uuid4())            
             bot.botLayer.ctxMap[ctxId] = {"event": asyncio.Event()}
             options["ctxId"] = ctxId                        

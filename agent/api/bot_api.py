@@ -15,7 +15,7 @@ from agent.manager.account_store import account_store
 from agent.schemas import (
     BotInfo, BotStartRequest, BatchStartRequest, BatchStopRequest,
     BatchResult, BotImportRequest, BotExportRequest, BotExportEntry,
-    BotStatus,
+    BotStatus, PurgeRequest, PurgeResponse, PurgeResultEntry,
 )
 
 logger = logging.getLogger(__name__)
@@ -23,12 +23,12 @@ router = APIRouter(tags=["bots"])
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
-@router.get("/api/listbot", response_model=list[BotInfo])
+@router.get("/api/listbot", response_model=list[BotInfo], response_model_exclude_none=True)
 async def list_bots():
     return bot_manager.list_bots()
 
 
-@router.get("/api/bot/{bot_id}", response_model=BotInfo)
+@router.get("/api/bot/{bot_id}", response_model=BotInfo, response_model_exclude_none=True)
 async def get_bot(bot_id: str):
     info = bot_manager.get_bot(bot_id)
     if info is None:
@@ -36,7 +36,32 @@ async def get_bot(bot_id: str):
     return info
 
 
-@router.post("/api/startbot", response_model=BatchResult)
+@router.delete("/api/bot/{bot_id}", response_model=dict)
+async def delete_bot(bot_id: str):
+    """Remove an account from the DB and its data directory. Use with caution."""
+    import shutil
+
+    # Stop if running
+    bot_manager.stop_bot(bot_id)
+
+    # Remove from account store
+    existed = account_store.remove(bot_id)
+
+    # Remove data directory (best-effort)
+    try:
+        from conf.constants import SysVar
+        acct_dir = Path(SysVar.ACCOUNT_PATH) / bot_id
+        if acct_dir.exists():
+            shutil.rmtree(acct_dir)
+    except Exception:
+        pass
+
+    if existed:
+        return {"bot_id": bot_id, "deleted": True}
+    raise HTTPException(status_code=404, detail=f"Account '{bot_id}' not found in store")
+
+
+@router.post("/api/startbot", response_model=BatchResult, response_model_exclude_none=True)
 async def start_bots(req: BatchStartRequest):
     """Start bots concurrently. Mode: 'sync' (wait for logins) or 'fire' (return immediately)."""
     all_requests = list(req.bots) + [BotStartRequest(bot_id=bid) for bid in req.bot_ids]
@@ -85,7 +110,7 @@ async def start_bots(req: BatchStartRequest):
     return BatchResult(results=final_results, success_count=success, error_count=errors)
 
 
-@router.post("/api/stopbot", response_model=BatchResult)
+@router.post("/api/stopbot", response_model=BatchResult, response_model_exclude_none=True)
 async def stop_bots(req: BatchStopRequest):
     results = []; success = 0; errors = 0
     for bot_id in req.bot_ids:
@@ -97,7 +122,7 @@ async def stop_bots(req: BatchStopRequest):
     return BatchResult(results=results, success_count=success, error_count=errors)
 
 
-@router.post("/api/importbot", response_model=BatchResult)
+@router.post("/api/importbot", response_model=BatchResult, response_model_exclude_none=True)
 async def import_accounts(req: BotImportRequest):
     results = []; success = 0; errors = 0
     for item in req.accounts:
@@ -147,3 +172,24 @@ async def export_accounts(req: BotExportRequest):
             data = None
         result[bot_id] = {"data": data, "env": env}
     return {"exports": result}
+
+
+@router.post("/api/purgebot", response_model=PurgeResponse, response_model_exclude_none=True)
+async def purge_accounts(req: PurgeRequest):
+    """Permanently delete bot accounts: stop bot, remove DB record, delete local data directory.
+
+    mode="auto": purge ALL accounts that are auth_failed OR orphaned (DB entry with no data dir).
+    mode="list": purge only specified bot_ids that are in auth_failed state.
+
+    Use with caution — this operation cannot be undone.
+    """
+    raw_results = await asyncio.to_thread(
+        bot_manager.purge_accounts,
+        mode=req.mode,
+        bot_ids=req.bot_ids,
+    )
+    results = {
+        bot_id: PurgeResultEntry(**entry)
+        for bot_id, entry in raw_results.items()
+    }
+    return PurgeResponse(results=results)

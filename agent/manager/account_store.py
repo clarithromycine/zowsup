@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     bot_id      TEXT PRIMARY KEY,
     env         TEXT NOT NULL DEFAULT 'android',
     status      TEXT NOT NULL DEFAULT 'stopped',
+    auth_detail TEXT,
     started_at  REAL,
     last_seen   REAL,
     created_at  REAL NOT NULL DEFAULT (strftime('%s', 'now'))
@@ -58,9 +59,20 @@ class AccountStore:
         conn = self._get_conn()
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute(_SCHEMA)
+        # Schema migration: add auth_detail column if missing (pre-v2 DBs)
+        self._migrate_add_column("auth_detail", "ALTER TABLE accounts ADD COLUMN auth_detail TEXT")
         conn.commit()
         self._initialized = True
         self._migrate_from_filesystem()
+
+    def _migrate_add_column(self, col_name: str, ddl: str):
+        """Idempotent column addition — checks if column exists first."""
+        conn = self._get_conn()
+        cursor = conn.execute("PRAGMA table_info(accounts)")
+        existing = {row[1] for row in cursor.fetchall()}
+        if col_name not in existing:
+            conn.execute(ddl)
+            logger.info(f"Schema migration: added column '{col_name}'")
 
     def _get_conn(self) -> sqlite3.Connection:
         if self._conn is None:
@@ -150,7 +162,7 @@ class AccountStore:
         self._ensure_init()
         conn = self._get_conn()
         rows = conn.execute(
-            "SELECT bot_id, env, status, started_at, last_seen, created_at FROM accounts ORDER BY bot_id"
+            "SELECT bot_id, env, status, auth_detail, started_at, last_seen, created_at FROM accounts ORDER BY bot_id"
         ).fetchall()
         return [dict(r) for r in rows]
 
@@ -159,7 +171,7 @@ class AccountStore:
         self._ensure_init()
         conn = self._get_conn()
         row = conn.execute(
-            "SELECT bot_id, env, status, started_at, last_seen, created_at FROM accounts WHERE bot_id = ?",
+            "SELECT bot_id, env, status, auth_detail, started_at, last_seen, created_at FROM accounts WHERE bot_id = ?",
             (bot_id,),
         ).fetchone()
         return dict(row) if row else None
@@ -179,8 +191,11 @@ class AccountStore:
             conn.commit()
         logger.info(f"Account '{bot_id}' registered (env={env})")
 
-    def update_status(self, bot_id: str, status: str, env: str | None = None) -> None:
-        """Update running status. Optionally update env."""
+    def update_status(self, bot_id: str, status: str, env: str | None = None, auth_detail: str | None = None) -> None:
+        """Update running status. Optionally update env and/or auth_detail.
+
+        When status is 'running', auth_detail is cleared (login succeeded).
+        """
         self._ensure_init()
         now = int(time.time())
         with self._lock:
@@ -195,12 +210,27 @@ class AccountStore:
                     "UPDATE accounts SET status = ?, last_seen = ? WHERE bot_id = ?",
                     (status, now, bot_id),
                 )
+            # auth_detail: explicitly set or clear on success
+            if auth_detail is not None:
+                conn.execute("UPDATE accounts SET auth_detail = ? WHERE bot_id = ?", (auth_detail, bot_id))
+            elif status == "running":
+                conn.execute("UPDATE accounts SET auth_detail = NULL WHERE bot_id = ?", (bot_id,))
             if status == "running":
                 conn.execute(
                     "UPDATE accounts SET started_at = ? WHERE bot_id = ? AND started_at IS NULL",
                     (now, bot_id),
                 )
             conn.commit()
+
+    def list_by_status(self, status: str) -> list[dict]:
+        """Return all accounts with a specific status."""
+        self._ensure_init()
+        conn = self._get_conn()
+        rows = conn.execute(
+            "SELECT bot_id, env, status, auth_detail, started_at, last_seen, created_at FROM accounts WHERE status = ? ORDER BY bot_id",
+            (status,),
+        ).fetchall()
+        return [dict(r) for r in rows]
 
     def remove(self, bot_id: str) -> bool:
         """Remove an account from the store. Returns True if existed."""

@@ -32,8 +32,13 @@ GET /api/health
 
 **Response** `200`
 ```json
-{"status": "ok"}
+{"status": "ok", "thread_count": 6}
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | string | Always `"ok"` when the service is reachable |
+| `thread_count` | int | Active threads in the agent process (main, uvicorn, bots) |
 
 ---
 

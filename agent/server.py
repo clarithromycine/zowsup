@@ -100,7 +100,7 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     """Build and return the FastAPI application instance."""
     app = FastAPI(
-        title="ZowSup Agent",
+        title="Zowsup Agent",
         description="Multi-bot WhatsApp protocol management API",
         version="0.9.0",
         lifespan=lifespan,
@@ -142,7 +142,39 @@ def create_app() -> FastAPI:
     # Health check (uses api_router for auth)
     @api_router.get("/api/health", response_model=HealthResponse)
     async def health():
-        return HealthResponse(status="ok")
+        import threading
+        from agent.manager.bot_manager import bot_manager
+        from agent.manager.account_store import account_store
+
+        running = sum(1 for b in bot_manager._bots.values() if b.thread and b.thread.is_alive())
+
+        # Memory / CPU — psutil preferred, fall back to resource/os
+        mem = 0
+        cpu_time = 0.0
+        try:
+            import psutil
+            proc = psutil.Process()
+            mem = proc.memory_info().rss
+            cpu_time = sum(proc.cpu_times()[:2])
+        except ImportError:
+            try:
+                import resource
+                usage = resource.getrusage(resource.RUSAGE_SELF)
+                cpu_time = usage.ru_utime + usage.ru_stime
+                mem = usage.ru_maxrss
+            except ImportError:
+                import os
+                t = os.times()
+                cpu_time = t.user + t.system
+
+        return HealthResponse(
+            status="ok",
+            thread_count=threading.active_count(),
+            db_bot_count=len(account_store.list_all()),
+            running_bot_count=running,
+            memory_bytes=mem,
+            cpu_time_seconds=cpu_time,
+        )
 
     app.include_router(api_router)
 
