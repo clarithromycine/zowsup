@@ -1,9 +1,9 @@
 """
 Log streaming API endpoints.
 
-GET      /api/bots/{bot_id}/logs/recent  — pull recent N log lines
-DELETE   /api/bots/{bot_id}/logs         — clear persisted logs
-WebSocket /api/bots/{bot_id}/logs        — real-time log stream
+GET      /api/bot/{bot_id}/logs/recent  — pull recent N log lines
+DELETE   /api/bot/{bot_id}/logs         — clear persisted logs
+WebSocket /api/bot/{bot_id}/logs        — real-time log stream
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from agent.schemas import LogLinesResponse
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/bots", tags=["logs"])
+router = APIRouter(prefix="/api/bot", tags=["logs"])
 
 
 # ── REST: Recent Logs ────────────────────────────────────────────────────────

@@ -56,23 +56,33 @@ class BatchStopRequest(BaseModel):
 
 class BotCmdRequest(BaseModel):
     """Request to execute a command on a running bot."""
+    bot_id: str = Field(..., description="Bot identifier")
     command: str = Field(..., description="Command name, e.g. 'msg.send'")
     args: list[str] = Field(default_factory=list, description="Positional arguments")
     options: dict[str, Any] = Field(default_factory=dict, description="Keyword options")
     timeout: int = Field(30, ge=1, le=300, description="Timeout in seconds (1-300)")
 
 
-class ScriptRunRequest(BaseModel):
-    """Request to run a script."""
-    args: list[str] = Field(default_factory=list, description="Script arguments")
-    timeout: int = Field(30, ge=1, le=600, description="Timeout in seconds (1-600)")
+class BotImportRequestItem(BaseModel):
+    """Single import data item."""
+    data: str = Field(..., description="6-segment CSV: phone,pk1,sk1,pk2,sk2,sixth")
+    env: BotEnv = Field(BotEnv.ANDROID, description="Device environment")
 
 
 class BotImportRequest(BaseModel):
-    """Request to import a bot account (import6 6-segment CSV format)."""
-    data: str = Field(..., description="6-segment CSV: phone,pk1,sk1,pk2,sk2,sixth")
-    bot_id: Optional[str] = Field(None, description="Bot ID override (extracted from data if omitted)")
-    env: BotEnv = Field(BotEnv.ANDROID, description="Device environment for import")
+    """Request to import one or more bot accounts."""
+    accounts: list[BotImportRequestItem] = Field(..., min_length=1, description="List of accounts to import")
+
+
+class BotExportRequest(BaseModel):
+    """Request to export one or more bot accounts."""
+    bot_ids: list[str] = Field(..., min_length=1, description="List of bot IDs to export")
+
+
+class BotExportEntry(BaseModel):
+    """Single export result for one bot."""
+    data: Optional[str] = Field(None, description="6-segment CSV export data")
+    env: str = Field("", description="Device environment of the account")
 
 
 # ── Response Models ──────────────────────────────────────────────────────────
@@ -101,35 +111,10 @@ class CmdResult(BaseModel):
     error: Optional[str] = None
 
 
-class ScriptResult(BaseModel):
-    """Result of a script execution."""
-    retcode: int = 0
-    stdout: str = ""
-    stderr: str = ""
-
-
-class ScriptInfo(BaseModel):
-    """Metadata for an available script."""
-    name: str
-    description: str = ""
-
-
-class ScriptListResponse(BaseModel):
-    """List of available scripts."""
-    scripts: list[ScriptInfo]
-
-
 class LogLinesResponse(BaseModel):
     """Recent log lines for a bot."""
     bot_id: str
     lines: list[str]
-
-
-class BotEventMessage(BaseModel):
-    """Structured bot event pushed over WebSocket."""
-    type: str  # "event", "message", "message_status", "cmd_result"
-    bot_id: str
-    data: dict[str, Any]
 
 
 class HealthResponse(BaseModel):
