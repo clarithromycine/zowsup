@@ -106,6 +106,30 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # ── Inject X-Access-Key security scheme into OpenAPI (Swagger UI "Authorize" button) ──
+    # We do this by overriding openapi() rather than using Depends(APIKeyHeader),
+    # because a global dependency would break WebSocket routes.
+    _original_openapi = app.openapi
+
+    def _custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+        schema = _original_openapi()
+        schema.setdefault("components", {})["securitySchemes"] = {
+            "X-Access-Key": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-Access-Key",
+                "description": "Enter the access key configured via --accesskey",
+            }
+        }
+        # Apply to all REST operations (not WebSocket, but doesn't matter for docs)
+        schema.setdefault("security", []).append({"X-Access-Key": []})
+        app.openapi_schema = schema
+        return schema
+
+    app.openapi = _custom_openapi
+
     # CORS: allow all origins by default (configurable later)
     app.add_middleware(
         CORSMiddleware,
