@@ -83,17 +83,65 @@ class AccountStore:
         for d in account_dir.iterdir():
             if d.is_dir() and pattern.match(d.name) and not d.name.startswith('_'):
                 if d.name not in existing:
-                    new_accounts.append(d.name)
+                    # Read env from config.json os_name field
+                    env = self._read_env_from_config(d.name)
+                    new_accounts.append((d.name, env))
 
         if new_accounts:
             now = int(time.time())
             with self._lock:
                 conn.executemany(
-                    "INSERT OR IGNORE INTO accounts (bot_id, created_at) VALUES (?, ?)",
-                    [(name, now) for name in new_accounts],
+                    "INSERT OR IGNORE INTO accounts (bot_id, env, created_at) VALUES (?, ?, ?)",
+                    [(name, env, now) for name, env in new_accounts],
                 )
                 conn.commit()
             logger.info(f"Migrated {len(new_accounts)} existing accounts into agent DB")
+
+        # Repair: update env for existing accounts that still have the SQLite default
+        # (caused by a bug in the original migration that didn't read config.json)
+        self._repair_env_defaults()
+
+    def _read_env_from_config(self, bot_id: str) -> str:
+        """Read the device environment from an account's config.json.
+
+        Returns the env_name (e.g. 'smb_android') derived from config.os_name.
+        Falls back to 'android' if the config cannot be read.
+        """
+        try:
+            config_path = Path(SysVar.ACCOUNT_PATH) / bot_id / "config.json"
+            if config_path.exists():
+                import json
+                with open(config_path, "r") as f:
+                    config = json.load(f)
+                os_name = config.get("os_name", "")
+                # Map os_name back to env_name via SysVar.ENV_NAME_MAPPING
+                from conf.constants import SysVar as _SysVar
+                env = _SysVar.ENV_NAME_MAPPING.get(os_name, "")
+                if env:
+                    return env
+        except Exception:
+            pass
+        return "android"
+
+    def _repair_env_defaults(self):
+        """One-time: fix accounts that were migrated with the SQLite default 'android'
+        instead of the real env from config.json."""
+        conn = self._get_conn()
+        rows = conn.execute(
+            "SELECT bot_id FROM accounts WHERE env = 'android'"
+        ).fetchall()
+        if not rows:
+            return
+
+        repaired = 0
+        for (bot_id,) in rows:
+            real_env = self._read_env_from_config(bot_id)
+            if real_env and real_env != "android":
+                conn.execute("UPDATE accounts SET env = ? WHERE bot_id = ?", (real_env, bot_id))
+                repaired += 1
+        if repaired:
+            conn.commit()
+            logger.info(f"Repaired env for {repaired} accounts (default 'android' → actual)")
 
     # ── CRUD ─────────────────────────────────────────────────────────────────
 
@@ -120,14 +168,13 @@ class AccountStore:
         return self.get(bot_id) is not None
 
     def register(self, bot_id: str, env: str = "android") -> None:
-        """Register a new account (from import or manual add)."""
+        """Register a new account (INSERT only — never overwrites existing env)."""
         self._ensure_init()
-        now = int(time.time())
         with self._lock:
             conn = self._get_conn()
             conn.execute(
-                "INSERT OR REPLACE INTO accounts (bot_id, env, status, created_at) VALUES (?, ?, 'stopped', ?)",
-                (bot_id, env, now),
+                "INSERT OR IGNORE INTO accounts (bot_id, env, status, created_at) VALUES (?, ?, 'stopped', ?)",
+                (bot_id, env, int(time.time())),
             )
             conn.commit()
         logger.info(f"Account '{bot_id}' registered (env={env})")

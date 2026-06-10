@@ -79,6 +79,7 @@ async def import_accounts(req: BotImportRequest):
                 results.append(BotInfo(bot_id=phone, status="ERROR", error=f"Import failed: {r.stderr[:200]}")); errors += 1
             else:
                 account_store.register(phone, env=env)
+                account_store.update_status(phone, "stopped", env=env)
                 results.append(BotInfo(bot_id=phone, status="STOPPED")); success += 1
         except subprocess.TimeoutExpired:
             results.append(BotInfo(bot_id=phone, status="ERROR", error="Timeout")); errors += 1
