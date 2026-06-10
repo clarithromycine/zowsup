@@ -11,7 +11,7 @@ from core.common.tools import WATools
 from common.utils import Utils
 from conf.constants import SysVar
 from proto import zowsup_pb2
-from app.zowbot_values import ZowBotStatus
+from app.zowbot_values import ZowBotStatus, ZowBotType
 
 logger = logging.getLogger(__name__)
 

@@ -1,0 +1,168 @@
+"""
+Account Store — SQLite-backed account metadata management.
+
+Stores bot_id, env, status, timestamps for all managed accounts.
+Auto-discovers pre-existing accounts on first run (filesystem → DB migration).
+"""
+
+from __future__ import annotations
+
+import logging
+import sqlite3
+import threading
+import time
+from pathlib import Path
+
+from conf.constants import SysVar
+
+logger = logging.getLogger(__name__)
+
+# DB file location — stored alongside accounts
+_DB_NAME = "agent_accounts.db"
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS accounts (
+    bot_id      TEXT PRIMARY KEY,
+    env         TEXT NOT NULL DEFAULT 'android',
+    status      TEXT NOT NULL DEFAULT 'stopped',
+    started_at  REAL,
+    last_seen   REAL,
+    created_at  REAL NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+"""
+
+
+class AccountStore:
+    """Thread-safe SQLite store for bot account metadata."""
+
+    def __init__(self, db_path: str | None = None):
+        self._db_path = db_path  # None means auto-detect in _init_db
+        self._lock = threading.Lock()
+        self._conn: sqlite3.Connection | None = None
+        self._initialized = False
+        # Defer _init_db to first use — SysVar may not be loaded yet
+
+    # ── Lifecycle ────────────────────────────────────────────────────────────
+
+    def start(self):
+        """Initialize the store. Called from agent lifespan."""
+        self._init_db()
+
+    def _ensure_init(self):
+        if not self._initialized:
+            self._init_db()
+
+    def _init_db(self):
+        if self._db_path is None:
+            self._db_path = str(Path(SysVar.ACCOUNT_PATH) / _DB_NAME) if getattr(SysVar, 'ACCOUNT_PATH', None) else ":memory:"
+        conn = self._get_conn()
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute(_SCHEMA)
+        conn.commit()
+        self._initialized = True
+        self._migrate_from_filesystem()
+
+    def _get_conn(self) -> sqlite3.Connection:
+        if self._conn is None:
+            self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
+            self._conn.row_factory = sqlite3.Row
+        return self._conn
+
+    def _migrate_from_filesystem(self):
+        """One-time: scan ACCOUNT_PATH for existing accounts not yet in DB."""
+        account_dir = Path(SysVar.ACCOUNT_PATH) if SysVar.ACCOUNT_PATH else None
+        if not account_dir or not account_dir.exists():
+            return
+
+        conn = self._get_conn()
+        existing = {r["bot_id"] for r in conn.execute("SELECT bot_id FROM accounts")}
+
+        import re
+        pattern = re.compile(r'^[\d_]+$')
+        new_accounts = []
+        for d in account_dir.iterdir():
+            if d.is_dir() and pattern.match(d.name) and not d.name.startswith('_'):
+                if d.name not in existing:
+                    new_accounts.append(d.name)
+
+        if new_accounts:
+            now = int(time.time())
+            with self._lock:
+                conn.executemany(
+                    "INSERT OR IGNORE INTO accounts (bot_id, created_at) VALUES (?, ?)",
+                    [(name, now) for name in new_accounts],
+                )
+                conn.commit()
+            logger.info(f"Migrated {len(new_accounts)} existing accounts into agent DB")
+
+    # ── CRUD ─────────────────────────────────────────────────────────────────
+
+    def list_all(self) -> list[dict]:
+        """Return all accounts with their metadata."""
+        self._ensure_init()
+        conn = self._get_conn()
+        rows = conn.execute(
+            "SELECT bot_id, env, status, started_at, last_seen, created_at FROM accounts ORDER BY bot_id"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def get(self, bot_id: str) -> dict | None:
+        """Return metadata for one account, or None."""
+        self._ensure_init()
+        conn = self._get_conn()
+        row = conn.execute(
+            "SELECT bot_id, env, status, started_at, last_seen, created_at FROM accounts WHERE bot_id = ?",
+            (bot_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def exists(self, bot_id: str) -> bool:
+        return self.get(bot_id) is not None
+
+    def register(self, bot_id: str, env: str = "android") -> None:
+        """Register a new account (from import or manual add)."""
+        self._ensure_init()
+        now = int(time.time())
+        with self._lock:
+            conn = self._get_conn()
+            conn.execute(
+                "INSERT OR REPLACE INTO accounts (bot_id, env, status, created_at) VALUES (?, ?, 'stopped', ?)",
+                (bot_id, env, now),
+            )
+            conn.commit()
+        logger.info(f"Account '{bot_id}' registered (env={env})")
+
+    def update_status(self, bot_id: str, status: str, env: str | None = None) -> None:
+        """Update running status. Optionally update env."""
+        self._ensure_init()
+        now = int(time.time())
+        with self._lock:
+            conn = self._get_conn()
+            if env is not None:
+                conn.execute(
+                    "UPDATE accounts SET status = ?, env = ?, last_seen = ? WHERE bot_id = ?",
+                    (status, env, now, bot_id),
+                )
+            else:
+                conn.execute(
+                    "UPDATE accounts SET status = ?, last_seen = ? WHERE bot_id = ?",
+                    (status, now, bot_id),
+                )
+            if status == "running":
+                conn.execute(
+                    "UPDATE accounts SET started_at = ? WHERE bot_id = ? AND started_at IS NULL",
+                    (now, bot_id),
+                )
+            conn.commit()
+
+    def remove(self, bot_id: str) -> bool:
+        """Remove an account from the store. Returns True if existed."""
+        with self._lock:
+            conn = self._get_conn()
+            cursor = conn.execute("DELETE FROM accounts WHERE bot_id = ?", (bot_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
+
+# Singleton instance
+account_store = AccountStore()
