@@ -54,22 +54,22 @@ IMPORTANT NOTICE:  0.9.0 architecture is not compatible with 0.6.5, so if you ha
 
 ## Agent — Multi-Bot Management Service
 
-Agent 是一个基于 FastAPI 的 HTTP + WebSocket 服务，提供多账号 WhatsApp 机器人的远程管理能力：
+A FastAPI-based HTTP + WebSocket service for remote multi-bot WhatsApp management:
 
-- 批量启动 / 停止机器人
-- 远程执行任意 bot 命令（`msg.send`、`group.create` 等）
-- 实时日志流与结构化事件推送（WebSocket）
-- 账号导入 / 导出（6 段 CSV 格式）
-- 可选的 Access Key 认证
+- Start / stop bots in batch
+- Execute bot commands remotely (`msg.send`, `group.create`, etc.)
+- Real-time log streaming and structured event push (WebSocket)
+- Account import / export (6-segment CSV format)
+- Optional access key authentication
 
-启动方式：
+Start the agent:
 
 ```bash
-python -m agent                    # 无认证，监听 0.0.0.0:8000
-python -m agent --accesskey mykey  # 启用认证
+python -m agent                    # No auth, listens on 0.0.0.0:8000
+python -m agent --accesskey mykey  # Auth required
 ```
 
-完整 API 文档：[`docs/agent-api.md`](docs/agent-api.md)
+Full API reference: [`docs/agent-api.md`](docs/agent-api.md)
 
 
 ## Command Architecture Overview
