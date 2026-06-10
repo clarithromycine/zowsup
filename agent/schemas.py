@@ -170,7 +170,8 @@ class BatchResult(BaseModel):
 
 
 class CmdResult(BaseModel):
-    """Result of a command execution."""
+    """Result of a command execution. Extra fields from bot responses are passed through."""
+    model_config = {"extra": "allow"}
     retcode: int = 0
     result: Optional[Any] = None
     error: Optional[str] = None

@@ -1,6 +1,6 @@
 """Command execution API.
 
-POST /api/bot/cmd  — execute a command on a running bot
+POST /api/botcmd  — execute a command on a running bot
 """
 
 from __future__ import annotations

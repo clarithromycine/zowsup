@@ -161,7 +161,7 @@ POST /api/stopbot
 ### Execute Command
 
 ```
-POST /api/bot/cmd
+POST /api/botcmd
 ```
 
 **Request**
