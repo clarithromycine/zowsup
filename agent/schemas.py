@@ -72,10 +72,24 @@ class AdContent(BaseModel):
     thumbnailb64: Optional[str] = Field(None, description="Ad thumbnail image as base64 string")
 
 
+class MediaContent(BaseModel):
+    """Media message content for msg.sendmedia.
+
+    Exactly one source must be provided: url, base64, or path.
+    """
+    type: str = Field(..., description="Media type: image | video | audio | document")
+    url: Optional[str] = Field(None, description="HTTP/HTTPS URL of the media file")
+    base64: Optional[str] = Field(None, description="Base64-encoded file content")
+    path: Optional[str] = Field(None, description="Server-side file path")
+    caption: Optional[str] = Field(None, description="Caption (image/video/audio)")
+    fileName: Optional[str] = Field(None, description="Filename (document type only)")
+
+
 class SendMsgContent(BaseModel):
     """Content for /api/sendmsg — exactly one field must be set."""
     text: Optional[str] = Field(None, description="Plain text message → msg.send")
     ad: Optional[AdContent] = Field(None, description="Ad message → msg.sendad")
+    media: Optional[MediaContent] = Field(None, description="Media message → msg.sendmedia")
 
 
 class SendMsgRequest(BaseModel):

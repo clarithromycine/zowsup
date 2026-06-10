@@ -208,15 +208,59 @@ High-level wrapper over `msg.send` and `msg.sendad`. Accepts text or ad content.
 }
 ```
 
+**Media message**
+
+```json
+{
+  "bot_id": "8613800138000",
+  "to": "8613800138001@s.whatsapp.net",
+  "content": {
+    "media": {
+      "type": "image",
+      "url": "https://example.com/photo.jpg",
+      "caption": "Check this out!"
+    }
+  }
+}
+```
+
+**Base64 file upload**
+
+```json
+{
+  "bot_id": "8613800138000",
+  "to": "8613800138001@s.whatsapp.net",
+  "content": {
+    "media": {
+      "type": "document",
+      "base64": "dGhpcyBpcyBmaWxlIGNvbnRlbnQ=",
+      "fileName": "report.pdf"
+    }
+  }
+}
+```
+
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `bot_id` | string | yes | Target bot |
 | `to` | string | yes | Recipient JID (`number@s.whatsapp.net`) |
+| `waitid` | int | no | If set, wait for message ID and return it (timeout seconds) |
 | `content.text` | string | *one of* | Plain text → calls `msg.send` |
 | `content.ad.title` | string | *one of* | Ad title → calls `msg.sendad` |
-| `content.ad.titlebody` | string | no | Ad subtitle (currently unused) |
+| `content.ad.titlebody` | string | no | Ad subtitle |
 | `content.ad.titleurl` | string | yes | Ad source URL |
 | `content.ad.text` | string | yes | Ad body text |
+| `content.ad.thumbnailb64` | string | no | Ad thumbnail as base64 |
+| `content.ad.body` | string | no | Ad title body text |
+| `content.media.type` | string | *one of* | `image` / `video` / `audio` / `document` |
+| `content.media.url` | string | no | HTTP(S) URL of media file |
+| `content.media.base64` | string | no | Base64-encoded file content |
+| `content.media.path` | string | no | Server-side file path |
+| `content.media.caption` | string | no | Caption (image/video/audio) |
+| `content.media.fileName` | string | no | Filename (document type) |
+
+> For media, exactly one of `url`, `base64`, or `path` must be provided.  
+> Base64 files are decoded to temp files and cleaned up after sending.
 
 **Response** `200` — same `CmdResult`
 

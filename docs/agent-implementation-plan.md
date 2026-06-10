@@ -93,15 +93,18 @@ zowsup/
 
 | ID | 任务 | 产出文件 | 状态 |
 |----|------|---------|------|
-| 3.1 | `POST /api/bots/{id}/cmd` | `agent/api/cmd_api.py` | ✅ |
+| 3.1 | `POST /api/bot/cmd` (bot_id 在 body) | `agent/api/cmd_api.py` | ✅ |
 | 3.2 | BotManager.execute_cmd() | `agent/manager/bot_manager.py` | ✅ |
 
-### ✅ Phase 4: 脚本执行 API — 完成
+### ❌ Phase 4: 脚本执行 API — 已废弃
 
-| ID | 任务 | 产出文件 | 状态 |
+> **已删除** — import/export 功能已合并到 bot_api 的 `/api/importbot` 和 `/api/exportbot`。
+> `agent/api/script_api.py` 保留空 router，测试文件 `test_phase4_scripts.py` 已删除。
+
+| ID | 任务 | 原产出文件 | 状态 |
 |----|------|---------|------|
-| 4.1 | `GET /api/scripts` | `agent/api/script_api.py` | ✅ |
-| 4.2 | `POST /api/scripts/{name}` | 同上 | ✅ |
+| 4.1 | `GET /api/scripts` | `agent/api/script_api.py` | ❌ 已删除 |
+| 4.2 | `POST /api/scripts/{name}` | 同上 | ❌ 已删除 |
 
 ### ✅ Phase 5: 日志系统 — 完成
 
@@ -116,19 +119,26 @@ zowsup/
 
 | ID | 任务 | 产出文件 | 状态 |
 |----|------|---------|------|
-| 6.1 | `POST /api/bots/import` 导入账号 | `agent/api/bot_api.py` | ✅ 子进程调用 import6.py |
-| 6.2 | `GET /api/bots/{id}/export` 导出账号 | 同上 | ✅ 子进程调用 export6.py |
+| 6.1 | `POST /api/importbot` 多账号导入 (env 参数) | `agent/api/bot_api.py` | ✅ 子进程调用 import6.py |
+| 6.2 | `POST /api/exportbot` 多账号导出 (含 env) | 同上 | ✅ 子进程调用 export6.py |
 
 > 数据格式：import6.py / export6.py 的 6 段 CSV（phone,pk1,sk1,pk2,sk2,sixth）
+> 导出返回 `{"data": csv, "env": "android"}` 结构，re-import 时使用导出中的 env 避免覆盖配置
 
 ### ✅ Phase 7: 事件回调 + E2E — 完成
 
 | ID | 任务 | 产出文件 | 状态 |
 |----|------|---------|------|
-| 7.1 | `WebSocket /api/bots/{id}/events` | `agent/api/log_api.py` | ✅ |
-| 7.2 | E2E 完整生命周期 + 并发测试 | `tests/test_phase7_e2e.py` | ✅ 3 tests |
+| 7.1 | `WS /api/bot/{id}/events` 结构化事件 | `agent/api/log_api.py` | ✅ |
+| 7.2 | E2E 完整生命周期测试 | `tests/test_phase7_e2e.py` | ✅ 2 tests |
 
-> Phase 8 已合并到 Phase 7（原 8.1 `set_upper_callback` 在 BotManager 中已实现）
+### 🆕 Phase 8: 高层消息发送 + 账号管理 — 超出计划
+
+| ID | 任务 | 产出文件 | 状态 |
+|----|------|---------|------|
+| 8.1 | `POST /api/sendmsg` 高层封装 (text/ad → msg.send/sendad) | `agent/api/msg_api.py` | ✅ |
+| 8.2 | AccountStore (SQLite 账号元数据 + 自动迁移) | `agent/manager/account_store.py` | ✅ |
+| 8.3 | `DELETE /api/bot/{id}/logs` 日志清理 | `agent/api/log_api.py` | ✅ |
 
 ---
 
@@ -137,18 +147,20 @@ zowsup/
 | 方法 | 路径 | 状态 | 说明 |
 |------|------|------|------|
 | `GET` | `/api/health` | ✅ | 健康检查 |
-| `GET` | `/api/bots` | ✅ | 列出所有 bot |
-| `POST` | `/api/bots` | ✅ | 启动 bot |
-| `GET` | `/api/bots/{id}` | ✅ | bot 详情 |
-| `DELETE` | `/api/bots/{id}` | ✅ | 停止 bot |
-| `POST` | `/api/bots/{id}/cmd` | ✅ | 执行命令（同步等待结果） |
-| `GET` | `/api/bots/{id}/logs/recent` | ✅ | 拉取最近 N 行日志 |
-| `WS` | `/api/bots/{id}/logs` | ✅ | 实时日志推送 |
-| `POST` | `/api/bots/import` | ✅ | 导入账号 (import6 格式) |
-| `GET` | `/api/bots/{id}/export` | ✅ | 导出账号 (export6 格式) |
-| `GET` | `/api/scripts` | ✅ | 列出可用脚本（9 个） |
-| `POST` | `/api/scripts/{name}` | ✅ | 执行脚本（子进程） |
-| `WS` | `/api/bots/{id}/events` | ✅ | 结构化事件推送 (Phase 7) |
+| `GET` | `/api/listbot` | ✅ | 列出所有账号 |
+| `GET` | `/api/bot/{id}` | ✅ | 单个账号详情 |
+| `POST` | `/api/startbot` | ✅ | 启动 bot（支持批量 + env/proxy 配置） |
+| `POST` | `/api/stopbot` | ✅ | 停止 bot（批量） |
+| `POST` | `/api/bot/cmd` | ✅ | 执行命令（bot_id 在 body） |
+| `POST` | `/api/sendmsg` | 🆕 | 高层消息发送（text/ad 自动路由） |
+| `POST` | `/api/importbot` | ✅ | 导入账号（多账号 + env 参数） |
+| `POST` | `/api/exportbot` | ✅ | 导出账号（多 bot + 含 env 信息） |
+| `GET` | `/api/bot/{id}/logs/recent` | ✅ | 拉取最近 N 行日志 |
+| `DELETE` | `/api/bot/{id}/logs` | 🆕 | 清除日志 |
+| `WS` | `/api/bot/{id}/logs` | ✅ | 实时日志推送 |
+| `WS` | `/api/bot/{id}/events` | ✅ | 结构化事件推送 |
+
+> 旧路径（`/api/bots`, `/api/startbots`, `/api/scripts` 等）已全部废弃。详细文档见 [`agent-api.md`](agent-api.md)。
 
 ---
 
@@ -158,12 +170,12 @@ zowsup/
 |-------|---------|-------|------|
 | Phase 1: Auth | `test_phase1_auth.py` | 5 | ✅ |
 | Phase 2: Bots | `test_phase2_bots.py` | 8 | ✅ |
-| Phase 3: Cmd | `test_phase3_cmd.py` | 4 | ✅ |
-| Phase 4: Scripts | `test_phase4_scripts.py` | 4 | ✅ |
+| Phase 3: Cmd + SendMsg | `test_phase3_cmd.py` | 5 | ✅ |
+| ~~Phase 4: Scripts~~ | — | — | ❌ 已删除 |
 | Phase 5: Logs | `test_phase5_logs.py` | 4 | ✅ |
 | Phase 6: Import/Export | `test_phase6_import_export.py` | 3 | ✅ |
-| Phase 7: E2E + Events | `test_phase7_e2e.py` | 3 | ✅ |
-| **Total** | | **31** | **✅ All green** |
+| Phase 7: E2E + Events | `test_phase7_e2e.py` | 2 | ✅ |
+| **Total** | | **27** | **✅ 27 passed** |
 
 运行方式:
 ```bash
