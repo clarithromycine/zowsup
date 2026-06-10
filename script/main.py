@@ -1,10 +1,11 @@
 import os,sys
+
 sys.path.append(os.getcwd())
 from common.consolemain import ConsoleMain
 import logging
 from pathlib import Path
 from app.zowbot import ZowBot
-from interactivethread import InteractiveThread
+from script.interactivethread import InteractiveThread
 from conf.constants import SysVar
 from common.utils import Utils
 from core.profile.profile import YowProfile
