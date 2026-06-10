@@ -41,4 +41,6 @@ db-sqlite3>=0.0.1
 greenlet
 six
 aiofiles>=23.0.0
+Flask>=3.0.0
+
 

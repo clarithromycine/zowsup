@@ -52,6 +52,26 @@ IMPORTANT NOTICE:  0.9.0 architecture is not compatible with 0.6.5, so if you ha
  * Version update with latest WhatsApp
 
 
+## Agent — Multi-Bot Management Service
+
+A FastAPI-based HTTP + WebSocket service for remote multi-bot WhatsApp management:
+
+- Start / stop bots in batch
+- Execute bot commands remotely (`msg.send`, `group.create`, etc.)
+- Real-time log streaming and structured event push (WebSocket)
+- Account import / export (6-segment CSV format)
+- Optional access key authentication
+
+Start the agent:
+
+```bash
+python -m agent                    # No auth, listens on 0.0.0.0:8000
+python -m agent --accesskey mykey  # Auth required
+```
+
+Full API reference: [`docs/agent-api.md`](docs/agent-api.md)
+
+
 ## Command Architecture Overview
 
 ```

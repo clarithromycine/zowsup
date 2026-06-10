@@ -46,7 +46,7 @@ class Cmd_Msg_Send(BotSendCommand):
                 logger.error("Multiple targets only allowed in broadcast mode")
         
         # Send with or without message ID tracking
-        if "waitMsgId" not in options:
+        if "waitid" not in options:
             await self.assureContactsAndSend(
                 params,
                 options,
@@ -70,7 +70,7 @@ class Cmd_Msg_Send(BotSendCommand):
             try:
                 await asyncio.wait_for(
                     self.bot.botLayer.ctxMap[ctxId]["event"].wait(),
-                    timeout=int(options["waitMsgId"])
+                    timeout=int(options["waitid"])
                 )
             except asyncio.TimeoutError:
                 return "TIMEOUT"
@@ -170,7 +170,7 @@ class Cmd_Msg_Send(BotSendCommand):
             await self.bot.botLayer.toLower(messageEntity)   
 
 
-        if "waitMsgId" in options:
+        if "waitid" in options:
             self.bot.botLayer.ctxMap[options["ctxId"]]["msgId"] = messageEntity.getId()
             self.bot.botLayer.ctxMap[options["ctxId"]]["event"].set()            
         

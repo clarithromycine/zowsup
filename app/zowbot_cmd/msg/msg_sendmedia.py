@@ -130,7 +130,7 @@ class Cmd_Msg_Sendmedia(BotSendCommand):
 
             self.bot.botLayer.ackQueue.append(entity.getId())
 
-            self.bot.botLayer.toLower(entity) 
+            await self.bot.botLayer.toLower(entity) 
 
 
             if "waitMsgId" in options:

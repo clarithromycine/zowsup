@@ -248,6 +248,55 @@ class ZowBot:
         except Exception as e:
             self.logger.error(f"Command runner loop error: {e}", exc_info=True)
 
+    async def _agent_command_queue_loop(self):
+        """Poll file-based command queue and execute commands inside this running bot process."""
+        if not self.botId:
+            return
+        try:
+            from script.command_queue import dequeue_command_tasks, write_command_result
+        except Exception as e:
+            self.logger.debug(f"Command queue module not available: {e}")
+            return
+
+        while True:
+            try:
+                tasks = dequeue_command_tasks(self.botId)
+                if not tasks:
+                    await asyncio.sleep(0.5)
+                    continue
+
+                for task in tasks:
+                    task_id = str(task.get("id", ""))
+                    cmd_name = str(task.get("command", "")).strip()
+                    args = task.get("args")
+                    options = task.get("options")
+                    args = list(args) if isinstance(args, list) else []
+                    options = dict(options) if isinstance(options, dict) else {}
+
+                    if not task_id:
+                        continue
+
+                    if cmd_name not in self.cmdList:
+                        write_command_result(task_id, False, error=f"command not found: {cmd_name}")
+                        continue
+
+                    try:
+                        fn = self.cmdList[cmd_name]
+                        if inspect.iscoroutinefunction(fn):
+                            result = await fn(args, options)
+                            write_command_result(task_id, True, result=result)
+                        else:
+                            write_command_result(task_id, False, error=f"command is not async: {cmd_name}")
+                    except ParamsNotEnoughException:
+                        write_command_result(task_id, False, error="params not enough")
+                    except Exception as e:
+                        write_command_result(task_id, False, error=str(e))
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                self.logger.debug(f"Command queue poll error: {e}")
+                await asyncio.sleep(1.0)
+
     def push_command(self, cmd_name, args, options, timeout=20):
         """
         Push a command to the async queue for execution.
@@ -281,6 +330,10 @@ class ZowBot:
             from app.async_command_exec import AsyncCommandExec
             command_exec = AsyncCommandExec(self, self._cmd_args_for_exec, self._cmd_options_for_exec or {})
             command_exec_task = asyncio.ensure_future(command_exec.run())
+
+        command_queue_task = None
+        if self.botId is not None:
+            command_queue_task = asyncio.ensure_future(self._agent_command_queue_loop())
         
         try:
             while True:                     
@@ -338,6 +391,13 @@ class ZowBot:
                         await command_exec_task
                     except asyncio.CancelledError:
                         pass
+
+                if command_queue_task and not command_queue_task.done():
+                    command_queue_task.cancel()
+                    try:
+                        await command_queue_task
+                    except asyncio.CancelledError:
+                        pass
             except RuntimeError:
                 # Event loop is closed, can't cancel tasks
                 pass
@@ -345,9 +405,17 @@ class ZowBot:
             # Return exit code if callback requested exit, otherwise 0
             return self._exit_code if self._exit_code is not None else 0
 
+    def wait_logged_in(self, timeout: float = 30.0) -> bool:
+        """Block until the bot finishes login, or timeout expires.
+        Thread-safe: callable from any thread.
+        """
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self.botLayer.loginEventComplete:
+                return True
+            time.sleep(0.2)
+        return False
 
-
-    
     def setUpperCallback(self,upperCallback):
         self.upperCallback = upperCallback            
                
