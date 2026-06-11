@@ -908,7 +908,7 @@ class AttributesConverter:
     def proto_to_message(self, proto,from_jid=None,message_db=None) -> Any:
         
 
-        #print(proto)
+        print(proto)
         
         # from_jid message_secret 涓や釜鍙傛暟锛岀洰鍓嶅彧鍦╬ollupdate閲岄潰鐢ㄥ埌锛屽埌鏃跺€欏啀浼樺寲                    
         if proto.HasField("device_sent_message"):            

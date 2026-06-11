@@ -17,3 +17,11 @@ class ProtocolMessageProtocolEntity(ProtomessageProtocolEntity):
             message_meta_attributes = MessageMetaAttributes(recipient=to)
 
         super().__init__("text", MessageAttributes(protocol = protocol_attr), message_meta_attributes)        
+
+    @property
+    def key(self) -> Any:
+        return self.message_attributes.protocol.key
+
+    @property
+    def type(self) -> Any:
+        return self.message_attributes.protocol.type

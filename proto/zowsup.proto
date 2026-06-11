@@ -26,6 +26,8 @@ enum MessageType {
     REACTION = 10;
     POLL = 11;
 
+    REVOKE = 20; //撤回消息
+    
     UNKNOWN_MEDIA=91;
     OTHER = 99;
 }

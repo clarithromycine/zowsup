@@ -175,6 +175,12 @@ class MessageHandler:
             tuple: (message_type, text)
         """
         msg_type = messageProtocolEntity.getType()
+        edit = messageProtocolEntity.getEdit()
+
+        if edit=="7":
+            if isinstance(messageProtocolEntity, ProtocolMessageProtocolEntity) and messageProtocolEntity.type==ProtocolAttributes.TYPE_REVOKE:
+                return zowsup_pb2.MessageType.REVOKE, str(messageProtocolEntity.key.id)
+
         message_type = zowsup_pb2.MessageType.UNKNOWN_MEDIA
         text = ""
 

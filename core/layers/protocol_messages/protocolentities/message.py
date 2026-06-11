@@ -56,6 +56,9 @@ class MessageProtocolEntity(ProtocolEntity):
     def getType(self) -> Any:
         return self._type
 
+    def getEdit(self) -> Any:
+        return self.edit
+
     def getId(self) -> Any:
         return self._id
 
