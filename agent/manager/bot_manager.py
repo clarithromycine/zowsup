@@ -186,7 +186,10 @@ class BotManager:
     def list_bots(self) -> list[BotInfo]:
         """Return info for all managed accounts (from SQLite store)."""
         with self._lock:
-            running = {bid: self._build_bot_info(bid, b) for bid, b in self._bots.items()}
+            bot_items = list(self._bots.items())  # snapshot under lock
+        # Build BotInfo outside the lock — _build_bot_info → get_last_active
+        # also acquires _lock, and threading.Lock is not re-entrant.
+        running = {bid: self._build_bot_info(bid, b) for bid, b in bot_items}
 
         result = []
         for row in account_store.list_all():

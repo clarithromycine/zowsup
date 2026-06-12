@@ -40,6 +40,11 @@ class BotStartRequest(BaseModel):
     auto_login: bool = Field(True, description="Whether to auto-login on start")
 
 
+class ListBotRequest(BaseModel):
+    """Request to list bot statuses, optionally filtered by bot_ids."""
+    bot_ids: list[str] | None = Field(None, description="Optional list of bot IDs to filter by. If omitted, returns all bots.")
+
+
 class BatchStartRequest(BaseModel):
     """Request to start multiple bots at once.
 

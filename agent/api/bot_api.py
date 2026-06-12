@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException
 from agent.manager.bot_manager import bot_manager
 from agent.manager.account_store import account_store
 from agent.schemas import (
-    BotInfo, BotStartRequest, BatchStartRequest, BatchStopRequest,
+    BotInfo, BotStartRequest, BatchStartRequest, BatchStopRequest, ListBotRequest,
     BatchResult, BotImportRequest, BotExportRequest, BotExportEntry,
     BotStatus, PurgeRequest, PurgeResponse, PurgeResultEntry,
 )
@@ -23,9 +23,13 @@ router = APIRouter(tags=["bots"])
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
-@router.get("/api/listbot", response_model=list[BotInfo], response_model_exclude_none=True)
-async def list_bots():
-    return bot_manager.list_bots()
+@router.post("/api/listbot", response_model=list[BotInfo], response_model_exclude_none=True)
+async def list_bots(req: ListBotRequest = ListBotRequest()):
+    all_bots = bot_manager.list_bots()
+    if req.bot_ids is None:
+        return all_bots
+    bot_id_set = set(req.bot_ids)
+    return [b for b in all_bots if b.bot_id in bot_id_set]
 
 
 @router.get("/api/bot/{bot_id}", response_model=BotInfo, response_model_exclude_none=True)
