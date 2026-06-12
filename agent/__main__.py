@@ -74,11 +74,7 @@ def main(argv: list[str] | None = None) -> None:
     import uvicorn
     import asyncio
     import signal
-    import time
-    import uvicorn
-    import asyncio
-    import signal
-
+    
     config = uvicorn.Config(app, host=args.host, port=args.port, log_level="info")
     server = uvicorn.Server(config)
     server.install_signal_handlers = lambda: None

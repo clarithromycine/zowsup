@@ -371,7 +371,7 @@ class BotManager:
         try:
             loop = asyncio.get_running_loop()
             self._flush_task = asyncio.ensure_future(self._periodic_flush_loop(interval))
-            logger.info(f"Periodic last_active flush started (interval={interval}s)")
+            logger.debug(f"Periodic last_active flush started (interval={interval}s)")
         except RuntimeError:
             logger.warning("No running event loop; periodic flush not started")
 
