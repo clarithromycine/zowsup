@@ -93,8 +93,10 @@ def main(argv: list[str] | None = None) -> None:
                 try: bot.quit()
                 except Exception: pass
 
-        await asyncio.sleep(5)
+        print("[Agent] Waiting for bots to shut down...")
+        await asyncio.sleep(3)
 
+        bot_manager.stop_periodic_flush()
         log_broadcaster._shutting_down = True
         log_broadcaster.stop()
         server.should_exit = True

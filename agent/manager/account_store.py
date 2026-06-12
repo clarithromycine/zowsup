@@ -232,6 +232,22 @@ class AccountStore:
         ).fetchall()
         return [dict(r) for r in rows]
 
+    def update_last_seen(self, bot_id: str, timestamp: float | None = None) -> None:
+        """Update only the last_seen timestamp without changing status.
+
+        Used for lazy persistence: flush the runtime last_active cache to DB
+        on bot stop or periodic timeout.
+        """
+        self._ensure_init()
+        ts = int(timestamp) if timestamp is not None else int(time.time())
+        with self._lock:
+            conn = self._get_conn()
+            conn.execute(
+                "UPDATE accounts SET last_seen = ? WHERE bot_id = ?",
+                (ts, bot_id),
+            )
+            conn.commit()
+
     def remove(self, bot_id: str) -> bool:
         """Remove an account from the store. Returns True if existed."""
         with self._lock:

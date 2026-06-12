@@ -7,6 +7,7 @@ Provides async-safe start/stop/list/get operations.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import threading
 import time
@@ -42,6 +43,7 @@ class BotManager:
     def __init__(self):
         self._lock = threading.Lock()
         self._bots: dict[str, ZowBot] = {}  # bot_id → ZowBot
+        self._last_active: dict[str, float] = {}  # bot_id → last_active timestamp (runtime cache)
 
     # ── Public API ──────────────────────────────────────────────────────────
 
@@ -170,6 +172,9 @@ class BotManager:
 
         info = self._build_bot_info(bot_id, bot)
 
+        # Flush runtime last_active to DB before removing
+        self._flush_last_active(bot_id)
+
         with self._lock:
             self._bots.pop(bot_id, None)
 
@@ -191,11 +196,13 @@ class BotManager:
             else:
                 db_status = row.get("status", "")
                 agent_status = BotStatus.AUTH_FAILED if db_status == "auth_failed" else BotStatus.STOPPED
+                last_seen = row.get("last_seen")
                 result.append(BotInfo(
                     bot_id=bid,
                     status=agent_status,
                     env=row.get("env", ""),
                     started_at=row.get("started_at"),
+                    last_active=int(last_seen) if last_seen else None,
                 ))
         return result
 
@@ -213,11 +220,13 @@ class BotManager:
         if row:
             db_status = row.get("status", "")
             agent_status = BotStatus.AUTH_FAILED if db_status == "auth_failed" else BotStatus.STOPPED
+            last_seen = row.get("last_seen")
             return BotInfo(
                 bot_id=bot_id,
                 status=agent_status,
                 env=row.get("env", ""),
                 started_at=row.get("started_at"),
+                last_active=int(last_seen) if last_seen else None,
             )
         return None
 
@@ -269,12 +278,14 @@ class BotManager:
         raw_os = bot.env.deviceEnv.getOSName() if bot.env and bot.env.deviceEnv else ""
         env = SysVar.ENV_NAME_MAPPING.get(raw_os, raw_os) if raw_os else ""
 
+        last_active_ts = self.get_last_active(bot_id)
         return BotInfo(
             bot_id=bot_id,
             status=agent_status,
             env=env,
             started_at=int(bot.startts) if bot.startts else None,
             uptime_seconds=int(uptime) if uptime else None,
+            last_active=int(last_active_ts) if last_active_ts else None,
         )
 
     def _resolve_env(self, bot: ZowBot) -> str:
@@ -298,11 +309,90 @@ class BotManager:
             logger.debug(f"Could not detect env for '{bot_id}': {e}")
         return "android"
 
+    def touch_active(self, bot_id: str) -> None:
+        """Record the bot as active at the current time (runtime cache only, no DB write).
+
+        Called on every event / message / IQ to keep the in-memory timestamp fresh.
+        Persisted to DB only on bot stop or periodic flush.
+        """
+        now = time.time()
+        with self._lock:
+            self._last_active[bot_id] = now
+
+    def get_last_active(self, bot_id: str) -> float | None:
+        """Return the runtime last_active timestamp, or fall back to DB last_seen."""
+        with self._lock:
+            ts = self._last_active.get(bot_id)
+            if ts is not None:
+                return ts
+        row = account_store.get(bot_id)
+        if row:
+            return row.get("last_seen")
+        return None
+
+    def _flush_last_active(self, bot_id: str) -> None:
+        """Persist the runtime last_active timestamp to DB."""
+        with self._lock:
+            ts = self._last_active.pop(bot_id, None)
+        if ts is not None:
+            account_store.update_last_seen(bot_id, ts)
+
+    # ── Periodic flush ──────────────────────────────────────────────────────
+
+    async def _periodic_flush_loop(self, interval: float = 600.0) -> None:
+        """Background task: write all cached last_active timestamps to DB every *interval* seconds.
+
+        Does NOT pop from cache — only persists current values so they survive a
+        process kill. Individual bot stop still calls _flush_last_active (with pop).
+        """
+        try:
+            while True:
+                await asyncio.sleep(interval)
+                self._periodic_flush_all()
+        except asyncio.CancelledError:
+            logger.debug("Periodic last_active flush cancelled")
+        except Exception as e:
+            logger.error(f"Periodic last_active flush error: {e}", exc_info=True)
+
+    def _periodic_flush_all(self) -> None:
+        """Write all cached last_active timestamps to DB without removing from cache."""
+        with self._lock:
+            snapshot = dict(self._last_active)
+        if not snapshot:
+            return
+        for bot_id, ts in snapshot.items():
+            try:
+                account_store.update_last_seen(bot_id, ts)
+            except Exception:
+                logger.debug(f"Failed to flush last_active for '{bot_id}'", exc_info=True)
+
+    def start_periodic_flush(self, interval: float = 600.0) -> None:
+        """Start the background periodic flush task (called from agent lifespan)."""
+        try:
+            loop = asyncio.get_running_loop()
+            self._flush_task = asyncio.ensure_future(self._periodic_flush_loop(interval))
+            logger.info(f"Periodic last_active flush started (interval={interval}s)")
+        except RuntimeError:
+            logger.warning("No running event loop; periodic flush not started")
+
+    def stop_periodic_flush(self) -> None:
+        """Stop the periodic flush task and do one final flush."""
+        task = getattr(self, '_flush_task', None)
+        if task and not task.done():
+            task.cancel()
+        # Final flush — use the non-pop version so stop_bot's pop-flush still works
+        self._periodic_flush_all()
+        logger.info("Periodic last_active flush stopped")
+
     def _on_bot_event(self, event=None, message=None, messageStatus=None,
                        cmdResult=None, modeResult=None, cbId=None):
         """Upper callback registered on each bot. Forwards structured events."""
         from agent.manager.log_broadcaster import log_broadcaster
         bot_id = cbId or "unknown"
+
+        # Any event, message, or status update signals that the bot is alive
+        if event or message or messageStatus:
+            self.touch_active(bot_id)
 
         # Track auth failure (401/403/405) on the bot instance
         if event and isinstance(event, dict) and event.get("event") == zowsup_pb2.BotEvent.Event.LOGIN_FAIL:

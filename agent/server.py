@@ -76,9 +76,11 @@ async def lifespan(app: FastAPI):
     """Startup only. Shutdown handled by signal handler in __main__.py."""
     from agent.manager.log_broadcaster import log_broadcaster
     from agent.manager.account_store import account_store
+    from agent.manager.bot_manager import bot_manager
 
     account_store.start()
     log_broadcaster.start()
+    bot_manager.start_periodic_flush(interval=600.0)
 
     from agent.api.bot_api import router as bot_router
     from agent.api.cmd_api import router as cmd_router

@@ -158,6 +158,7 @@ class BotInfo(BaseModel):
     env: str = ""
     started_at: Optional[int] = None
     uptime_seconds: Optional[int] = None
+    last_active: Optional[int] = None
     error: Optional[str] = None
     fail_reason: Optional[str] = None
 
