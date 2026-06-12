@@ -92,8 +92,52 @@ class EnvIos(DeviceEnvBase):
         return EnvTools.getIosToken(self,phoneNumber,_TOKEN)
 
     def getUserAgent(self):
-        return EnvTools.getIosUserAgent(self)
+        return EnvTools.getIosUserAgent(self)        
+    
 
+    def setPlatform(self,value):
+        self.platform=value
+
+    def setVersion(self,value):
+        self.version=value
+
+    def setManufacturer(self,value):
+        self.manufacturer=value
+
+    def setDeviceName(self,value):
+        self.deviceName=value
+
+    def setOSVersion(self,value):
+        self.osVersion=value
+
+    def setBuildVersion(self,value):
+        self.buildVersion=value
+
+    def setOSName(self,value):
+        self.osName=value
+
+    def setDeviceModelType(self,value):
+        self.deviceModelType=value
+
+    def getPlatform(self):
+        return self.platform
+    
+    def getVersion(self):
+        return self.version
+    
+    def getManufacturer(self):
+        return self.manufacturer
+    
+    def getDeviceName(self):
+        return self.deviceName
+    
+    def getOSVersion(self):
+        return self.osVersion
+    
+
+    def getOSName(self):
+        return self.osName
+        
     def getDeviceName2(self):        
         if self.deviceName in EnvIos.DEVICE_NAME_FOR_RUN:
             return EnvIos.DEVICE_NAME_FOR_RUN[self.deviceName]

@@ -1,7 +1,7 @@
 import random
-from .env_tools import EnvTools, DeviceEnvBase
+from .env_tools import EnvTools
 
-class EnvSmbAndroid(DeviceEnvBase):
+class EnvSmbAndroid:
     def __init__(self,                           
                  osVersion = "11",
                  deviceName = "SCV42",
@@ -201,7 +201,63 @@ class EnvSmbAndroid(DeviceEnvBase):
         return EnvTools.getAndroidToken(self,phoneNumber,self.key,self.md5Classes)
     
     def getUserAgent(self):
-        return EnvTools.getAndroidUserAgent(self)
+        return EnvTools.getAndroidUserAgent(self)    
+    
+    def setVersion(self,version):
+        self.version = version
 
-    def getDeviceName2(self):
+    def setMd5Classes(self,md5Classes):
+        self.md5Classes = md5Classes
+
+    def setKey(self,key):
+        self.key = key
+
+    def setPlatform(self,value):
+        self.platform=value
+
+
+
+    def setManufacturer(self,value):
+        self.manufacturer=value
+
+    def setDeviceName(self,value):
+        self.deviceName=value
+
+    def setOSVersion(self,value):
+        self.osVersion=value
+
+    def setBuildVersion(self,value):
+        self.buildVersion=value
+
+    def setOSName(self,value):
+        self.osName=value
+
+    def setDeviceModelType(self,value):
+        self.deviceModelType=value
+
+    def getPlatform(self):
+        return self.platform
+    
+    def getVersion(self):
+        return self.version
+    
+    def getManufacturer(self):
+        return self.manufacturer
+    
+    def getDeviceName(self):
         return self.deviceName
+    
+    def getDeviceName2(self):
+        return self.deviceName    
+    
+    def getOSVersion(self):
+        return self.osVersion
+    
+    def getBuildVersion(self):
+        return self.buildVersion
+    
+    def getOSName(self):
+        return self.osName
+    
+    def getDeviceModelType(self):
+        return self.deviceModelType
