@@ -78,6 +78,8 @@ async def ws_bot_logs(
         return
 
     await websocket.accept()
+    from agent.server import ws_connected
+    ws_connected()
     logger.info(f"WebSocket log client connected for bot '{bot_id}' (tail={tail})")
 
     # Send history
@@ -113,6 +115,8 @@ async def ws_bot_logs(
     except WebSocketDisconnect:
         logger.info(f"WebSocket log client disconnected for bot '{bot_id}'")
     finally:
+        from agent.server import ws_disconnected
+        ws_disconnected()
         log_broadcaster.unsubscribe(bot_id, sub)
 
 
@@ -173,4 +177,6 @@ async def ws_bot_events(
     except WebSocketDisconnect:
         logger.info(f"WebSocket event client disconnected for bot '{bot_id}'")
     finally:
+        from agent.server import ws_disconnected
+        ws_disconnected()
         log_broadcaster.unsubscribe_events(bot_id, sub)

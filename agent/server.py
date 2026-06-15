@@ -6,8 +6,11 @@ Start:  python -m agent [--accesskey KEY]
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
+import time
+import uuid
 
 # Ensure project root on path for imports from sibling packages
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -17,15 +20,34 @@ if _project_root not in sys.path:
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, Header, HTTPException, Query, WebSocket, WebSocketException, Depends
+from fastapi import FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
 
 from agent.schemas import HealthResponse
 
+logger = logging.getLogger(__name__)
+
+# ── Server start time ────────────────────────────────────────────────────────
+
+_start_time = time.time()
+
+# ── WebSocket connection counter ─────────────────────────────────────────────
+
+_ws_connection_count = 0
+
+def ws_connected():
+    global _ws_connection_count
+    _ws_connection_count += 1
+
+def ws_disconnected():
+    global _ws_connection_count
+    _ws_connection_count = max(0, _ws_connection_count - 1)
+
 # ── Access Key ───────────────────────────────────────────────────────────────
 
 _access_key: Optional[str] = None  # Set at startup from CLI args
+_agent_id: str = ""  # Set at startup from CLI/env
 
 
 def set_access_key(key: Optional[str]) -> None:
@@ -36,6 +58,12 @@ def set_access_key(key: Optional[str]) -> None:
     """
     global _access_key
     _access_key = key
+
+
+def set_agent_id(agent_id: str) -> None:
+    """Set the agent identifier for multi-agent routing."""
+    global _agent_id
+    _agent_id = agent_id
 
 
 def _check_rest_access_key(x_access_key: Optional[str] = Header(None)) -> None:
@@ -77,19 +105,23 @@ async def lifespan(app: FastAPI):
     from agent.manager.log_broadcaster import log_broadcaster
     from agent.manager.account_store import account_store
     from agent.manager.bot_manager import bot_manager
+    from agent.manager.conversation_store import conv_store
 
-    account_store.start()
+    account_store.start(agent_id=_agent_id)
     log_broadcaster.start()
+    conv_store.start()
     bot_manager.start_periodic_flush(interval=600.0)
 
     from agent.api.bot_api import router as bot_router
     from agent.api.cmd_api import router as cmd_router
     from agent.api.msg_api import router as msg_router
     from agent.api.log_api import router as log_router
+    from agent.api.conversation_api import router as conv_router
     app.include_router(bot_router)
     app.include_router(cmd_router)
     app.include_router(msg_router)
     app.include_router(log_router)
+    app.include_router(conv_router)
 
     import logging
     logging.getLogger('transitions').setLevel(logging.WARNING)
@@ -141,6 +173,18 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # ── X-Request-ID + Slow Request tracking ──
+    @app.middleware("http")
+    async def request_tracker(request: Request, call_next):
+        req_id = request.headers.get("X-Request-ID", str(uuid.uuid4())[:8])
+        t0 = time.time()
+        response = await call_next(request)
+        elapsed = time.time() - t0
+        response.headers["X-Request-ID"] = req_id
+        if elapsed > 5.0:
+            logger.warning(f"[{req_id}] {request.method} {request.url.path} took {elapsed:.1f}s")
+        return response
+
     # Health check (uses api_router for auth)
     @api_router.get("/api/health", response_model=HealthResponse)
     async def health():
@@ -171,9 +215,12 @@ def create_app() -> FastAPI:
 
         return HealthResponse(
             status="ok",
+            version=app.version,
+            uptime_seconds=int(time.time() - _start_time),
             thread_count=threading.active_count(),
             db_bot_count=len(account_store.list_all()),
             running_bot_count=running,
+            ws_connections=_ws_connection_count,
             memory_bytes=mem,
             cpu_time_seconds=cpu_time,
         )

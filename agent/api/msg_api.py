@@ -103,6 +103,9 @@ async def _execute(command: str, req: SendMsgRequest, args: list, options: dict)
 
     if error:
         return CmdResult(retcode=error.get("code", -1), error=error.get("msg", "unknown error"))
+
+    # Record outgoing message
+    _record_outgoing(req.bot_id, req.to, result, req.content)
     return CmdResult(retcode=0, result=result)
 
 
@@ -137,3 +140,39 @@ def _ext_to_suffix(media_type: str, file_name: str | None) -> str:
     if file_name:
         return Path(file_name).suffix or ext_map.get(media_type, ".bin")
     return ext_map.get(media_type, ".bin")
+
+def _record_outgoing(bot_id: str, to_jid: str, result, content) -> None:
+    """Record an outgoing message in the conversation store."""
+    try:
+        from agent.manager.conversation_store import conv_store
+
+        # Resolve to canonical LID-based conversation if one exists
+        resolved = conv_store.resolve_conversation_jid(bot_id, to_jid)
+        if resolved:
+            parts = resolved.split(":", 1)
+            canonical_jid = parts[1] if len(parts) > 1 else to_jid
+            conv_id = resolved
+        else:
+            canonical_jid = to_jid
+            conv_id = f"{bot_id}:{to_jid}"
+
+        text = content.text if content.text else ""
+        ctype = "TEXT"
+        if content.ad is not None:
+            text = content.ad.text or ""
+            ctype = "AD"
+        elif content.media is not None:
+            text = content.media.caption or f"[{content.media.type}]"
+            ctype = content.media.type.upper()
+
+        # Determine pn_jid: set when canonical_jid is a phone number
+        _pn = canonical_jid if canonical_jid.endswith("@s.whatsapp.net") else None
+
+        msg_id = result if isinstance(result, str) and result != "JUSTWAIT" else None
+        conv_store.record_message(
+            conv_id=conv_id, bot_id=bot_id, jid=canonical_jid,
+            direction="outgoing", content_type=ctype, content=text,
+            msg_id=msg_id, status="EXECUTED", pn_jid=_pn,
+        )
+    except Exception:
+        pass

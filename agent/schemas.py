@@ -38,6 +38,7 @@ class BotStartRequest(BaseModel):
     env: Optional[BotEnv] = Field(None, description="Device environment (auto-detected from account config if omitted)")
     proxy: Optional[str] = Field(None, description="Proxy string, e.g. socks5://host:port")
     auto_login: bool = Field(True, description="Whether to auto-login on start")
+    login_timeout: Optional[float] = Field(None, ge=5, le=300, description="Login wait timeout in seconds (5-300)")
 
 
 class ListBotRequest(BaseModel):
@@ -60,6 +61,7 @@ class BatchStartRequest(BaseModel):
 class BatchStopRequest(BaseModel):
     """Request to stop multiple bots at once."""
     bot_ids: list[str] = Field(..., min_length=1, description="List of bot IDs to stop")
+    mode: str = Field("graceful", description="graceful (wait for thread) | force (kill immediately)")
 
 
 class PurgeRequest(BaseModel):
@@ -192,9 +194,12 @@ class LogLinesResponse(BaseModel):
 class HealthResponse(BaseModel):
     """Health check response."""
     status: str = "ok"
+    version: str = ""
+    uptime_seconds: int = 0
     thread_count: int = 0
     db_bot_count: int = 0
     running_bot_count: int = 0
+    ws_connections: int = 0
     memory_bytes: int = 0
     cpu_time_seconds: float = 0.0
 
@@ -202,3 +207,50 @@ class HealthResponse(BaseModel):
 class ErrorResponse(BaseModel):
     """Standard error response."""
     detail: str
+
+
+# ── Conversation Models ──────────────────────────────────────────────────────
+
+class ConversationType(str, Enum):
+    ONE_TO_ONE = "1v1"
+    GROUP = "group"
+
+
+class ConversationInfo(BaseModel):
+    """Summary of a conversation."""
+    id: str
+    bot_id: str
+    jid: str
+    pn_jid: Optional[str] = None
+    type: str = "1v1"
+    status: str = "active"
+    message_count: int = 0
+    last_message_at: Optional[float] = None
+    created_at: float = 0.0
+    updated_at: float = 0.0
+
+
+class MessageInfo(BaseModel):
+    """A single message within a conversation."""
+    id: int
+    conversation_id: str
+    msg_id: Optional[str] = None
+    direction: str
+    content_type: str = "TEXT"
+    content: Optional[str] = None
+    participant_jid: Optional[str] = None
+    status: Optional[str] = None
+    status_updated: Optional[float] = None
+    sent_at: float = 0.0
+    created_at: float = 0.0
+
+
+class ConversationDetail(ConversationInfo):
+    """Conversation with its messages."""
+    messages: list[MessageInfo] = Field(default_factory=list)
+
+
+class SendMessageRequest(BaseModel):
+    """Request to send a message into a conversation."""
+    content: str = Field(..., description="Message text or media description")
+    content_type: str = Field("TEXT", description="MessageType enum value")

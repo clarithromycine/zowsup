@@ -71,6 +71,15 @@ GET /api/listbot
 | `uptime_seconds` | int | Uptime in seconds |
 | `error` | string | Error message (only when status is `ERROR`) |
 
+**Filter by bot IDs** (POST)
+
+```json
+POST /api/listbot
+{"bot_ids": ["8613800138000", "8613800138001"]}
+```
+
+Returns only the specified bots. Omit `bot_ids` or pass `null` for all.
+
 ---
 
 ### Get Single Account

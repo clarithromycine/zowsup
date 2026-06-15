@@ -59,14 +59,38 @@ class MessageHandler:
                 await self.layer.toLower(messageProtocolEntity.ack(peerMsg=True))
                 return
 
+        # Normalize canonical JID: LID for 1v1 chats, group JID for groups
+        from_full = messageProtocolEntity.getFrom(True)
+        _pn_jid = messageProtocolEntity.getSenderPn()
+        _sender_lid = messageProtocolEntity.getSenderLid()
+
+        if from_full.endswith("@lid"):
+            canonical_jid = from_full                              # xxx@lid
+            pn_jid = _pn_jid                                       # phone@s.whatsapp.net or None
+        elif from_full.endswith("@g.us"):
+            canonical_jid = from_full                              # xxx@g.us
+            pn_jid = None
+        elif _sender_lid:
+            canonical_jid = _sender_lid                            # xxx@lid
+            pn_jid = from_full                                     # phone@s.whatsapp.net
+        else:
+            canonical_jid = from_full                              # fallback
+            pn_jid = None
+
+        participant_full = messageProtocolEntity.getParticipant(True)
+
         self.layer.callback(
             message={
                 "type": msg_type,
                 "text": text,
                 "msgId": messageProtocolEntity.getId(),
                 "from": messageProtocolEntity.getFrom(False),
+                "from_full": from_full,
                 "to": messageProtocolEntity.getTo(False) if messageProtocolEntity.fromme else self.layer.bot.botId,
-                "timestamp": int(time.time()),
+                "participant": participant_full,
+                "lid": canonical_jid,
+                "pn_jid": pn_jid,
+                "timestamp": messageProtocolEntity.getTimestamp() or int(time.time()),
                 "raw": base64.b64encode(messageProtocolEntity.raw),
             }
         )
@@ -76,6 +100,8 @@ class MessageHandler:
 
     async def on_receipt(self, entity):
         """Handle message receipt (read/delivered notifications)."""
+
+        target_full = entity.getFrom(True)
 
         if entity.getParticipant() is not None:
             num = entity.getFrom(False) + "::" + entity.getParticipant(False)
@@ -87,6 +113,7 @@ class MessageHandler:
                 messageStatus={
                     "msgId": entity.getId(),
                     "target": num,
+                    "target_full": target_full,
                     "status": zowsup_pb2.MessageStatus.READ,
                 }
             )
@@ -95,6 +122,7 @@ class MessageHandler:
                 messageStatus={
                     "msgId": entity.getId(),
                     "target": num,
+                    "target_full": target_full,
                     "status": zowsup_pb2.MessageStatus.DELIVERED,
                 }
             )
@@ -106,6 +134,9 @@ class MessageHandler:
 
         if entity.getId() in self.layer.ackQueue:
 
+            target_full = entity._from if entity._from else None
+            ack_ts = entity.timestamp
+
             if entity._from is not None:
                 num = entity._from[0 : entity._from.rfind("@", 0)]
             else:
@@ -116,7 +147,9 @@ class MessageHandler:
                     messageStatus={
                         "msgId": entity.getId(),
                         "target": num,
+                        "target_full": target_full,
                         "status": zowsup_pb2.MessageStatus.SENT,
+                        "timestamp": ack_ts,
                     }
                 )
             else:
@@ -124,8 +157,10 @@ class MessageHandler:
                     messageStatus={
                         "msgId": entity.getId(),
                         "target": num,
+                        "target_full": target_full,
                         "status": zowsup_pb2.MessageStatus.ERROR,
                         "errorCode": entity.getError(),
+                        "timestamp": ack_ts,
                     }
                 )
 

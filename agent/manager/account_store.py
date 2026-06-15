@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     env         TEXT NOT NULL DEFAULT 'android',
     status      TEXT NOT NULL DEFAULT 'stopped',
     auth_detail TEXT,
+    agent_id    TEXT NOT NULL DEFAULT '',
     started_at  REAL,
     last_seen   REAL,
     created_at  REAL NOT NULL DEFAULT (strftime('%s', 'now'))
@@ -45,8 +46,9 @@ class AccountStore:
 
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
-    def start(self):
+    def start(self, agent_id: str = ""):
         """Initialize the store. Called from agent lifespan."""
+        self._agent_id = agent_id
         self._init_db()
 
     def _ensure_init(self):
@@ -59,8 +61,9 @@ class AccountStore:
         conn = self._get_conn()
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute(_SCHEMA)
-        # Schema migration: add auth_detail column if missing (pre-v2 DBs)
+        # Schema migrations
         self._migrate_add_column("auth_detail", "ALTER TABLE accounts ADD COLUMN auth_detail TEXT")
+        self._migrate_add_column("agent_id", "ALTER TABLE accounts ADD COLUMN agent_id TEXT NOT NULL DEFAULT ''")
         conn.commit()
         self._initialized = True
         self._migrate_from_filesystem()
@@ -162,7 +165,7 @@ class AccountStore:
         self._ensure_init()
         conn = self._get_conn()
         rows = conn.execute(
-            "SELECT bot_id, env, status, auth_detail, started_at, last_seen, created_at FROM accounts ORDER BY bot_id"
+            "SELECT bot_id, env, status, auth_detail, agent_id, started_at, last_seen, created_at FROM accounts ORDER BY bot_id"
         ).fetchall()
         return [dict(r) for r in rows]
 
@@ -171,7 +174,7 @@ class AccountStore:
         self._ensure_init()
         conn = self._get_conn()
         row = conn.execute(
-            "SELECT bot_id, env, status, auth_detail, started_at, last_seen, created_at FROM accounts WHERE bot_id = ?",
+            "SELECT bot_id, env, status, auth_detail, agent_id, started_at, last_seen, created_at FROM accounts WHERE bot_id = ?",
             (bot_id,),
         ).fetchone()
         return dict(row) if row else None
@@ -182,14 +185,18 @@ class AccountStore:
     def register(self, bot_id: str, env: str = "android") -> None:
         """Register a new account (INSERT only — never overwrites existing env)."""
         self._ensure_init()
+        agent_id = getattr(self, '_agent_id', '')
         with self._lock:
             conn = self._get_conn()
             conn.execute(
-                "INSERT OR IGNORE INTO accounts (bot_id, env, status, created_at) VALUES (?, ?, 'stopped', ?)",
-                (bot_id, env, int(time.time())),
+                "INSERT OR IGNORE INTO accounts (bot_id, env, agent_id, status, created_at) VALUES (?, ?, ?, 'stopped', ?)",
+                (bot_id, env, agent_id, int(time.time())),
             )
+            # Update agent_id for existing accounts (INSERT OR IGNORE skipped them)
+            if agent_id:
+                conn.execute("UPDATE accounts SET agent_id = ? WHERE bot_id = ? AND agent_id = ''", (agent_id, bot_id))
             conn.commit()
-        logger.info(f"Account '{bot_id}' registered (env={env})")
+        logger.info(f"Account '{bot_id}' registered (env={env}, agent={agent_id})")
 
     def update_status(self, bot_id: str, status: str, env: str | None = None, auth_detail: str | None = None) -> None:
         """Update running status. Optionally update env and/or auth_detail.

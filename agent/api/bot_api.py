@@ -23,8 +23,13 @@ router = APIRouter(tags=["bots"])
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
+@router.get("/api/listbot", response_model=list[BotInfo], response_model_exclude_none=True)
+async def list_bots_all():
+    return bot_manager.list_bots()
+
+
 @router.post("/api/listbot", response_model=list[BotInfo], response_model_exclude_none=True)
-async def list_bots(req: ListBotRequest = ListBotRequest()):
+async def list_bots_filtered(req: ListBotRequest):
     all_bots = bot_manager.list_bots()
     if req.bot_ids is None:
         return all_bots
@@ -101,7 +106,9 @@ async def start_bots(req: BatchStartRequest):
             bot = await asyncio.to_thread(bot_manager.get_bot_instance, bot_id)
             if bot is None:
                 return BotInfo(bot_id=bot_id, status=BotStatus.ERROR, error="Bot instance lost")
-            return await asyncio.to_thread(bot_manager.wait_bot_login, bot)
+            # Use per-bot login_timeout if specified, else default 30s
+            timeout = next((r.login_timeout or 30.0 for r in all_requests if hasattr(r, 'login_timeout')), 30.0)
+            return await asyncio.to_thread(bot_manager.wait_bot_login, bot, login_timeout=timeout)
         except Exception as e:
             return BotInfo(bot_id=bot_id, status=BotStatus.ERROR, error=str(e))
 
@@ -116,11 +123,12 @@ async def start_bots(req: BatchStartRequest):
 
 @router.post("/api/stopbot", response_model=BatchResult, response_model_exclude_none=True)
 async def stop_bots(req: BatchStopRequest):
+    force = req.mode == "force"
     results = []; success = 0; errors = 0
     for bot_id in req.bot_ids:
-        info = bot_manager.stop_bot(bot_id)
+        info = bot_manager.stop_bot(bot_id, force=force)
         if info is None:
-            results.append(BotInfo(bot_id=bot_id, status="ERROR", error="Bot not running")); errors += 1
+            results.append(BotInfo(bot_id=bot_id, status=BotStatus.ERROR, error="Bot not running")); errors += 1
         else:
             results.append(info); success += 1
     return BatchResult(results=results, success_count=success, error_count=errors)

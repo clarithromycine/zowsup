@@ -143,8 +143,22 @@ class BotManager:
         bot = self.launch_bot(bot_id, env=env, proxy=proxy, auto_login=auto_login)
         return self.wait_bot_login(bot, login_timeout=login_timeout)
 
-    def stop_bot(self, bot_id: str, join_timeout: float = 10.0) -> BotInfo | None:
-        """Stop a running bot. Returns final BotInfo or None if not found."""
+    def stop_bot(self, bot_id: str, join_timeout: float = 10.0, force: bool = False) -> BotInfo | None:
+        """Stop a running bot. Returns final BotInfo or None if not found.
+
+        force=True: skip quit() and thread join, remove from dict immediately.
+        """
+        if force:
+            with self._lock:
+                bot = self._bots.pop(bot_id, None)
+            if bot is None:
+                logger.warning(f"Bot '{bot_id}' not found")
+                return None
+            logger.info(f"Stopping bot '{bot_id}' force=True")
+            info = self._build_bot_info(bot_id, bot)
+            account_store.update_status(bot_id, "stopped")
+            return info
+
         with self._lock:
             bot = self._bots.get(bot_id)
 
@@ -410,8 +424,12 @@ class BotManager:
             log_broadcaster.emit_event(bot_id, "event", event)
         if message:
             log_broadcaster.emit_event(bot_id, "message", message)
+            # Record incoming message in conversation store
+            self._capture_incoming_message(bot_id, message)
         if messageStatus:
             log_broadcaster.emit_event(bot_id, "message_status", messageStatus)
+            # Update message delivery status
+            self._capture_message_status(bot_id, messageStatus)
         if cmdResult:
             log_broadcaster.emit_event(bot_id, "cmd_result", cmdResult)
 
@@ -517,6 +535,85 @@ class BotManager:
                 results[bot_id] = {"success": False, "error": str(e)}
 
         return results
+
+    # ── Conversation Capture ─────────────────────────────────────────────────
+
+    def _capture_incoming_message(self, bot_id: str, message: dict) -> None:
+        """Record an incoming WhatsApp message in the conversation store."""
+        try:
+            from agent.manager.conversation_store import conv_store
+            from proto.zowsup_pb2 import MessageType
+
+            # Use normalized LID as canonical JID (falls back to from_full)
+            sender_jid = message.get("lid") or message.get("from_full") or message.get("from", "")
+            if not sender_jid:
+                return
+
+            conv_id = f"{bot_id}:{sender_jid}"
+
+            # Map protobuf enum integer -> string name
+            raw_type = message.get("type", 0)
+            if isinstance(raw_type, int):
+                content_type = MessageType.Name(raw_type) if raw_type in MessageType.values() else str(raw_type)
+            else:
+                content_type = str(raw_type)
+
+            # Extract text content
+            if content_type in ("TEXT", "URL", "AD"):
+                content = str(message.get("text", ""))
+            else:
+                caption = str(message.get("text", ""))
+                content = caption or f"[{content_type}]"
+
+            participant = message.get("participant")
+
+            conv_store.record_message(
+                conv_id=conv_id,
+                bot_id=bot_id,
+                jid=sender_jid,
+                direction="incoming",
+                content_type=content_type,
+                content=content,
+                participant_jid=participant,
+                pn_jid=message.get("pn_jid"),
+                status="",
+                raw=str(message),
+            )
+        except Exception:
+            logger.debug(f"Failed to capture incoming message for bot '{bot_id}'", exc_info=True)
+
+    def _capture_message_status(self, bot_id: str, status: dict) -> None:
+        """Update message delivery status from onNotification callback.
+
+        Also upgrades PN-based conversations to LID-based when the server
+        ACK provides the recipient's LID in target_full.
+        """
+        try:
+            from agent.manager.conversation_store import conv_store
+            from proto.zowsup_pb2 import MessageStatus
+
+            msg_id = status.get("msgId")
+            if msg_id:
+                raw_status = status.get("status", 0)
+                # Map proto enum integer -> string name
+                if isinstance(raw_status, int) and raw_status in MessageStatus.values():
+                    status_val = MessageStatus.Name(raw_status)
+                else:
+                    status_val = str(raw_status)
+                # Convert ack timestamp string → float
+                ack_ts = status.get("timestamp")
+                sent_at = float(ack_ts) if ack_ts else None
+
+                conv_store.update_message_status(str(msg_id), status_val,
+                    sent_at=sent_at)
+
+                # On SENT, the server ACK's target_full may be the LID.
+                # Upgrade the conversation's jid from PN → LID if needed.
+                target_full = status.get("target_full")
+                if target_full and not target_full.endswith("@s.whatsapp.net"):
+                    conv_store.upgrade_conversation_jid(bot_id, str(msg_id), target_full)
+        except Exception:
+            logger.debug(f"Failed to update msg status for bot '{bot_id}'", exc_info=True)
 
 
 # Singleton instance

@@ -61,8 +61,14 @@ def main(argv: list[str] | None = None) -> None:
     Utils.init_log(logging.INFO, "agent.log")
 
     # Configure agent access key
-    from agent.server import set_access_key, create_app
+    from agent.server import set_access_key, set_agent_id, create_app
     set_access_key(args.accesskey)
+
+    # Agent ID for multi-agent routing (env or hostname)
+    import socket
+    agent_id = os.environ.get("AGENT_ID", socket.gethostname())
+    set_agent_id(agent_id)
+    print(f"[Agent] ID: {agent_id}")
 
     if args.accesskey:
         print(f"[Agent] Access key configured: {'*' * len(args.accesskey)}")
