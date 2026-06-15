@@ -222,6 +222,7 @@ class ConversationInfo(BaseModel):
     bot_id: str
     jid: str
     pn_jid: Optional[str] = None
+    notify_name: Optional[str] = None
     type: str = "1v1"
     status: str = "active"
     message_count: int = 0

@@ -48,6 +48,7 @@ def ws_disconnected():
 
 _access_key: Optional[str] = None  # Set at startup from CLI args
 _agent_id: str = ""  # Set at startup from CLI/env
+_agent_port: int | None = None  # Set from CLI --port for cluster self-URL
 
 
 def set_access_key(key: Optional[str]) -> None:
@@ -64,6 +65,12 @@ def set_agent_id(agent_id: str) -> None:
     """Set the agent identifier for multi-agent routing."""
     global _agent_id
     _agent_id = agent_id
+
+
+def set_agent_port(port: int) -> None:
+    """Set the agent port for cluster self-URL."""
+    global _agent_port
+    _agent_port = port
 
 
 def _check_rest_access_key(x_access_key: Optional[str] = Header(None)) -> None:
@@ -132,6 +139,7 @@ async def lifespan(app: FastAPI):
     from agent.api.conversation_api import router as conv_router
     from agent.api.plugin_api import router as plugin_router
     from agent.api.escalation_api import router as escalation_router
+    from agent.api.migrate_api import router as migrate_router
     app.include_router(bot_router)
     app.include_router(cmd_router)
     app.include_router(msg_router)
@@ -139,14 +147,73 @@ async def lifespan(app: FastAPI):
     app.include_router(conv_router)
     app.include_router(plugin_router)
     app.include_router(escalation_router)
+    app.include_router(migrate_router)
 
     import logging
     logging.getLogger('transitions').setLevel(logging.WARNING)
 
+    # ── Cluster auto-registration ────────────────────────────────────────────
+    import os
+    router_url = os.environ.get("ROUTER_URL", "")
+    if router_url:
+        import asyncio, httpx
+        agent_id = _agent_id
+        own_port = _agent_port or 8000
+        own_url = f"http://127.0.0.1:{own_port}"
+
+        # Register
+        try:
+            from agent.manager.bot_manager import bot_manager
+            bots = [info.bot_id for info in bot_manager.list_bots()]
+            async with httpx.AsyncClient(timeout=httpx.Timeout(10)) as client:
+                resp = await client.post(
+                    f"{router_url}/api/cluster/agents",
+                    json={"agent_id": agent_id, "url": own_url, "bots": bots},
+                )
+                if resp.status_code == 200:
+                    print(f"[Agent] Registered with router {router_url} as '{agent_id}'")
+
+            # Sync plugin config from Router
+            try:
+                async with httpx.AsyncClient(timeout=httpx.Timeout(10)) as client:
+                    sync_resp = await client.get(f"{router_url}/api/plugin/sync")
+                    if sync_resp.status_code == 200:
+                        rows = sync_resp.json()
+                        if isinstance(rows, list) and rows:
+                            _plugin_store.import_from(rows)
+                            print(f"[Agent] Synced {len(rows)} plugin configs from router")
+            except Exception as e:
+                print(f"[Agent] Plugin sync skipped: {e}")
+        except Exception as e:
+            print(f"[Agent] Router unreachable ({router_url}): {e}")
+
+        # Heartbeat task
+        async def _heartbeat():
+            while True:
+                await asyncio.sleep(30)
+                try:
+                    async with httpx.AsyncClient(timeout=httpx.Timeout(10)) as c:
+                        bots = [info.bot_id for info in bot_manager.list_bots()]
+                        await c.post(
+                            f"{router_url}/api/cluster/agents/{agent_id}/heartbeat",
+                            json={"bots": bots},
+                        )
+                except Exception:
+                    pass
+        heartbeat_task = asyncio.ensure_future(_heartbeat())
+
     yield
 
+    # ── Shutdown ─────────────────────────────────────────────────────────────
+    if router_url:
+        heartbeat_task.cancel()
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(10)) as c:
+                await c.delete(f"{router_url}/api/cluster/agents/{_agent_id}")
+                print(f"[Agent] Deregistered from router")
+        except Exception:
+            pass
 
-# ── App Factory ──────────────────────────────────────────────────────────────
 
 def create_app() -> FastAPI:
     """Build and return the FastAPI application instance."""

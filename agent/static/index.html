@@ -52,6 +52,11 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 .msg-note-inline{margin-top:4px;padding-top:4px;border-top:1px solid rgba(0,0,0,.1);font-style:italic;font-size:12px;color:var(--muted)}
 .msg-trans{display:block;margin-top:4px;padding-top:4px;border-top:1px solid rgba(0,0,0,.1);font-style:italic;font-size:12px;color:var(--muted)}
+.msg-check{font-size:13px;margin-left:4px;display:inline-block;width:22px;letter-spacing:-4px}
+.msg-check.sent{color:#999}
+.msg-check.delivered{color:#999}
+.msg-check.read{color:#34b7f1}
+.msg-check.failed{color:#ef4444}
 </style>
 
 </head>
@@ -62,6 +67,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
   <button onclick="switchTab('conversations')" id="tab-conversations">💬 Conversations</button>
   <button onclick="switchTab('plugins')" id="tab-plugins">🧩 Plugins</button>
   <button onclick="switchTab('bots')" id="tab-bots">🤖 Bots</button>
+  <button onclick="switchTab('cluster')" id="tab-cluster">🖥 Cluster</button>
 </nav>
 
 <main id="main"></main>
@@ -109,7 +115,7 @@ function wsConnectChat(botId,convId){
         appendNoteMessage(note);
       }else if(evt.type==='message_status'){
         let st=evt.data||{};
-        if(st.target) refreshChatStatus(st);
+        if(st.msgId) refreshChatStatus(st);
       }
     }catch(ex){}
   };
@@ -138,26 +144,36 @@ function appendNoteMessage(note){
   let meta=bubble.querySelector(".msg-meta");if(meta)bubble.insertBefore(trans,meta);else bubble.appendChild(trans);
 }
 
-function renderMessage(m){if(m.direction==="note")return document.createTextNode("");let cls=m.direction==="incoming"?"msg-in":"msg-out";let status=m.direction==="outgoing"?` · ${m.status||""}`:"";let b=document.createElement("div");b.className="msg-bubble "+cls;if(m.msg_id)b.setAttribute("data-msg-id",m.msg_id);if(m.id)b.setAttribute("data-db-id",m.id);let html='<div>'+m.content+'</div>';
+function renderMessage(m){if(m.direction==="note")return document.createTextNode("");let cls=m.direction==="incoming"?"msg-in":"msg-out";let check='';if(m.direction==="outgoing"){let s=(m.status||'').toUpperCase();let icon='',c='sent';if(s==='READ'||s==='READ_RECEIPT'){icon='\u2713\u2713';c='read'}else if(s==='DELIVERED'||s==='RECEIVED'){icon='\u2713\u2713';c='delivered'}else if(s==='SENT'||s==='EXECUTED'||s==='SERVER_ACK'){icon='\u2713';c='sent'}else if(s==='FAILED'||s==='ERROR'){icon='\u2717';c='failed'}else{icon='\u2713';c='sent'}check=`<span class="msg-check ${c}" data-msg-status="${s||'SENT'}">${icon}</span>`;}let b=document.createElement("div");b.className="msg-bubble "+cls;if(m.msg_id)b.setAttribute("data-msg-id",m.msg_id);if(m.id)b.setAttribute("data-db-id",m.id);let html='<div>'+m.content+'</div>';
   if(m.note)html+='<div class="msg-note-inline">'+m.note+'</div>';
-  html+='<div class="msg-meta">'+m.direction+' · '+(m.content_type||'TEXT')+status+' · '+new Date((m.created_at||0)*1000).toLocaleString()+'</div>';
+  html+='<div class="msg-meta">'+m.direction+' · '+(m.content_type||'TEXT')+' · '+new Date((m.created_at||0)*1000).toLocaleString()+check+'</div>';
   b.innerHTML=html;return b}
 
 function appendChatMessage(msg){
   let mc=document.getElementById('msg-container');if(!mc)return;
   let typeMap={1:'TEXT',2:'AD',3:'INTERACTIVE',4:'URL',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT',9:'STICKER',10:'REACTION',11:'POLL',20:'REVOKE',91:'UNKNOWN_MEDIA',99:'OTHER'};
   let rawType=msg.type;let ctype=typeMap[parseInt(rawType)||rawType]||rawType||'?';
-  let m={direction:msg.from_full?'incoming':'outgoing',content:msg.text||'['+ctype+']',content_type:ctype,created_at:Date.now()/1000,id:msg.db_id||null};
+  let m={direction:msg.from_full?'incoming':'outgoing',content:msg.text||'['+ctype+']',content_type:ctype,created_at:Date.now()/1000,msg_id:msg.msgId||null,id:msg.db_id||null};
   mc.insertBefore(renderMessage(m),mc.firstChild);
   let cnt=document.getElementById('msg-count');if(cnt){let n=parseInt(cnt.textContent)||0;cnt.textContent=(n+1)+' msgs';}
 }
 function refreshChatStatus(st){
-  // Update status on outgoing bubbles
+  // Match bubble by msg_id and update checkmark
   let mc=document.getElementById('msg-container');if(!mc)return;
-  let bubbles=mc.querySelectorAll('.msg-out .msg-meta');
-  for(let b of bubbles){
-    if(b.textContent.includes('outgoing'))b.textContent=b.textContent.replace(/READ|DELIVERED|SENT|EXECUTED/,st.status);
-  }
+  let msgId=st.msgId;if(!msgId)return;
+  let bubble=mc.querySelector('[data-msg-id="'+msgId+'"]');
+  if(!bubble)return;
+  let check=bubble.querySelector('.msg-check');
+  if(!check)return;
+  let s=(st.status||'').toString().toUpperCase();
+  // Map status integer or string to checkmark
+  let statusName='';
+  if(s==='5'||s==='READ'||s==='READ_RECEIPT'){statusName='READ';check.innerHTML='\u2713\u2713';check.className='msg-check read';}
+  else if(s==='4'||s==='DELIVERED'||s==='RECEIVED'){statusName='DELIVERED';check.innerHTML='\u2713\u2713';check.className='msg-check delivered';}
+  else if(s==='3'||s==='SENT'||s==='SERVER_ACK'||s==='EXECUTED'){statusName='SENT';check.innerHTML='\u2713';check.className='msg-check sent';}
+  else if(s==='6'||s==='FAILED'||s==='ERROR'){statusName='FAILED';check.innerHTML='\u2717';check.className='msg-check failed';}
+  else return;
+  check.setAttribute('data-msg-status',statusName);
 }
 function switchTab(name){
   currentTab=name;detailMode=null;wsClose();
@@ -170,13 +186,13 @@ function render(){
   if(detailMode){
     if(detailMode.tab==='escalations') viewEscalation(detailMode.id);
     else if(detailMode.tab==='conversations') viewConversation(detailMode.id);
-    else if(detailMode.tab==='plugins') viewPlugin(detailMode.id);
-    return;
+    else if(detailMode.tab==='plugins') viewPlugin(detailMode.id);    else if(detailMode.tab==='cluster') viewAgent(detailMode.id);    return;
   }
   if(currentTab==='escalations') renderEscalations(m);
   else if(currentTab==='conversations') renderConversations(m);
   else if(currentTab==='plugins') renderPlugins(m);
   else if(currentTab==='bots') renderBots(m);
+  else if(currentTab==='cluster') renderCluster(m);
 }
 function setDetail(tab,id){detailMode={tab,id};}
 function clearDetail(){detailMode=null;wsClose();render();}
@@ -232,8 +248,8 @@ async function viewEscalation(id){
   if(esc.status==='claimed')
     html+=`<button class="btn-outline" onclick="unclaimEscalation(${id})">Unclaim</button>`;
   if(esc.status==='claimed'||esc.status==='pending'){
-    html+=`<button class="btn-primary" onclick="replyEscalation(${id})">Reply</button>
-           <input id="reply-${id}" placeholder="Type reply..." style="flex:1">`;
+    html+=`<input id="reply-${id}" placeholder="Type reply..." style="flex:1">
+           <button class="btn-primary" onclick="replyEscalation(${id})">Reply</button>`;
   }
   if(esc.status!=='resolved')
     html+=`<button class="btn-success" onclick="resolveEscalation(${id})">Resolve</button>`;
@@ -263,6 +279,7 @@ async function replyEscalation(id){
 
 // ── Conversations ─────────────────────────────────────────────────
 let convBot='';
+let convSearch='';
 async function renderConversations(m){
   m.innerHTML='<div class="card"><h3>Loading...</h3></div>';
   let bots=await api('/api/listbot');
@@ -272,20 +289,30 @@ async function renderConversations(m){
   let html='<div class="card"><h3>💬 Conversations</h3>';
   html+='<div class="row"><label>Bot: <select onchange="convBot=this.value;render()">';
   for(let b of botIds)html+=`<option ${b===convBot?'selected':''}>${b}</option>`;
-  html+='</select></label><button class="btn-outline btn-sm" onclick="render()">Refresh</button></div>';
+  html+=`</select></label><input id="conv-search" placeholder="Search LID or PN..." style="flex:1" value="${convSearch||''}" oninput="convSearch=this.value;render()">
+    <button class="btn-outline btn-sm" onclick="convSearch='';render()">Clear</button>
+    <button class="btn-outline btn-sm" onclick="render()">Refresh</button></div>`;
 
   if(convBot){
     let convs=await api('/api/conversation?bot_id='+convBot);
-    html+=`<table><thead><tr><th>JID</th><th>Type</th><th>Msgs</th><th>Last</th><th></th></tr></thead><tbody>`;
+    if(convSearch){
+      let q=convSearch.toLowerCase();
+      convs=convs.filter(c=>(c.jid||'').toLowerCase().includes(q)||(c.pn_jid||'').toLowerCase().includes(q)||(c.notify_name||'').toLowerCase().includes(q));
+    }
+    html+=`<table><thead><tr><th>JID</th><th>Name</th><th>PN</th><th>Type</th><th>Msgs</th><th>Last</th><th></th></tr></thead><tbody>`;
     for(let c of convs){
+      let pn=c.pn_jid?c.pn_jid.replace('@s.whatsapp.net',''):'—';
+      let name=c.notify_name||'—';
       html+=`<tr>
         <td><span style="font-size:12px">${c.jid}</span></td>
+        <td><b>${name}</b></td>
+        <td style="font-size:11px;color:var(--muted)">${pn}</td>
         <td>${c.type}</td><td>${c.message_count}</td>
         <td style="font-size:11px">${c.last_message_at?new Date(c.last_message_at*1000).toLocaleString():''}</td>
         <td><button class="btn-primary btn-sm" onclick="viewConversation('${c.id}')">Chat</button></td>
       </tr>`;
     }
-    html+=convs.length===0?'<tr><td colspan=5 style="color:var(--muted)">No conversations</td></tr>':'';
+    html+=convs.length===0?'<tr><td colspan=7 style="color:var(--muted)">No conversations</td></tr>':'';
     html+='</tbody></table>';
   }
   html+='</div>';m.innerHTML=html;
@@ -295,7 +322,9 @@ async function viewConversation(convId){
   setDetail('conversations',convId);
   let data=await api('/api/conversation/'+convId+'?limit=50');
   let parts=convId.split(':');let botId=parts[0];
-  let html=`<div class="card"><div class="row"><h3>${data.jid}</h3><span class="spacer"></span>
+  let pnSuffix=data.pn_jid?` <span style="font-size:11px;color:var(--muted);font-weight:normal">(PN: ${data.pn_jid.replace('@s.whatsapp.net','')})</span>`:'';
+  let namePrefix=data.notify_name?`<b>${data.notify_name}</b> `:'';
+  let html=`<div class="card"><div class="row"><h3>${namePrefix}${data.jid}${pnSuffix}</h3><span class="spacer"></span>
     <span id="msg-count" style="font-size:12px;color:var(--muted)">${data.message_count} msgs</span>
     <span id="ws-dot" style="color:#10b981;font-size:18px" title="Live">●</span>
     <button class="btn-outline btn-sm" onclick="clearDetail()">← Back</button></div>`;
@@ -371,11 +400,12 @@ async function renderBots(m){
       Uptime: ${Math.floor(health.uptime_seconds/3600)}h ${Math.floor((health.uptime_seconds%3600)/60)}m ·
       DB bots: ${health.db_bot_count} · WS: ${health.ws_connections} · Threads: ${health.thread_count}
     </div>`;
-  html+='<table><thead><tr><th>Bot ID</th><th>Status</th><th>Env</th><th>Uptime</th><th></th></tr></thead><tbody>';
+  html+='<table><thead><tr><th>Bot ID</th><th>Agent</th><th>Status</th><th>Env</th><th>Uptime</th><th></th></tr></thead><tbody>';
   for(let b of bots){
     let upt=b.uptime_seconds?Math.floor(b.uptime_seconds/60)+'m':'';
     let isRunning=b.status==='RUNNING';
     html+=`<tr><td><b>${b.bot_id}</b></td>
+      <td style="font-size:11px;color:var(--muted)">${b.agent_id||'—'}</td>
       <td><span class="badge ${isRunning?'badge-resolved':'badge-pending'}">${b.status}</span></td>
       <td>${b.env||''}</td><td>${upt}</td>
       <td>${isRunning
@@ -383,7 +413,7 @@ async function renderBots(m){
         :`<button class="btn-primary btn-sm" onclick="controlBot('${b.bot_id}','start')">Start</button>`
       }</td></tr>`;
   }
-  html+=bots.length===0?'<tr><td colspan=5 style="color:var(--muted)">No bots registered</td></tr>':'';
+  html+=bots.length===0?'<tr><td colspan=6 style="color:var(--muted)">No bots registered</td></tr>':'';
   html+='</tbody></table></div>';m.innerHTML=html;
 }
 
@@ -398,6 +428,84 @@ async function controlBot(botId,action){
     toast('Stopped '+botId,'#10b981');
   }
   render();
+}
+
+// ── Cluster ────────────────────────────────────────────────────────
+async function renderCluster(m){
+  m.innerHTML='<div class="card"><h3>Loading...</h3></div>';
+  let agents=await api('/api/cluster/agents');
+  let health=await api('/api/health');
+  let html=`<div class="card"><h3>🖥 Cluster</h3>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+      Agents: ${health.agents_total||agents.length} ·
+      Online: ${health.agents_online||agents.filter(a=>a.status==='online').length}
+      <span class="spacer"></span><button class="btn-outline btn-sm" onclick="renderCluster(document.getElementById('main'))">Refresh</button>
+    </div>`;
+  html+='<table><thead><tr><th>Agent ID</th><th>URL</th><th>Bots</th><th>Status</th><th></th></tr></thead><tbody>';
+  for(let a of agents){
+    let bots=a.bots||[]; let n=bots.length;
+    html+=`<tr>
+      <td><b>${a.agent_id}</b></td>
+      <td style="font-size:11px;color:var(--muted)">${a.url}</td>
+      <td>${n}</td>
+      <td><span class="badge ${a.status==='online'?'badge-resolved':'badge-pending'}">${a.status}</span></td>
+      <td><button class="btn-primary btn-sm" onclick="viewAgent('${a.agent_id}')">Manage</button></td>
+    </tr>`;
+  }
+  html+=agents.length===0?'<tr><td colspan=5 style="color:var(--muted)">No agents registered</td></tr>':'';
+  html+='</tbody></table></div>';
+  m.innerHTML=html;
+}
+
+async function viewAgent(agentId){
+  setDetail('cluster',agentId);
+  let agents=await api('/api/cluster/agents');
+  let agent=agents.find(a=>a.agent_id===agentId);
+  if(!agent){toast('Agent not found','#ef4444');clearDetail();return;}
+
+  let bots=agent.bots||[];
+  // Also get living bots from listbot for up-to-date status
+  let allBots=await api('/api/listbot');
+  let agentBots=allBots.filter(b=>b.agent_id===agentId);
+
+  let html=`<div class="card"><div class="row"><h3>${agentId}</h3><span class="spacer"></span>
+    <span class="badge ${agent.status==='online'?'badge-resolved':'badge-pending'}">${agent.status}</span>
+    <button class="btn-outline btn-sm" onclick="clearDetail()">← Back</button></div>`;
+  html+=`<div style="font-size:12px;color:var(--muted);margin:6px 0">URL: ${agent.url} · Bots: ${bots.length}</div>`;
+
+  html+='<table><thead><tr><th>Bot ID</th><th>Status</th><th>Env</th><th>Uptime</th><th>Migrate</th></tr></thead><tbody>';
+  let allAgents=await api('/api/cluster/agents'); // for migrate target options
+
+  for(let b of agentBots){
+    let upt=b.uptime_seconds?Math.floor(b.uptime_seconds/60)+'m':'';
+    let isRunning=b.status==='RUNNING';
+    // Build target agent dropdown
+    let targetOpts=allAgents.filter(a=>a.agent_id!==agentId&&a.status==='online')
+                        .map(a=>`<option value="${a.agent_id}">${a.agent_id} (${a.bot_count||0} bots)</option>`).join('');
+    html+=`<tr><td><b>${b.bot_id}</b></td>
+      <td><span class="badge ${isRunning?'badge-resolved':'badge-pending'}">${b.status}</span></td>
+      <td>${b.env||''}</td><td>${upt}</td>
+      <td>${targetOpts?`<select id="migrate-${b.bot_id}" style="width:140px;font-size:11px">${targetOpts}</select>
+        <button class="btn-primary btn-sm" onclick="migrateBot('${b.bot_id}')">→</button>`:'—'}
+      </td></tr>`;
+  }
+  html+=agentBots.length===0?'<tr><td colspan=5 style="color:var(--muted)">No bots on this agent</td></tr>':'';
+  html+='</tbody></table></div>';
+  document.getElementById('main').innerHTML=html;
+}
+
+async function migrateBot(botId){
+  let sel=document.getElementById('migrate-'+botId);
+  if(!sel)return;
+  let target=sel.value;
+  if(!target)return;
+  if(!confirm(`Migrate bot ${botId} to ${target}?`))return;
+  toast('Migrating...','#3b82f6');
+  try{
+    await api('/api/cluster/migrate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bot_id:botId,target_agent:target})});
+    toast('Migrated!','#10b981');
+  }catch(e){toast('Migration failed','#ef4444')}
+  viewAgent(detailMode.id);
 }
 
 // ── Init ──────────────────────────────────────────────────────────

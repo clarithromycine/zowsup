@@ -149,6 +149,31 @@ class PluginStore:
             )
             conn.commit()
 
+    def export_all(self) -> list[dict]:
+        """Export all plugin configs (for syncing to agents)."""
+        self._ensure_init()
+        conn = self._get_conn()
+        rows = conn.execute("SELECT * FROM plugin_config").fetchall()
+        return [dict(r) for r in rows]
+
+    def import_from(self, rows: list[dict]) -> None:
+        """Bulk-import plugin configs from a central store."""
+        self._ensure_init()
+        now = time.time()
+        with self._lock:
+            conn = self._get_conn()
+            for r in rows:
+                conn.execute(
+                    """INSERT INTO plugin_config (bot_id, plugin_name, enabled, config_json, updated_at)
+                       VALUES (?, ?, ?, ?, ?)
+                       ON CONFLICT(bot_id, plugin_name) DO UPDATE SET
+                           enabled = excluded.enabled,
+                           config_json = excluded.config_json,
+                           updated_at = excluded.updated_at""",
+                    (r["bot_id"], r["plugin_name"], r["enabled"], r["config_json"], now),
+                )
+            conn.commit()
+
     def list_plugins(self, bot_id: str | None = None) -> list[dict]:
         """List plugin states for a bot or globally."""
         self._ensure_init()
@@ -166,3 +191,20 @@ class PluginStore:
 
 # Singleton
 plugin_store = PluginStore()
+
+
+def get_router_plugin_store() -> PluginStore:
+    """Get or create the Router's centralized plugin config store."""
+    from pathlib import Path as _Path
+    import os as _os
+    try:
+        from conf.constants import SysVar
+        db_path = str(_Path(SysVar.ACCOUNT_PATH) / "router_plugin_config.db")
+    except Exception:
+        here = str(_Path(_os.path.dirname(_os.path.abspath(__file__))))
+        base = here.rsplit("/agent", 1)[0]
+        db_path = f"{base}/data/accounts/router_plugin_config.db"
+    _Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+    s = PluginStore(db_path)
+    s._ensure_init()
+    return s

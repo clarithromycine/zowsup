@@ -104,6 +104,10 @@ async def _execute(command: str, req: SendMsgRequest, args: list, options: dict)
                 break
 
     try:
+        # Ensure waitid for msg.send so we get the real WhatsApp msg_id back
+        if command == "msg.send" and "waitid" not in options:
+            options = dict(options)
+            options["waitid"] = 15
         result, error = await asyncio.to_thread(
             bot_manager.execute_cmd,
             bot_id=req.bot_id,
@@ -124,7 +128,7 @@ async def _execute(command: str, req: SendMsgRequest, args: list, options: dict)
         from agent.manager.log_broadcaster import log_broadcaster
         conv_id = f"{req.bot_id}:{req.to}"
         # Store outgoing with translated text
-        out_id = result if isinstance(result, str) and result != "JUSTWAIT" else None
+        out_id = result if isinstance(result, str) and result not in ("JUSTWAIT", "TIMEOUT") else None
         out_row = conv_store.record_message(conv_id=conv_id, bot_id=req.bot_id, jid=req.to, direction="outgoing", content_type="TEXT", content=f"[{target_lang}] {translated_text}" if target_lang else translated_text, msg_id=out_id, status="EXECUTED")
         # Store original as note, linked to parent
         note = conv_store.record_message(conv_id=conv_id, bot_id=req.bot_id, jid=req.to, direction="note", content_type="ORIGINAL", content=original_text, status="")
@@ -192,7 +196,7 @@ def _record_outgoing(bot_id: str, to_jid: str, result, content) -> None:
         # Determine pn_jid: set when canonical_jid is a phone number
         _pn = canonical_jid if canonical_jid.endswith("@s.whatsapp.net") else None
 
-        msg_id = result if isinstance(result, str) and result != "JUSTWAIT" else None
+        msg_id = result if isinstance(result, str) and result not in ("JUSTWAIT", "TIMEOUT") else None
         conv_store.record_message(
             conv_id=conv_id, bot_id=bot_id, jid=canonical_jid,
             direction="outgoing", content_type=ctype, content=text,

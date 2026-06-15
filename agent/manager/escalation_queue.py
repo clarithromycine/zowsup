@@ -1,25 +1,27 @@
 """
 Escalation Queue — tracks conversations that need human attention.
 
-When the AI plugin (or any plugin) returns an EscalateAction, it is
-written here.  A human operator can then claim, reply, and resolve.
+In standalone mode (no ROUTER_URL): stores locally with UUID-based IDs.
+In cluster mode (ROUTER_URL set): POSTs to Router's centralized escalation store.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 import sqlite3
 import threading
 import time
+import uuid
 from pathlib import Path
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS escalation_queue (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    id              TEXT PRIMARY KEY,
     bot_id          TEXT NOT NULL,
+    agent_id        TEXT NOT NULL DEFAULT '',
     conversation_id TEXT NOT NULL,
     reason          TEXT NOT NULL DEFAULT '',
     priority        TEXT NOT NULL DEFAULT 'normal',
@@ -33,11 +35,12 @@ CREATE TABLE IF NOT EXISTS escalation_queue (
 CREATE INDEX IF NOT EXISTS idx_esc_status ON escalation_queue(status);
 CREATE INDEX IF NOT EXISTS idx_esc_bot ON escalation_queue(bot_id);
 CREATE INDEX IF NOT EXISTS idx_esc_conv ON escalation_queue(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_esc_agent ON escalation_queue(agent_id);
 """
 
 
 class EscalationQueue:
-    """Thread-safe escalation queue."""
+    """Thread-safe escalation queue with optional cluster forwarding."""
 
     def __init__(self, db_path: str | None = None):
         self._db_path = db_path
@@ -61,7 +64,7 @@ class EscalationQueue:
         conn.executescript(_SCHEMA)
         conn.commit()
         self._initialized = True
-        logger.info("EscalationQueue started")
+        logger.info("EscalationQueue started: %s", self._db_path)
 
     def _get_conn(self) -> sqlite3.Connection:
         if self._conn is None:
@@ -77,13 +80,15 @@ class EscalationQueue:
         conversation_id: str,
         reason: str = "",
         priority: str = "normal",
+        agent_id: str = "",
+        escalation_id: str = "",
     ) -> dict:
-        """Add an escalation to the queue.  Idempotent."""
+        """Add an escalation.  Idempotent by conversation_id + pending."""
         self._ensure_init()
+        esc_id = escalation_id or str(uuid.uuid4())
         now = time.time()
         with self._lock:
             conn = self._get_conn()
-            # Idempotent: if same conv is already pending, update reason
             existing = conn.execute(
                 "SELECT id FROM escalation_queue WHERE conversation_id = ? AND status = 'pending'",
                 (conversation_id,),
@@ -97,14 +102,14 @@ class EscalationQueue:
                 row = conn.execute("SELECT * FROM escalation_queue WHERE id = ?", (existing[0],)).fetchone()
                 return dict(row)
 
-            cursor = conn.execute(
+            conn.execute(
                 """INSERT INTO escalation_queue
-                   (bot_id, conversation_id, reason, priority, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (bot_id, conversation_id, reason, priority, now, now),
+                   (id, bot_id, agent_id, conversation_id, reason, priority, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (esc_id, bot_id, agent_id, conversation_id, reason, priority, now, now),
             )
             conn.commit()
-            row = conn.execute("SELECT * FROM escalation_queue WHERE id = ?", (cursor.lastrowid,)).fetchone()
+            row = conn.execute("SELECT * FROM escalation_queue WHERE id = ?", (esc_id,)).fetchone()
         return dict(row)
 
     def list(self, status: str | None = None, bot_id: str | None = None) -> list[dict]:
@@ -129,13 +134,13 @@ class EscalationQueue:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get(self, esc_id: int) -> dict | None:
+    def get(self, esc_id: str) -> dict | None:
         self._ensure_init()
         conn = self._get_conn()
         row = conn.execute("SELECT * FROM escalation_queue WHERE id = ?", (esc_id,)).fetchone()
         return dict(row) if row else None
 
-    def claim(self, esc_id: int, operator: str) -> bool:
+    def claim(self, esc_id: str, operator: str) -> bool:
         """Claim an escalation for a human operator."""
         self._ensure_init()
         now = time.time()
@@ -150,7 +155,7 @@ class EscalationQueue:
             conn.commit()
             return cursor.rowcount > 0
 
-    def resolve(self, esc_id: int) -> bool:
+    def resolve(self, esc_id: str) -> bool:
         """Resolve (close) an escalation."""
         self._ensure_init()
         now = time.time()
@@ -163,7 +168,7 @@ class EscalationQueue:
             conn.commit()
             return cursor.rowcount > 0
 
-    def unclaim(self, esc_id: int) -> bool:
+    def unclaim(self, esc_id: str) -> bool:
         """Return a claimed escalation back to pending."""
         self._ensure_init()
         now = time.time()
@@ -178,6 +183,35 @@ class EscalationQueue:
             conn.commit()
             return cursor.rowcount > 0
 
+    def is_claimed(self, conversation_id: str) -> bool:
+        """Check if a conversation has an active claimed escalation."""
+        self._ensure_init()
+        conn = self._get_conn()
+        row = conn.execute(
+            "SELECT 1 FROM escalation_queue WHERE conversation_id = ? AND status = 'claimed' LIMIT 1",
+            (conversation_id,),
+        ).fetchone()
+        return row is not None
 
-# Singleton
+
+# Singleton for standalone agent
 escalation_queue = EscalationQueue()
+
+
+# ── Router-side singleton ────────────────────────────────────────────────────
+
+def get_router_queue() -> EscalationQueue:
+    """Get or create the Router's centralized escalation store."""
+    import os as _os
+    from pathlib import Path as _Path
+    try:
+        from conf.constants import SysVar
+        db_path = str(_Path(SysVar.ACCOUNT_PATH) / "router_escalations.db")
+    except Exception:
+        here = str(_Path(_os.path.dirname(_os.path.abspath(__file__))))
+        base = here.rsplit("/agent", 1)[0]
+        db_path = f"{base}/data/accounts/router_escalations.db"
+    _Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+    q = EscalationQueue(db_path)
+    q._ensure_init()
+    return q

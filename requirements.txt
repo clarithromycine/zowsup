@@ -1,3 +1,9 @@
+# ===== Agent API =====
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.0
+httpx>=0.27.0
+
 # ===== Core WhatsApp Protocol =====
 protobuf==5.29.6
 requests==2.33.0
@@ -42,5 +48,10 @@ greenlet
 six
 aiofiles>=23.0.0
 Flask>=3.0.0
-psutil>=5.9.0
+
+# ===== Agent (HTTP API + WebSocket) =====
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+websockets>=13.0
+
 

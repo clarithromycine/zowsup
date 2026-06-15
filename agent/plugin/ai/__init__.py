@@ -60,15 +60,35 @@ class AIPlugin(Plugin):
             return [NoAction()]
 
         cfg = plugin_store.get_config(self.name, ctx.bot_id)
-        api_key = cfg.get("api_key", "")
-        if not api_key:
-            return [NoAction()]
-
         text = (ctx.content or "").strip()
+        logger.debug("AI on_message: bot=%s text=%s dir=%s enabled=%s", ctx.bot_id, text[:40], ctx.direction, plugin_store.is_enabled(self.name, ctx.bot_id))
         if not text:
             return [NoAction()]
 
-        # ── Fast path: keyword-based escalation (saves LLM call) ──
+        # ── Human takeover: skip AI when operator has claimed this conversation ──
+        import os
+        router_url = os.environ.get("ROUTER_URL", "")
+        if router_url:
+            import httpx, asyncio
+            try:
+                async with httpx.AsyncClient(timeout=httpx.Timeout(5)) as c:
+                    resp = await c.get(f"{router_url}/api/escalation?status=claimed")
+                    if resp.status_code == 200:
+                        items = resp.json()
+                        if isinstance(items, list):
+                            for item in items:
+                                if item.get("conversation_id") == ctx.conversation_id:
+                                    logger.debug("AI skipped: %s is claimed (router)", ctx.conversation_id)
+                                    return [NoAction()]
+            except Exception:
+                pass
+        else:
+            from agent.manager.escalation_queue import escalation_queue
+            if escalation_queue.is_claimed(ctx.conversation_id):
+                logger.debug("AI skipped: %s is claimed by human operator", ctx.conversation_id)
+                return [NoAction()]
+
+        # ── Fast path: keyword-based escalation (no API key needed) ──
         escalate_keywords = cfg.get("escalate_keywords", [])
         if isinstance(escalate_keywords, list):
             lower_text = text.lower()
@@ -79,6 +99,10 @@ class AIPlugin(Plugin):
                         conversation_id=ctx.conversation_id,
                         reason=f"Keyword match: {kw}",
                     )]
+
+        api_key = cfg.get("api_key", "")
+        if not api_key:
+            return [NoAction()]
 
         # ── LLM classification ──
         provider = cfg.get("provider", "openai")

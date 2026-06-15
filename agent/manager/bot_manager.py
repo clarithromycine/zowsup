@@ -155,6 +155,8 @@ class BotManager:
                 logger.warning(f"Bot '{bot_id}' not found")
                 return None
             logger.info(f"Stopping bot '{bot_id}' force=True")
+            try: bot.quit()
+            except Exception: pass
             info = self._build_bot_info(bot_id, bot)
             account_store.update_status(bot_id, "stopped")
             return info
@@ -450,9 +452,15 @@ class BotManager:
             row = conv_store.record_message(
                 conv_id=conv_id, bot_id=bot_id, jid=sender_jid,
                 direction="incoming", content_type=content_type, content=content,
+                msg_id=str(message.get("msgId","")) or None,
                 participant_jid=message.get("participant"),
                 pn_jid=message.get("pn_jid"), status="", raw=str(message),
             )
+            # Update notify_name (contact display name) if present
+            notify = message.get("notify")
+            if notify and "@" not in str(notify):
+                from agent.manager.conversation_store import conv_store
+                conv_store.update_notify_name(conv_id, str(notify))
             if row: message["db_id"] = row["id"]; return row["id"]
             return None
         except Exception: pass
@@ -493,14 +501,18 @@ class BotManager:
             )
             import asyncio
             async def _run():
-                actions = await plugin_manager.dispatch_on_message(ctx)
-                if actions: await plugin_manager.execute_actions(actions)
+                try:
+                    actions = await plugin_manager.dispatch_on_message(ctx)
+                    if actions: await plugin_manager.execute_actions(actions)
+                except Exception:
+                    logger.exception("Plugin dispatch failed")
             try:
                 loop = asyncio.get_running_loop()
                 asyncio.run_coroutine_threadsafe(_run(), loop)
             except RuntimeError:
                 asyncio.run(_run())
-        except Exception: pass
+        except Exception:
+            logger.exception("_dispatch_to_plugins failed")
 
     # ── Command Execution ────────────────────────────────────────────────────
 

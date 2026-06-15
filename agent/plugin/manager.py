@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Type
 
-from agent.plugin import Plugin, MessageContext, Action, NoAction, ReplyAction
+from agent.plugin import Plugin, MessageContext, Action, NoAction, ReplyAction, EscalateAction, ConfigAction
 from agent.plugin.store import plugin_store
 
 logger = logging.getLogger(__name__)
@@ -51,10 +51,13 @@ class PluginManager:
         """Dispatch incoming message to all enabled plugins.  Skips disabled."""
         actions: list[Action] = []
         for name, plugin in self._sorted_plugins():
-            if not plugin_store.is_enabled(name, ctx.bot_id):
+            enabled = plugin_store.is_enabled(name, ctx.bot_id)
+            logger.debug("Plugin '%s' enabled=%s for bot '%s'", name, enabled, ctx.bot_id)
+            if not enabled:
                 continue
             try:
                 result = await plugin.on_message(ctx)
+                logger.debug("Plugin '%s' returned %d actions", name, len(result))
                 actions.extend(result)
             except Exception:
                 logger.exception("Plugin '%s' on_message failed", name)
@@ -125,30 +128,76 @@ class PluginManager:
                     continue
 
                 try:
-                    await asyncio.to_thread(
+                    result, _ = await asyncio.to_thread(
                         bot_manager.execute_cmd,
                         bot_id=bot_id,
                         cmd_name="msg.send",
                         args=[jid, action.text],
+                        options={"waitid": 15},
                         timeout=30,
                     )
+                    # Record outgoing message with msg_id for status tracking
+                    msg_id = result if isinstance(result, str) and result not in ("JUSTWAIT", "TIMEOUT") else None
+                    from agent.manager.conversation_store import conv_store
+                    row = conv_store.record_message(
+                        conv_id=conv_id, bot_id=bot_id, jid=jid,
+                        direction="outgoing", content_type="TEXT",
+                        content=action.text, msg_id=msg_id, status="EXECUTED",
+                    )
+                    # Push to WebSocket so conversation view updates in real-time
+                    from agent.manager.log_broadcaster import log_broadcaster
+                    log_broadcaster.emit_event(bot_id, "message", {
+                        "text": action.text, "type": 1,
+                        "db_id": row["id"], "msgId": msg_id,
+                        "lid": jid,  # for frontend conversation matching
+                    })
                     logger.info("Plugin reply sent to %s: %s", conv_id, action.text[:50])
                 except Exception:
                     logger.exception("Failed to send plugin reply for bot '%s'", bot_id)
 
             elif isinstance(action, EscalateAction):
+                import uuid, os
                 from agent.manager.escalation_queue import escalation_queue
                 parts = action.conversation_id.split(":", 1)
                 esc_bot_id = parts[0] if len(parts) >= 1 else "unknown"
-                escalation_queue.add(
-                    bot_id=esc_bot_id,
-                    conversation_id=action.conversation_id,
-                    reason=action.reason,
-                    priority=action.priority,
-                )
+                esc_id = str(uuid.uuid4())
+
+                # In cluster mode, forward to Router's centralized escalation store
+                router_url = os.environ.get("ROUTER_URL", "")
+                if router_url:
+                    import httpx, asyncio
+                    agent_id = os.environ.get("AGENT_ID", "unknown")
+                    async def _forward():
+                        try:
+                            async with httpx.AsyncClient(timeout=httpx.Timeout(10)) as c:
+                                await c.post(f"{router_url}/api/escalation", json={
+                                    "id": esc_id,
+                                    "bot_id": esc_bot_id,
+                                    "agent_id": agent_id,
+                                    "conversation_id": action.conversation_id,
+                                    "reason": action.reason,
+                                    "priority": action.priority,
+                                })
+                        except Exception:
+                            logger.debug("Failed to forward escalation to router", exc_info=True)
+                    try:
+                        loop = asyncio.get_running_loop()
+                        asyncio.ensure_future(_forward())
+                    except RuntimeError:
+                        pass
+                else:
+                    # Standalone mode: store locally
+                    escalation_queue.add(
+                        bot_id=esc_bot_id,
+                        conversation_id=action.conversation_id,
+                        reason=action.reason,
+                        priority=action.priority,
+                        escalation_id=esc_id,
+                    )
+
                 logger.info(
-                    "Escalated: %s (reason=%s, priority=%s)",
-                    action.conversation_id, action.reason, action.priority,
+                    "Escalated: %s (id=%s, reason=%s, priority=%s)",
+                    action.conversation_id, esc_id, action.reason, action.priority,
                 )
 
             elif isinstance(action, ConfigAction):

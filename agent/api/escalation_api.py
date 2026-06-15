@@ -46,7 +46,7 @@ async def list_escalations(
 # ── Detail ───────────────────────────────────────────────────────────────────
 
 @router.get("/{esc_id}")
-async def get_escalation(esc_id: int):
+async def get_escalation(esc_id: str):
     esc = escalation_queue.get(esc_id)
     if esc is None:
         raise HTTPException(status_code=404, detail=f"Escalation {esc_id} not found")
@@ -58,7 +58,7 @@ async def get_escalation(esc_id: int):
 # ── Claim ────────────────────────────────────────────────────────────────────
 
 @router.post("/{esc_id}/claim")
-async def claim_escalation(esc_id: int, operator: str = Body(..., embed=True)):
+async def claim_escalation(esc_id: str, operator: str = Body(..., embed=True)):
     if not escalation_queue.claim(esc_id, operator):
         raise HTTPException(status_code=409, detail="Already claimed or not found")
     return {"id": esc_id, "claimed_by": operator, "status": "claimed"}
@@ -67,7 +67,7 @@ async def claim_escalation(esc_id: int, operator: str = Body(..., embed=True)):
 # ── Unclaim ──────────────────────────────────────────────────────────────────
 
 @router.post("/{esc_id}/unclaim")
-async def unclaim_escalation(esc_id: int):
+async def unclaim_escalation(esc_id: str):
     if not escalation_queue.unclaim(esc_id):
         raise HTTPException(status_code=409, detail="Not claimed or not found")
     return {"id": esc_id, "status": "pending"}
@@ -76,7 +76,7 @@ async def unclaim_escalation(esc_id: int):
 # ── Resolve ──────────────────────────────────────────────────────────────────
 
 @router.post("/{esc_id}/resolve")
-async def resolve_escalation(esc_id: int):
+async def resolve_escalation(esc_id: str):
     if not escalation_queue.resolve(esc_id):
         raise HTTPException(status_code=404, detail=f"Escalation {esc_id} not found")
     return {"id": esc_id, "status": "resolved"}
@@ -85,7 +85,7 @@ async def resolve_escalation(esc_id: int):
 # ── Reply ────────────────────────────────────────────────────────────────────
 
 @router.post("/{esc_id}/reply")
-async def reply_to_escalation(esc_id: int, text: str = Body(..., embed=True)):
+async def reply_to_escalation(esc_id: str, text: str = Body(..., embed=True)):
     """Send a reply to the escalated conversation via the bot."""
     esc = escalation_queue.get(esc_id)
     if esc is None:
@@ -106,6 +106,7 @@ async def reply_to_escalation(esc_id: int, text: str = Body(..., embed=True)):
             bot_id=bot_id,
             cmd_name="msg.send",
             args=[jid, text],
+            options={"waitid": 15},
             timeout=30,
         )
     except Exception as e:
@@ -113,5 +114,14 @@ async def reply_to_escalation(esc_id: int, text: str = Body(..., embed=True)):
 
     if error:
         raise HTTPException(status_code=500, detail=error.get("msg", "send failed"))
+
+    # Record in conversation store
+    msg_id = result if isinstance(result, str) and result not in ("JUSTWAIT", "TIMEOUT") else None
+    from agent.manager.conversation_store import conv_store
+    conv_store.record_message(
+        conv_id=conv_id, bot_id=bot_id, jid=jid,
+        direction="outgoing", content_type="TEXT",
+        content=text, msg_id=msg_id, status="EXECUTED",
+    )
 
     return {"sent": True, "conversation_id": conv_id, "text": text}

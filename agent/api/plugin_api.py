@@ -94,3 +94,27 @@ async def set_plugin_enabled(
         "bot_id": bot_id or "(global)",
         "enabled": enabled,
     }
+
+
+# ── Cluster reload (called by Router on config change) ──────────────────────
+
+@router.post("/reload")
+async def reload_plugins():
+    """Re-sync plugin config from Router. Called via notification."""
+    import os
+    router_url = os.environ.get("ROUTER_URL", "")
+    if not router_url:
+        return {"ok": True, "synced": 0, "reason": "no ROUTER_URL"}
+
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10)) as client:
+            resp = await client.get(f"{router_url}/api/plugin/sync")
+            if resp.status_code == 200:
+                rows = resp.json()
+                if isinstance(rows, list):
+                    plugin_store.import_from(rows)
+                    return {"ok": True, "synced": len(rows)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    return {"ok": True, "synced": 0}

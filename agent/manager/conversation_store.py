@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS conversations (
     bot_id          TEXT NOT NULL,
     jid             TEXT NOT NULL,
     pn_jid          TEXT,
+    notify_name     TEXT,
     type            TEXT NOT NULL DEFAULT '1v1',
     status          TEXT NOT NULL DEFAULT 'active',
     last_message_at REAL,
@@ -53,6 +54,9 @@ _MIGRATIONS = [
     # Add pn_jid column for phone-number JID (auxiliary to LID-based canonical jid)
     "ALTER TABLE conversations ADD COLUMN pn_jid TEXT",
     "CREATE INDEX IF NOT EXISTS idx_conv_pn ON conversations(pn_jid)",
+    # Add notify_name column for contact display name
+    "ALTER TABLE conversations ADD COLUMN notify_name TEXT",
+    "CREATE INDEX IF NOT EXISTS idx_conv_notify ON conversations(notify_name)",
 ]
 
 
@@ -105,7 +109,7 @@ class ConversationStore:
     # ── Conversations ────────────────────────────────────────────────────────
 
     def upsert_conversation(self, bot_id: str, jid: str, conv_type: str = "1v1",
-                            pn_jid: str | None = None) -> dict:
+                            pn_jid: str | None = None, notify_name: str | None = None) -> dict:
         """Get or create a conversation. Idempotent.
 
         Returns the conversation row as a dict.
@@ -116,11 +120,12 @@ class ConversationStore:
         with self._lock:
             conn = self._get_conn()
             conn.execute(
-                """INSERT INTO conversations (id, bot_id, jid, pn_jid, type, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)
+                """INSERT INTO conversations (id, bot_id, jid, pn_jid, notify_name, type, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(id) DO UPDATE SET pn_jid = COALESCE(excluded.pn_jid, pn_jid),
+                                                 notify_name = COALESCE(excluded.notify_name, notify_name),
                                                  updated_at = ?""",
-                (conv_id, bot_id, jid, pn_jid, conv_type, now, now, now),
+                (conv_id, bot_id, jid, pn_jid, notify_name, conv_type, now, now, now),
             )
             conn.commit()
             row = conn.execute("SELECT * FROM conversations WHERE id = ?", (conv_id,)).fetchone()
@@ -170,6 +175,17 @@ class ConversationStore:
         else:
             rows = conn.execute("SELECT * FROM conversations ORDER BY updated_at DESC").fetchall()
         return [dict(r) for r in rows]
+
+    def update_notify_name(self, conv_id: str, name: str) -> None:
+        """Update the contact display name for a conversation."""
+        self._ensure_init()
+        with self._lock:
+            conn = self._get_conn()
+            conn.execute(
+                "UPDATE conversations SET notify_name = ? WHERE id = ? AND (notify_name IS NULL OR notify_name != ?)",
+                (name, conv_id, name),
+            )
+            conn.commit()
 
     def close_conversation(self, conv_id: str) -> bool:
         """Mark a conversation as closed."""

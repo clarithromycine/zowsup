@@ -128,13 +128,14 @@ async def send_message(conv_id: str, req: SendMessageRequest):
             target_lang = getattr(a, "target_lang", "")
             break
 
-    # Send via msg.send
+    # Send via msg.send (with waitid to capture the real WhatsApp msg_id)
     try:
         result, error = await asyncio.to_thread(
             bot_manager.execute_cmd,
             bot_id=bot_id,
             cmd_name="msg.send",
             args=[jid, content],
+            options={"waitid": 15},
             timeout=30,
         )
     except Exception as e:
@@ -145,7 +146,7 @@ async def send_message(conv_id: str, req: SendMessageRequest):
 
     # Record outgoing message (with [lang] prefix if translated)
     display_text = f"[{target_lang}] {content}" if target_lang else content
-    msg_id = result if isinstance(result, str) and result != "JUSTWAIT" else None
+    msg_id = result if isinstance(result, str) and result not in ("JUSTWAIT", "TIMEOUT") else None
     row = conv_store.record_message(
         conv_id=resolved, bot_id=bot_id, jid=jid,
         direction="outgoing", content_type=req.content_type,

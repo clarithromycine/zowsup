@@ -69,10 +69,8 @@ class BotCmd:
 class ZowBot: 
                     
     def __init__(self,bot_id,env,bot_type=ZowBotType.TYPE_RUN_SINGLETON,auto=False):     
-        self.botId = bot_id          
-
+        self.botId = bot_id                
         self.logger = logging.getLogger(("BOT-"+self.botId) if self.botId is not None else __name__)
-                      
         stackBuilder = YowStackBuilder()
         self.botLayer = ZowBotLayer(self)        
         self.env = env if env is not None else BotEnv(deviceEnv=DeviceEnv("android"),networkEnv=NetworkEnv("direct"))
@@ -88,16 +86,12 @@ class ZowBot:
             self.profile = YowProfile(path+self.botId)   
             self.env.networkEnv.updateProxyByWaNum(self.botId)            
             self.botLayer.db = self.profile.axolotl_manager  
-
-        
             
         self._stack = stackBuilder\
             .pushDefaultLayers()\
             .push(self.botLayer)\
             .build()
                 
-        
-        
 
         self._stack.setProp("env",self.env)        
         self._stack.setProp("ID_TYPE",self.idType)
@@ -405,8 +399,15 @@ class ZowBot:
             # Return exit code if callback requested exit, otherwise 0
             return self._exit_code if self._exit_code is not None else 0
 
+
+                                               
+    def waitLogin(self):
+        return self.botLayer.waitLogin()
+
     def wait_logged_in(self, timeout: float = 30.0) -> bool:
         """Block until the bot finishes login, or timeout expires.
+
+        Returns True if login completed, False on timeout.
         Thread-safe: callable from any thread.
         """
         deadline = time.time() + timeout
@@ -415,7 +416,7 @@ class ZowBot:
                 return True
             time.sleep(0.2)
         return False
-
+    
     def setUpperCallback(self,upperCallback):
         self.upperCallback = upperCallback            
                
@@ -556,7 +557,7 @@ class ZowBot:
                 else:                                   
                     obj["event"].set()    
         else:
-            e = asyncio.Event()
+            e = threading.Event()
             e.set()            
             self.cmdEventMap[cmdId] = {"result":result,"event":e}          
 
