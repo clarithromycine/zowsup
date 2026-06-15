@@ -83,6 +83,7 @@ class MessageHandler:
             message={
                 "type": msg_type,
                 "text": text,
+                "notify": messageProtocolEntity.getNotify() or None,
                 "msgId": messageProtocolEntity.getId(),
                 "from": messageProtocolEntity.getFrom(False),
                 "from_full": from_full,
