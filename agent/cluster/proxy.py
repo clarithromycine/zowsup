@@ -162,7 +162,7 @@ async def proxy_ws(client_ws: WebSocket, target_url: str, path: str) -> None:
     except ImportError:
         logger.warning("websockets library not installed, WS proxy unavailable; install: pip install websockets")
         try:
-            await client_ws.send_text('{"error":"websockets library not installed on router"}')
+            await client_ws.send_text('{"error":"websockets library not installed on cluster"}')
         except Exception:
             pass
     except Exception as exc:

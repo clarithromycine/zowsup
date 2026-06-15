@@ -11,7 +11,7 @@ import sys
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Zowsup Router")
+    parser = argparse.ArgumentParser(description="Zowsup Cluster")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args(argv)
@@ -25,10 +25,10 @@ def main(argv: list[str] | None = None) -> None:
     from conf.constants import SysVar
     SysVar.loadConfig()
 
-    from agent.cluster.router import create_router_app
+    from agent.cluster.router import create_cluster_app
     import uvicorn
 
-    app = create_router_app()
+    app = create_cluster_app()
     uvicorn.run(app, host=args.host, port=args.port)
 
 

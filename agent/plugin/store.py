@@ -193,17 +193,17 @@ class PluginStore:
 plugin_store = PluginStore()
 
 
-def get_router_plugin_store() -> PluginStore:
+def get_cluster_plugin_store() -> PluginStore:
     """Get or create the Router's centralized plugin config store."""
     from pathlib import Path as _Path
     import os as _os
     try:
         from conf.constants import SysVar
-        db_path = str(_Path(SysVar.ACCOUNT_PATH) / "router_plugin_config.db")
+        db_path = str(_Path(SysVar.ACCOUNT_PATH) / "cluster_plugin_config.db")
     except Exception:
         here = str(_Path(_os.path.dirname(_os.path.abspath(__file__))))
         base = here.rsplit("/agent", 1)[0]
-        db_path = f"{base}/data/accounts/router_plugin_config.db"
+        db_path = f"{base}/data/accounts/cluster_plugin_config.db"
     _Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     s = PluginStore(db_path)
     s._ensure_init()

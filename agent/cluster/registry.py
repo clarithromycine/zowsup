@@ -50,7 +50,7 @@ class Registry:
     def _init_db(self):
         if self._db_path is None:
             from conf.constants import SysVar
-            self._db_path = str(Path(SysVar.ACCOUNT_PATH) / "router_registry.db")
+            self._db_path = str(Path(SysVar.ACCOUNT_PATH) / "cluster_registry.db")
         conn = self._get_conn()
         conn.execute("PRAGMA journal_mode=WAL")
         conn.executescript(_SCHEMA)

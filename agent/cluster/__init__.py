@@ -12,6 +12,6 @@ def get_registry():
     return registry
 
 
-def create_router_app():
-    from agent.cluster.router import create_router_app as _create
+def create_cluster_app():
+    from agent.cluster.router import create_cluster_app as _create
     return _create()

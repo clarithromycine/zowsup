@@ -154,8 +154,8 @@ async def lifespan(app: FastAPI):
 
     # ── Cluster auto-registration ────────────────────────────────────────────
     import os
-    router_url = os.environ.get("ROUTER_URL", "")
-    if router_url:
+    cluster_url = os.environ.get("CLUSTER_URL", "")
+    if cluster_url:
         import asyncio, httpx
         agent_id = _agent_id
         own_port = _agent_port or 8000
@@ -167,25 +167,25 @@ async def lifespan(app: FastAPI):
             bots = [info.bot_id for info in bot_manager.list_bots()]
             async with httpx.AsyncClient(timeout=httpx.Timeout(10)) as client:
                 resp = await client.post(
-                    f"{router_url}/api/cluster/agents",
+                    f"{cluster_url}/api/cluster/agents",
                     json={"agent_id": agent_id, "url": own_url, "bots": bots},
                 )
                 if resp.status_code == 200:
-                    print(f"[Agent] Registered with router {router_url} as '{agent_id}'")
+                    print(f"[Agent] Registered with cluster {cluster_url} as '{agent_id}'")
 
             # Sync plugin config from Router
             try:
                 async with httpx.AsyncClient(timeout=httpx.Timeout(10)) as client:
-                    sync_resp = await client.get(f"{router_url}/api/plugin/sync")
+                    sync_resp = await client.get(f"{cluster_url}/api/plugin/sync")
                     if sync_resp.status_code == 200:
                         rows = sync_resp.json()
                         if isinstance(rows, list) and rows:
                             _plugin_store.import_from(rows)
-                            print(f"[Agent] Synced {len(rows)} plugin configs from router")
+                            print(f"[Agent] Synced {len(rows)} plugin configs from cluster")
             except Exception as e:
                 print(f"[Agent] Plugin sync skipped: {e}")
         except Exception as e:
-            print(f"[Agent] Router unreachable ({router_url}): {e}")
+            print(f"[Agent] Cluster unreachable ({cluster_url}): {e}")
 
         # Heartbeat task
         async def _heartbeat():
@@ -195,7 +195,7 @@ async def lifespan(app: FastAPI):
                     async with httpx.AsyncClient(timeout=httpx.Timeout(10)) as c:
                         bots = [info.bot_id for info in bot_manager.list_bots()]
                         await c.post(
-                            f"{router_url}/api/cluster/agents/{agent_id}/heartbeat",
+                            f"{cluster_url}/api/cluster/agents/{agent_id}/heartbeat",
                             json={"bots": bots},
                         )
                 except Exception:
@@ -205,12 +205,12 @@ async def lifespan(app: FastAPI):
     yield
 
     # ── Shutdown ─────────────────────────────────────────────────────────────
-    if router_url:
+    if cluster_url:
         heartbeat_task.cancel()
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(10)) as c:
-                await c.delete(f"{router_url}/api/cluster/agents/{_agent_id}")
-                print(f"[Agent] Deregistered from router")
+                await c.delete(f"{cluster_url}/api/cluster/agents/{_agent_id}")
+                print(f"[Agent] Deregistered from cluster")
         except Exception:
             pass
 

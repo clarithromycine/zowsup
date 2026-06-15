@@ -21,7 +21,7 @@ Since the original yowsup project has not been maintained for a long time, we fo
  * telegram:  [zowsup](https://t.me/+au1dTQz7jyU0YjU5)
 
 ## What's New 0.9.5
- * **Agent cluster** — multi-agent deployment with transparent Router proxy; auto-registration, heartbeat, centralized escalation & plugin config
+ * **Agent cluster** — multi-agent deployment with transparent Cluster proxy; auto-registration, heartbeat, centralized escalation & plugin config
  * **Plugin system** — pluggable translation (Google / LLM / Anthropic) and AI auto-reply (OpenAI / Anthropic / GLM / DeepSeek / Qwen) with keyword escalation
  * **Web Console** — single-page management UI with 4 tabs: Escalations, Conversations (with real-time WebSocket + message status ticks), Plugins, Bots
  * **Conversation CRUD** — SQLite-backed E2E conversation & message persistence with LID/PN resolution and contact notify_name
@@ -79,7 +79,7 @@ python -m agent --port 9090        # Custom port
 
 ### Cluster Mode
 
-Multiple agents behind a transparent Router. The Router exposes the same API as a single agent — clients don't need to know about the cluster.
+Multiple agents behind a transparent Cluster. The Cluster exposes the same API as a single agent — clients don't need to know about the cluster.
 
 ```
                          ┌──────────────┐
@@ -88,7 +88,7 @@ Multiple agents behind a transparent Router. The Router exposes the same API as 
                          └──────┬───────┘
                                 │ HTTP/WS
                          ┌──────▼───────┐
-                         │    Router    │  ← transparent proxy, port 8000
+                         │    Cluster  │  ← transparent proxy, port 8000
                          └──┬───┬───┬───┘
                             │   │   │
                    ┌────────┘   │   └────────┐
@@ -103,37 +103,37 @@ Multiple agents behind a transparent Router. The Router exposes the same API as 
 
 **Each agent must have its own `ACCOUNT_PATH`.** A bot belongs to whichever agent's `ACCOUNT_PATH` contains its directory. Migration = tar + scp the directory.
 
-**Start Router:**
+**Start Cluster:**
 ```bash
 python -m agent.cluster --host 0.0.0.0 --port 8000
 ```
 
-**Start Agents (connect to Router):**
+**Start Agents (connect to Cluster):**
 ```bash
 # Agent A
-AGENT_ID=node-1 ROUTER_URL=http://localhost:8000 python -m agent --port 8001
+AGENT_ID=node-1 CLUSTER_URL=http://localhost:8000 python -m agent --port 8001
 
 # Agent B (different ACCOUNT_PATH)
-ACCOUNT_PATH=/data/accounts-b/ AGENT_ID=node-2 ROUTER_URL=http://localhost:8000 python -m agent --port 8002
+ACCOUNT_PATH=/data/accounts-b/ AGENT_ID=node-2 CLUSTER_URL=http://localhost:8000 python -m agent --port 8002
 ```
 
-**Router manages the cluster:**
+**Cluster manages the cluster:**
 - `GET /api/cluster/agents` — list all agents, bot counts, status
-- `POST /api/cluster/agents` — register new agent (automatic via `ROUTER_URL`)
+- `POST /api/cluster/agents` — register new agent (automatic via `CLUSTER_URL`)
 - `POST /api/cluster/migrate` — automated bot migration between agents
-- Plugin config sync: Router is the source of truth, pushes to agents on change
-- Escalation queue: centralized on Router, all agents forward to it
+- Plugin config sync: Cluster is the source of truth, pushes to agents on change
+- Escalation queue: centralized on Cluster, all agents forward to it
 - Health check: 15s ping, 3 consecutive failures → mark offline
 
 **Features available in both modes:**
 | Feature | Standalone | Cluster |
 |---------|-----------|---------|
-| Web Console (4 tabs) | ✅ | ✅ (via Router) |
-| Translation plugin | ✅ | ✅ (config synced from Router) |
+| Web Console (4 tabs) | ✅ | ✅ (via Cluster) |
+| Translation plugin | ✅ | ✅ (config synced from Cluster) |
 | AI auto-reply + escalation | ✅ | ✅ (escalation centralized) |
 | Conversation CRUD | ✅ | ✅ (per-agent, proxied) |
 | Message status ticks | ✅ | ✅ |
-| WebSocket real-time events | ✅ | ✅ (relayed by Router) |
+| WebSocket real-time events | ✅ | ✅ (relayed by Cluster) |
 
 Full API reference: [`docs/agent-api.md`](docs/agent-api.md)
 Plugin system docs: [`docs/plugin-system.md`](docs/plugin-system.md)

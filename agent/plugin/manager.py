@@ -163,14 +163,14 @@ class PluginManager:
                 esc_id = str(uuid.uuid4())
 
                 # In cluster mode, forward to Router's centralized escalation store
-                router_url = os.environ.get("ROUTER_URL", "")
-                if router_url:
+                cluster_url = os.environ.get("CLUSTER_URL", "")
+                if cluster_url:
                     import httpx, asyncio
                     agent_id = os.environ.get("AGENT_ID", "unknown")
                     async def _forward():
                         try:
                             async with httpx.AsyncClient(timeout=httpx.Timeout(10)) as c:
-                                await c.post(f"{router_url}/api/escalation", json={
+                                await c.post(f"{cluster_url}/api/escalation", json={
                                     "id": esc_id,
                                     "bot_id": esc_bot_id,
                                     "agent_id": agent_id,

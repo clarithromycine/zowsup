@@ -30,12 +30,12 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     registry.start()
     health_task = asyncio.ensure_future(_health_check_loop())
-    logger.info("Router started")
+    logger.info("Cluster started")
     yield
     health_task.cancel()
     from agent.cluster.proxy import close_client
     await close_client()
-    logger.info("Router stopped")
+    logger.info("Cluster stopped")
 
 
 # ── Health checker ───────────────────────────────────────────────────────────
@@ -72,8 +72,8 @@ async def _ping_agent(url: str) -> bool:
 
 # ── App ──────────────────────────────────────────────────────────────────────
 
-def create_router_app() -> FastAPI:
-    app = FastAPI(title="Zowsup Router", version="0.1.0", lifespan=lifespan)
+def create_cluster_app() -> FastAPI:
+    app = FastAPI(title="Zowsup Cluster", version="0.1.0", lifespan=lifespan)
 
     # ── Cluster management ──────────────────────────────────────────────────
 
@@ -207,7 +207,7 @@ def create_router_app() -> FastAPI:
         online = sum(1 for a in agents if a["status"] == "online")
         return {
             "status": "ok",
-            "version": "router-0.1.0",
+            "version": "cluster-0.1.0",
             "uptime_seconds": int(time.time() - _start_time),
             "agents_total": len(agents),
             "agents_online": online,
@@ -260,13 +260,13 @@ def create_router_app() -> FastAPI:
 
     # ── Escalation (centralized) ──────────────────────────────────────────────
 
-    from agent.manager.escalation_queue import get_router_queue
+    from agent.manager.escalation_queue import get_cluster_queue
     _esc_queue = None
 
     def _get_esc():
         nonlocal _esc_queue
         if _esc_queue is None:
-            _esc_queue = get_router_queue()
+            _esc_queue = get_cluster_queue()
         return _esc_queue
 
     @app.get("/api/escalation")
@@ -377,13 +377,13 @@ def create_router_app() -> FastAPI:
 
     # ── Plugin API (centralized) ──────────────────────────────────────────────
 
-    from agent.plugin.store import get_router_plugin_store
+    from agent.plugin.store import get_cluster_plugin_store
     _plugin_store = None
 
     def _get_ps():
         nonlocal _plugin_store
         if _plugin_store is None:
-            _plugin_store = get_router_plugin_store()
+            _plugin_store = get_cluster_plugin_store()
         return _plugin_store
 
     @app.get("/api/plugin")

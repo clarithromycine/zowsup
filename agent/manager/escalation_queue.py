@@ -1,8 +1,8 @@
 """
 Escalation Queue — tracks conversations that need human attention.
 
-In standalone mode (no ROUTER_URL): stores locally with UUID-based IDs.
-In cluster mode (ROUTER_URL set): POSTs to Router's centralized escalation store.
+In standalone mode (no CLUSTER_URL): stores locally with UUID-based IDs.
+In cluster mode (CLUSTER_URL set): POSTs to Router's centralized escalation store.
 """
 
 from __future__ import annotations
@@ -200,17 +200,17 @@ escalation_queue = EscalationQueue()
 
 # ── Router-side singleton ────────────────────────────────────────────────────
 
-def get_router_queue() -> EscalationQueue:
+def get_cluster_queue() -> EscalationQueue:
     """Get or create the Router's centralized escalation store."""
     import os as _os
     from pathlib import Path as _Path
     try:
         from conf.constants import SysVar
-        db_path = str(_Path(SysVar.ACCOUNT_PATH) / "router_escalations.db")
+        db_path = str(_Path(SysVar.ACCOUNT_PATH) / "cluster_escalations.db")
     except Exception:
         here = str(_Path(_os.path.dirname(_os.path.abspath(__file__))))
         base = here.rsplit("/agent", 1)[0]
-        db_path = f"{base}/data/accounts/router_escalations.db"
+        db_path = f"{base}/data/accounts/cluster_escalations.db"
     _Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     q = EscalationQueue(db_path)
     q._ensure_init()

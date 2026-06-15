@@ -102,14 +102,14 @@ async def set_plugin_enabled(
 async def reload_plugins():
     """Re-sync plugin config from Router. Called via notification."""
     import os
-    router_url = os.environ.get("ROUTER_URL", "")
-    if not router_url:
-        return {"ok": True, "synced": 0, "reason": "no ROUTER_URL"}
+    cluster_url = os.environ.get("CLUSTER_URL", "")
+    if not cluster_url:
+        return {"ok": True, "synced": 0, "reason": "no CLUSTER_URL"}
 
     import httpx
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(10)) as client:
-            resp = await client.get(f"{router_url}/api/plugin/sync")
+            resp = await client.get(f"{cluster_url}/api/plugin/sync")
             if resp.status_code == 200:
                 rows = resp.json()
                 if isinstance(rows, list):

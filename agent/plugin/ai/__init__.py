@@ -67,12 +67,12 @@ class AIPlugin(Plugin):
 
         # ── Human takeover: skip AI when operator has claimed this conversation ──
         import os
-        router_url = os.environ.get("ROUTER_URL", "")
-        if router_url:
+        cluster_url = os.environ.get("CLUSTER_URL", "")
+        if cluster_url:
             import httpx, asyncio
             try:
                 async with httpx.AsyncClient(timeout=httpx.Timeout(5)) as c:
-                    resp = await c.get(f"{router_url}/api/escalation?status=claimed")
+                    resp = await c.get(f"{cluster_url}/api/escalation?status=claimed")
                     if resp.status_code == 200:
                         items = resp.json()
                         if isinstance(items, list):
