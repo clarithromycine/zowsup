@@ -423,15 +423,84 @@ class BotManager:
         if event:
             log_broadcaster.emit_event(bot_id, "event", event)
         if message:
+            db_id = self._capture_incoming_message(bot_id, message)
             log_broadcaster.emit_event(bot_id, "message", message)
-            # Record incoming message in conversation store
-            self._capture_incoming_message(bot_id, message)
+            self._dispatch_to_plugins(bot_id, message, db_id)
         if messageStatus:
             log_broadcaster.emit_event(bot_id, "message_status", messageStatus)
-            # Update message delivery status
             self._capture_message_status(bot_id, messageStatus)
         if cmdResult:
             log_broadcaster.emit_event(bot_id, "cmd_result", cmdResult)
+
+    # ── Conversation Capture ─────────────────────────────────────────────────
+
+    def _capture_incoming_message(self, bot_id: str, message: dict) -> None:
+        try:
+            from agent.manager.conversation_store import conv_store
+            from proto.zowsup_pb2 import MessageType
+            sender_jid = message.get("lid") or message.get("from_full") or message.get("from", "")
+            if not sender_jid: return
+            conv_id = f"{bot_id}:{sender_jid}"
+            raw_type = message.get("type", 0)
+            if isinstance(raw_type, int):
+                content_type = MessageType.Name(raw_type) if raw_type in MessageType.values() else str(raw_type)
+            else: content_type = str(raw_type)
+            if content_type in ("TEXT","URL","AD"): content = str(message.get("text",""))
+            else: content = str(message.get("text","")) or f"[{content_type}]"
+            row = conv_store.record_message(
+                conv_id=conv_id, bot_id=bot_id, jid=sender_jid,
+                direction="incoming", content_type=content_type, content=content,
+                participant_jid=message.get("participant"),
+                pn_jid=message.get("pn_jid"), status="", raw=str(message),
+            )
+            if row: message["db_id"] = row["id"]; return row["id"]
+            return None
+        except Exception: pass
+        return None
+
+    def _capture_message_status(self, bot_id: str, status: dict) -> None:
+        try:
+            from agent.manager.conversation_store import conv_store
+            from proto.zowsup_pb2 import MessageStatus
+            msg_id = status.get("msgId")
+            if msg_id:
+                raw_status = status.get("status", 0)
+                if isinstance(raw_status, int) and raw_status in MessageStatus.values():
+                    status_val = MessageStatus.Name(raw_status)
+                else: status_val = str(raw_status)
+                conv_store.update_message_status(str(msg_id), status_val)
+                target_full = status.get("target_full")
+                if target_full and not target_full.endswith("@s.whatsapp.net"):
+                    conv_store.upgrade_conversation_jid(bot_id, str(msg_id), target_full)
+        except Exception: pass
+
+    def _dispatch_to_plugins(self, bot_id: str, message: dict, db_id=None) -> None:
+        try:
+            from agent.plugin import MessageContext
+            from agent.plugin.manager import plugin_manager
+            ctx = MessageContext(
+                bot_id=bot_id,
+                jid=message.get("lid") or message.get("from_full", ""),
+                pn_jid=message.get("pn_jid"),
+                direction="incoming",
+                content_type=str(message.get("type", "TEXT")),
+                content=message.get("text"),
+                message_id=message.get("msgId"),
+                conversation_id=f"{bot_id}:{message.get('lid') or message.get('from_full', '')}",
+                participant_jid=message.get("participant"),
+                raw=message,
+                db_id=db_id,
+            )
+            import asyncio
+            async def _run():
+                actions = await plugin_manager.dispatch_on_message(ctx)
+                if actions: await plugin_manager.execute_actions(actions)
+            try:
+                loop = asyncio.get_running_loop()
+                asyncio.run_coroutine_threadsafe(_run(), loop)
+            except RuntimeError:
+                asyncio.run(_run())
+        except Exception: pass
 
     # ── Command Execution ────────────────────────────────────────────────────
 
@@ -535,85 +604,6 @@ class BotManager:
                 results[bot_id] = {"success": False, "error": str(e)}
 
         return results
-
-    # ── Conversation Capture ─────────────────────────────────────────────────
-
-    def _capture_incoming_message(self, bot_id: str, message: dict) -> None:
-        """Record an incoming WhatsApp message in the conversation store."""
-        try:
-            from agent.manager.conversation_store import conv_store
-            from proto.zowsup_pb2 import MessageType
-
-            # Use normalized LID as canonical JID (falls back to from_full)
-            sender_jid = message.get("lid") or message.get("from_full") or message.get("from", "")
-            if not sender_jid:
-                return
-
-            conv_id = f"{bot_id}:{sender_jid}"
-
-            # Map protobuf enum integer -> string name
-            raw_type = message.get("type", 0)
-            if isinstance(raw_type, int):
-                content_type = MessageType.Name(raw_type) if raw_type in MessageType.values() else str(raw_type)
-            else:
-                content_type = str(raw_type)
-
-            # Extract text content
-            if content_type in ("TEXT", "URL", "AD"):
-                content = str(message.get("text", ""))
-            else:
-                caption = str(message.get("text", ""))
-                content = caption or f"[{content_type}]"
-
-            participant = message.get("participant")
-
-            conv_store.record_message(
-                conv_id=conv_id,
-                bot_id=bot_id,
-                jid=sender_jid,
-                direction="incoming",
-                content_type=content_type,
-                content=content,
-                participant_jid=participant,
-                pn_jid=message.get("pn_jid"),
-                status="",
-                raw=str(message),
-            )
-        except Exception:
-            logger.debug(f"Failed to capture incoming message for bot '{bot_id}'", exc_info=True)
-
-    def _capture_message_status(self, bot_id: str, status: dict) -> None:
-        """Update message delivery status from onNotification callback.
-
-        Also upgrades PN-based conversations to LID-based when the server
-        ACK provides the recipient's LID in target_full.
-        """
-        try:
-            from agent.manager.conversation_store import conv_store
-            from proto.zowsup_pb2 import MessageStatus
-
-            msg_id = status.get("msgId")
-            if msg_id:
-                raw_status = status.get("status", 0)
-                # Map proto enum integer -> string name
-                if isinstance(raw_status, int) and raw_status in MessageStatus.values():
-                    status_val = MessageStatus.Name(raw_status)
-                else:
-                    status_val = str(raw_status)
-                # Convert ack timestamp string → float
-                ack_ts = status.get("timestamp")
-                sent_at = float(ack_ts) if ack_ts else None
-
-                conv_store.update_message_status(str(msg_id), status_val,
-                    sent_at=sent_at)
-
-                # On SENT, the server ACK's target_full may be the LID.
-                # Upgrade the conversation's jid from PN → LID if needed.
-                target_full = status.get("target_full")
-                if target_full and not target_full.endswith("@s.whatsapp.net"):
-                    conv_store.upgrade_conversation_jid(bot_id, str(msg_id), target_full)
-        except Exception:
-            logger.debug(f"Failed to update msg status for bot '{bot_id}'", exc_info=True)
 
 
 # Singleton instance

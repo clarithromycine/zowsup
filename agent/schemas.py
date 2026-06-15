@@ -243,6 +243,7 @@ class MessageInfo(BaseModel):
     status_updated: Optional[float] = None
     sent_at: float = 0.0
     created_at: float = 0.0
+    note: Optional[str] = None
 
 
 class ConversationDetail(ConversationInfo):

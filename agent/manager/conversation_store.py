@@ -259,6 +259,23 @@ class ConversationStore:
 
     # ── Messages ─────────────────────────────────────────────────────────────
 
+    @staticmethod
+    def _merge_notes(msgs: list[dict]) -> list[dict]:
+        """Merge note-direction rows into their parent message.
+        In DESC order, notes appear before their parent, so we iterate
+        forward and attach remembered notes to the next non-note message."""
+        result = []
+        pending = None
+        for m in msgs:
+            if m["direction"] == "note":
+                pending = m["content"]
+            else:
+                if pending is not None:
+                    m["note"] = pending
+                    pending = None
+                result.append(m)
+        return result
+
     def get_messages(
         self, conv_id: str, limit: int = 50,
         before: float | None = None,
@@ -295,7 +312,8 @@ class ConversationStore:
                 "SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT ?",
                 (conv_id, limit),
             ).fetchall()
-        return [dict(r) for r in rows]
+        msgs = [dict(r) for r in rows]
+        return self._merge_notes(msgs)
 
     def record_message(
         self,
@@ -345,15 +363,21 @@ class ConversationStore:
                 (conv_id, msg_id, direction, content_type, content,
                  participant_jid, status, raw, sent_at, now),
             )
-            # Update conversation metadata
-            conn.execute(
-                """UPDATE conversations
-                   SET message_count = message_count + 1,
-                       last_message_at = ?,
-                       updated_at = ?
-                   WHERE id = ?""",
-                (sent_at, now, conv_id),
-            )
+            # Update conversation metadata (skip notes for message_count)
+            if direction != "note":
+                conn.execute(
+                    """UPDATE conversations
+                       SET message_count = message_count + 1,
+                           last_message_at = ?,
+                           updated_at = ?
+                       WHERE id = ?""",
+                    (sent_at, now, conv_id),
+                )
+            else:
+                conn.execute(
+                    "UPDATE conversations SET updated_at = ? WHERE id = ?",
+                    (now, conv_id),
+                )
             conn.commit()
             row = conn.execute("SELECT * FROM messages WHERE id = ?", (cursor.lastrowid,)).fetchone()
         return dict(row)

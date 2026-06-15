@@ -114,13 +114,27 @@ async def send_message(conv_id: str, req: SendMessageRequest):
     if bot_info is None or bot_manager.get_bot_instance(bot_id) is None:
         raise HTTPException(status_code=404, detail=f"Bot '{bot_id}' not found or not running")
 
+    # Allow plugins to transform outgoing content
+    original_content = req.content
+    content = original_content
+    target_lang = ""
+    from agent.plugin import MessageContext
+    from agent.plugin.manager import plugin_manager
+    ctx = MessageContext(bot_id=bot_id, jid=jid, direction="outgoing", content_type=req.content_type, content=content, conversation_id=resolved)
+    actions = await plugin_manager.dispatch_on_before_send(ctx)
+    for a in actions:
+        if hasattr(a, "text"):
+            content = a.text
+            target_lang = getattr(a, "target_lang", "")
+            break
+
     # Send via msg.send
     try:
         result, error = await asyncio.to_thread(
             bot_manager.execute_cmd,
             bot_id=bot_id,
             cmd_name="msg.send",
-            args=[jid, req.content],
+            args=[jid, content],
             timeout=30,
         )
     except Exception as e:
@@ -129,18 +143,25 @@ async def send_message(conv_id: str, req: SendMessageRequest):
     if error:
         raise HTTPException(status_code=500, detail=error.get("msg", "send failed"))
 
-    # Record outgoing message
+    # Record outgoing message (with [lang] prefix if translated)
+    display_text = f"[{target_lang}] {content}" if target_lang else content
     msg_id = result if isinstance(result, str) and result != "JUSTWAIT" else None
     row = conv_store.record_message(
-        conv_id=resolved,
-        bot_id=bot_id,
-        jid=jid,
-        direction="outgoing",
-        content_type=req.content_type,
-        content=req.content,
-        msg_id=msg_id,
-        status="EXECUTED",
+        conv_id=resolved, bot_id=bot_id, jid=jid,
+        direction="outgoing", content_type=req.content_type,
+        content=display_text, msg_id=msg_id, status="EXECUTED",
     )
+
+    # If translated, store original as a note + include in response
+    if content != original_content:
+        from agent.manager.log_broadcaster import log_broadcaster
+        note = conv_store.record_message(
+            conv_id=resolved, bot_id=bot_id, jid=jid,
+            direction="note", content_type="ORIGINAL",
+            content=original_content, status="",
+        )
+        row["note"] = original_content
+
     return MessageInfo(**row)
 
 

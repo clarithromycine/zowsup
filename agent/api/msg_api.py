@@ -88,6 +88,21 @@ async def _execute(command: str, req: SendMsgRequest, args: list, options: dict)
     if bot_manager.get_bot(req.bot_id) is None:
         raise HTTPException(status_code=404, detail=f"Bot '{req.bot_id}' not found")
 
+    original_text = args[1] if command == "msg.send" and len(args) >= 2 else ""
+    translated_text = None
+    target_lang = ""
+    if command == "msg.send" and len(args) >= 2:
+        from agent.plugin import MessageContext
+        from agent.plugin.manager import plugin_manager
+        ctx = MessageContext(bot_id=req.bot_id, jid=args[0], direction="outgoing", content_type="TEXT", content=args[1], conversation_id=f"{req.bot_id}:{args[0]}")
+        actions = await plugin_manager.dispatch_on_before_send(ctx)
+        for a in actions:
+            if hasattr(a, "text"):
+                translated_text = a.text
+                target_lang = getattr(a, "target_lang", "")
+                args[1] = a.text
+                break
+
     try:
         result, error = await asyncio.to_thread(
             bot_manager.execute_cmd,
@@ -104,8 +119,17 @@ async def _execute(command: str, req: SendMsgRequest, args: list, options: dict)
     if error:
         return CmdResult(retcode=error.get("code", -1), error=error.get("msg", "unknown error"))
 
-    # Record outgoing message
-    _record_outgoing(req.bot_id, req.to, result, req.content)
+    if translated_text and translated_text != original_text:
+        from agent.manager.conversation_store import conv_store
+        from agent.manager.log_broadcaster import log_broadcaster
+        conv_id = f"{req.bot_id}:{req.to}"
+        # Store outgoing with translated text
+        out_id = result if isinstance(result, str) and result != "JUSTWAIT" else None
+        out_row = conv_store.record_message(conv_id=conv_id, bot_id=req.bot_id, jid=req.to, direction="outgoing", content_type="TEXT", content=f"[{target_lang}] {translated_text}" if target_lang else translated_text, msg_id=out_id, status="EXECUTED")
+        # Store original as note, linked to parent
+        note = conv_store.record_message(conv_id=conv_id, bot_id=req.bot_id, jid=req.to, direction="note", content_type="ORIGINAL", content=original_text, status="")
+    else:
+        _record_outgoing(req.bot_id, req.to, result, req.content)
     return CmdResult(retcode=0, result=result)
 
 

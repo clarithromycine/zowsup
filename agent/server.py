@@ -112,16 +112,33 @@ async def lifespan(app: FastAPI):
     conv_store.start()
     bot_manager.start_periodic_flush(interval=600.0)
 
+    from agent.plugin.store import plugin_store as _plugin_store
+    from agent.plugin.manager import plugin_manager as _plugin_manager
+    from agent.manager.escalation_queue import escalation_queue as _escalation_queue
+    _plugin_store.start()
+    _escalation_queue.start()
+
+    from agent.plugin.ai import AIPlugin
+    from agent.plugin.translation import TranslationPlugin
+    _plugin_manager.register(TranslationPlugin())
+    _plugin_manager.register(AIPlugin())
+    _plugin_store.set_config("translation", {"work_lang":"zh","target_lang":"en","provider":"google"})
+    _plugin_store.set_enabled("translation", True)
+
     from agent.api.bot_api import router as bot_router
     from agent.api.cmd_api import router as cmd_router
     from agent.api.msg_api import router as msg_router
     from agent.api.log_api import router as log_router
     from agent.api.conversation_api import router as conv_router
+    from agent.api.plugin_api import router as plugin_router
+    from agent.api.escalation_api import router as escalation_router
     app.include_router(bot_router)
     app.include_router(cmd_router)
     app.include_router(msg_router)
     app.include_router(log_router)
     app.include_router(conv_router)
+    app.include_router(plugin_router)
+    app.include_router(escalation_router)
 
     import logging
     logging.getLogger('transitions').setLevel(logging.WARNING)
@@ -224,6 +241,19 @@ def create_app() -> FastAPI:
             memory_bytes=mem,
             cpu_time_seconds=cpu_time,
         )
+
+    # Web console: http://host:port/console
+    import os as _os
+    _dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "static")
+    _idx = _os.path.join(_dir, "index.html")
+    if _os.path.isfile(_idx):
+        from starlette.responses import FileResponse
+        @app.get("/console", include_in_schema=False)
+        async def _console(): return FileResponse(_idx)
+        @app.get("/console/", include_in_schema=False)
+        async def _console_slash(): return FileResponse(_idx)
+        @app.get("/", include_in_schema=False)
+        async def _root(): return FileResponse(_idx)
 
     app.include_router(api_router)
 

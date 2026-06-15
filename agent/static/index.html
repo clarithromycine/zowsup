@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zowsup Agent Console</title>
+<style>
+:root{
+  --bg:#f5f6fa;--card:#fff;--border:#e2e4ea;--text:#2c2c2c;--muted:#7b809a;
+  --primary:#3b82f6;--danger:#ef4444;--success:#10b981;--warn:#f59e0b;
+  --p10:10px;--r8:8px;--sh:0 1px 3px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:14px/1.5 -apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;height:100vh}
+nav{width:200px;background:var(--card);border-right:1px solid var(--border);padding:var(--p10);display:flex;flex-direction:column;gap:4px}
+nav h2{font-size:15px;padding:8px 10px;color:var(--muted)}
+nav button{text-align:left;padding:8px 10px;border:none;background:none;cursor:pointer;border-radius:var(--r8);font-size:13px}
+nav button:hover{background:#f0f1f5}
+nav button.active{background:var(--primary);color:#fff}
+main{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px}
+.card{background:var(--card);border-radius:var(--r8);box-shadow:var(--sh);padding:16px}
+.card h3{font-size:14px;margin-bottom:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+th{color:var(--muted);font-weight:600}
+tr:hover{background:#f8f9fc}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-pending{background:#fef3c7;color:#b45309}
+.badge-claimed{background:#dbeafe;color:#1e40af}
+.badge-resolved{background:#d1fae5;color:#065f46}
+.badge-high{background:#fce4ec;color:#c62828}
+.badge-normal{background:#e8eaf6;color:#283593}
+button{font-size:13px;padding:6px 14px;border:none;border-radius:var(--r8);cursor:pointer;font-weight:500}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-success{background:var(--success);color:#fff}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--text)}
+.btn-sm{padding:4px 10px;font-size:12px}
+input,select,textarea{font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--r8);width:200px}
+textarea{width:100%;resize:vertical;min-height:60px}
+.msg-bubble{max-width:80%;padding:8px 12px;border-radius:12px;margin:4px 0;font-size:13px;line-height:1.4}
+.msg-in{background:#e8f0fe;align-self:flex-start}
+.msg-out{background:#e8f5e9;align-self:flex-end;margin-left:auto}
+.msg-note{background:#fff3e0;font-style:italic;font-size:12px;align-self:flex-start}
+.msg-meta{font-size:11px;color:var(--muted);margin-top:2px}
+#msg-container{display:flex;flex-direction:column-reverse;gap:2px;max-height:400px;overflow-y:auto}
+label{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
+.field{margin-bottom:10px}
+.toast{position:fixed;bottom:20px;right:20px;padding:10px 20px;border-radius:var(--r8);color:#fff;font-size:13px;z-index:999;animation:fade .3s}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.msg-note-inline{margin-top:4px;padding-top:4px;border-top:1px solid rgba(0,0,0,.1);font-style:italic;font-size:12px;color:var(--muted)}
+.msg-trans{display:block;margin-top:4px;padding-top:4px;border-top:1px solid rgba(0,0,0,.1);font-style:italic;font-size:12px;color:var(--muted)}
+</style>
+
+</head>
+<body>
+<nav>
+  <h2>Zowsup Console</h2>
+  <button onclick="switchTab('escalations')" id="tab-escalations" class="active">🟡 Escalations</button>
+  <button onclick="switchTab('conversations')" id="tab-conversations">💬 Conversations</button>
+  <button onclick="switchTab('plugins')" id="tab-plugins">🧩 Plugins</button>
+  <button onclick="switchTab('bots')" id="tab-bots">🤖 Bots</button>
+</nav>
+
+<main id="main"></main>
+
+<script>
+const API = '';
+
+function toast(msg,color='#333'){let t=document.createElement('div');t.className='toast';t.style.background=color;t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2500)}
+
+async function api(url,opts={}){
+  try{
+    let r=await fetch(API+url,opts);
+    if(!r.ok) throw new Error((await r.json()).detail||r.statusText);
+    return await r.json();
+  }catch(e){toast(e.message,'#ef4444');throw e}
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────
+let currentTab='escalations';
+let detailMode=null; // {tab, id} when viewing a detail
+let wsConn=null;     // WebSocket for real-time events
+
+function wsClose(){
+  if(wsConn){wsConn.close();wsConn=null;wsUrl='';}
+}
+let wsUrl='';
+function wsConnectChat(botId,convId){
+  let proto=location.protocol==='https:'?'wss:':'ws:';
+  let url=`${proto}//${location.host}/api/bot/${botId}/events?tail=0`;
+  if(wsConn&&wsUrl===url)return; // Already connected, don't duplicate
+  wsClose();
+  wsUrl=url;
+  wsConn=new WebSocket(url);
+  wsConn.onmessage=function(e){
+    try{
+      let evt=JSON.parse(e.data);
+      if(evt.type==='message'){
+        let msg=evt.data||{};
+        let msgConv=botId+':'+(msg.lid||msg.from_full||'');
+        if(msgConv!==convId)return;
+        appendChatMessage(msg);
+      }else if(evt.type==='note'){
+        let note=evt.data||{};
+        if(note.conversation_id!==convId)return;
+        appendNoteMessage(note);
+      }else if(evt.type==='message_status'){
+        let st=evt.data||{};
+        if(st.target) refreshChatStatus(st);
+      }
+    }catch(ex){}
+  };
+  wsConn.onclose=function(){wsConn=null;};
+}
+
+async function refreshChat(convId){
+  let mc=document.getElementById('msg-container');if(!mc)return;
+  let data=await api('/api/conversation/'+convId+'?limit=50');
+  mc.innerHTML='';
+  for(let m of data.messages){
+    if(m.direction==='note')continue;
+    mc.appendChild(renderMessage(m));
+  }
+}
+
+function appendNoteMessage(note){
+  let mc=document.getElementById('msg-container');if(!mc)return;
+  // Match by parent_id (DB id), then msg_id, then latest bubble
+  let bubble=null;
+  if(note.parent_id)bubble=mc.querySelector('[data-db-id="'+note.parent_id+'"]');
+  if(!bubble&&note.msg_id)bubble=mc.querySelector('[data-msg-id="'+note.msg_id+'"]');
+  if(!bubble)return; // No fallback — will appear on next API refresh
+  let trans=document.createElement('div');trans.className='msg-note-inline';
+  trans.textContent=note.content||'';
+  let meta=bubble.querySelector(".msg-meta");if(meta)bubble.insertBefore(trans,meta);else bubble.appendChild(trans);
+}
+
+function renderMessage(m){if(m.direction==="note")return document.createTextNode("");let cls=m.direction==="incoming"?"msg-in":"msg-out";let status=m.direction==="outgoing"?` · ${m.status||""}`:"";let b=document.createElement("div");b.className="msg-bubble "+cls;if(m.msg_id)b.setAttribute("data-msg-id",m.msg_id);if(m.id)b.setAttribute("data-db-id",m.id);let html='<div>'+m.content+'</div>';
+  if(m.note)html+='<div class="msg-note-inline">'+m.note+'</div>';
+  html+='<div class="msg-meta">'+m.direction+' · '+(m.content_type||'TEXT')+status+' · '+new Date((m.created_at||0)*1000).toLocaleString()+'</div>';
+  b.innerHTML=html;return b}
+
+function appendChatMessage(msg){
+  let mc=document.getElementById('msg-container');if(!mc)return;
+  let typeMap={1:'TEXT',2:'AD',3:'INTERACTIVE',4:'URL',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT',9:'STICKER',10:'REACTION',11:'POLL',20:'REVOKE',91:'UNKNOWN_MEDIA',99:'OTHER'};
+  let rawType=msg.type;let ctype=typeMap[parseInt(rawType)||rawType]||rawType||'?';
+  let m={direction:msg.from_full?'incoming':'outgoing',content:msg.text||'['+ctype+']',content_type:ctype,created_at:Date.now()/1000,id:msg.db_id||null};
+  mc.insertBefore(renderMessage(m),mc.firstChild);
+  let cnt=document.getElementById('msg-count');if(cnt){let n=parseInt(cnt.textContent)||0;cnt.textContent=(n+1)+' msgs';}
+}
+function refreshChatStatus(st){
+  // Update status on outgoing bubbles
+  let mc=document.getElementById('msg-container');if(!mc)return;
+  let bubbles=mc.querySelectorAll('.msg-out .msg-meta');
+  for(let b of bubbles){
+    if(b.textContent.includes('outgoing'))b.textContent=b.textContent.replace(/READ|DELIVERED|SENT|EXECUTED/,st.status);
+  }
+}
+function switchTab(name){
+  currentTab=name;detailMode=null;wsClose();
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  render();
+}
+function render(){
+  let m=document.getElementById('main');
+  if(detailMode){
+    if(detailMode.tab==='escalations') viewEscalation(detailMode.id);
+    else if(detailMode.tab==='conversations') viewConversation(detailMode.id);
+    else if(detailMode.tab==='plugins') viewPlugin(detailMode.id);
+    return;
+  }
+  if(currentTab==='escalations') renderEscalations(m);
+  else if(currentTab==='conversations') renderConversations(m);
+  else if(currentTab==='plugins') renderPlugins(m);
+  else if(currentTab==='bots') renderBots(m);
+}
+function setDetail(tab,id){detailMode={tab,id};}
+function clearDetail(){detailMode=null;wsClose();render();}
+
+// ── Escalations ───────────────────────────────────────────────────
+let escFilter='pending';
+async function renderEscalations(m){
+  m.innerHTML='<div class="card"><h3>Loading...</h3></div>';
+  let items=await api('/api/escalation?status='+escFilter);
+  let html='<div class="card"><h3>🟡 Escalations</h3>';
+  html+='<div class="row" style="margin-bottom:10px">';
+  for(let s of ['pending','claimed','resolved'])
+    html+=`<button class="${escFilter===s?'btn-primary':'btn-outline'} btn-sm" onclick="escFilter='${s}';clearDetail()">${s}</button>`;
+  html+=' <span class="spacer"></span><span style="font-size:12px;color:var(--muted)">'+items.length+' items</span></div>';
+  html+='<table><thead><tr><th>Conv</th><th>Reason</th><th>Priority</th><th>Status</th><th>When</th><th></th></tr></thead><tbody>';
+  for(let e of items){
+    let jid=e.conversation?e.conversation.jid:e.conversation_id.split(':').slice(1).join(':');
+    html+=`<tr>
+      <td><b>${e.bot_id}</b><br><span style="font-size:11px;color:var(--muted)">${jid||''}</span></td>
+      <td>${e.reason||''}</td>
+      <td><span class="badge badge-${e.priority}">${e.priority}</span></td>
+      <td><span class="badge badge-${e.status}">${e.status}</span></td>
+      <td style="font-size:11px">${new Date(e.created_at*1000).toLocaleString()}</td>
+      <td><button class="btn-primary btn-sm" onclick="viewEscalation(${e.id})">View</button></td>
+    </tr>`;
+  }
+  html+=items.length===0?'<tr><td colspan=6 style="text-align:center;color:var(--muted)">No escalations</td></tr>':'';
+  html+='</tbody></table></div>';
+  m.innerHTML=html;
+}
+
+async function viewEscalation(id){
+  setDetail('escalations',id);
+  let esc=await api('/api/escalation/'+id);
+  let msgs=esc.messages||[];
+  let html=`<div class="card"><div class="row"><h3>Escalation #${id}</h3><span class="spacer"></span>
+    <span class="badge badge-${esc.status}">${esc.status}</span>
+    <button class="btn-outline btn-sm" onclick="clearDetail()">← Back</button></div>`;
+  html+=`<div style="font-size:13px;margin:8px 0"><b>Bot:</b> ${esc.bot_id} &nbsp; <b>Reason:</b> ${esc.reason} &nbsp; <b>Priority:</b> ${esc.priority}</div>`;
+
+  // Messages
+  html+='<div id="msg-container">';
+  for(let m of msgs){
+    if(m.direction==='note')continue;
+    html+=renderMessage(m).outerHTML;
+  }
+  html+='</div>';
+
+  // Actions
+  html+='<div class="row" style="margin-top:12px">';
+  if(esc.status==='pending')
+    html+=`<button class="btn-primary" onclick="claimEscalation(${id})">Claim</button>`;
+  if(esc.status==='claimed')
+    html+=`<button class="btn-outline" onclick="unclaimEscalation(${id})">Unclaim</button>`;
+  if(esc.status==='claimed'||esc.status==='pending'){
+    html+=`<button class="btn-primary" onclick="replyEscalation(${id})">Reply</button>
+           <input id="reply-${id}" placeholder="Type reply..." style="flex:1">`;
+  }
+  if(esc.status!=='resolved')
+    html+=`<button class="btn-success" onclick="resolveEscalation(${id})">Resolve</button>`;
+  html+='</div></div>';
+  document.getElementById('main').innerHTML=html;
+}
+
+async function claimEscalation(id){
+  let op=prompt('Operator name?','kenny');if(!op)return;
+  await api('/api/escalation/'+id+'/claim',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operator:op})});
+  toast('Claimed','#3b82f6');viewEscalation(id);
+}
+async function unclaimEscalation(id){
+  await api('/api/escalation/'+id+'/unclaim',{method:'POST'});
+  toast('Unclaimed');viewEscalation(id);
+}
+async function resolveEscalation(id){
+  await api('/api/escalation/'+id+'/resolve',{method:'POST'});
+  toast('Resolved','#10b981');render();
+}
+async function replyEscalation(id){
+  let inp=document.getElementById('reply-'+id);
+  let text=inp.value.trim();if(!text)return;
+  await api('/api/escalation/'+id+'/reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+  toast('Sent','#10b981');inp.value='';viewEscalation(id);
+}
+
+// ── Conversations ─────────────────────────────────────────────────
+let convBot='';
+async function renderConversations(m){
+  m.innerHTML='<div class="card"><h3>Loading...</h3></div>';
+  let bots=await api('/api/listbot');
+  let botIds=bots.map(b=>b.bot_id).filter(Boolean);
+  if(!convBot&&botIds.length)convBot=botIds[0];
+
+  let html='<div class="card"><h3>💬 Conversations</h3>';
+  html+='<div class="row"><label>Bot: <select onchange="convBot=this.value;render()">';
+  for(let b of botIds)html+=`<option ${b===convBot?'selected':''}>${b}</option>`;
+  html+='</select></label><button class="btn-outline btn-sm" onclick="render()">Refresh</button></div>';
+
+  if(convBot){
+    let convs=await api('/api/conversation?bot_id='+convBot);
+    html+=`<table><thead><tr><th>JID</th><th>Type</th><th>Msgs</th><th>Last</th><th></th></tr></thead><tbody>`;
+    for(let c of convs){
+      html+=`<tr>
+        <td><span style="font-size:12px">${c.jid}</span></td>
+        <td>${c.type}</td><td>${c.message_count}</td>
+        <td style="font-size:11px">${c.last_message_at?new Date(c.last_message_at*1000).toLocaleString():''}</td>
+        <td><button class="btn-primary btn-sm" onclick="viewConversation('${c.id}')">Chat</button></td>
+      </tr>`;
+    }
+    html+=convs.length===0?'<tr><td colspan=5 style="color:var(--muted)">No conversations</td></tr>':'';
+    html+='</tbody></table>';
+  }
+  html+='</div>';m.innerHTML=html;
+}
+
+async function viewConversation(convId){
+  setDetail('conversations',convId);
+  let data=await api('/api/conversation/'+convId+'?limit=50');
+  let parts=convId.split(':');let botId=parts[0];
+  let html=`<div class="card"><div class="row"><h3>${data.jid}</h3><span class="spacer"></span>
+    <span id="msg-count" style="font-size:12px;color:var(--muted)">${data.message_count} msgs</span>
+    <span id="ws-dot" style="color:#10b981;font-size:18px" title="Live">●</span>
+    <button class="btn-outline btn-sm" onclick="clearDetail()">← Back</button></div>`;
+  html+='<div id="msg-container">';
+  for(let m of data.messages){
+    if(m.direction==='note')continue;
+    html+=renderMessage(m).outerHTML;
+  }
+  html+='</div>';
+  html+=`<div class="row" style="margin-top:12px"><input id="send-${convId}" placeholder="Send message..." style="flex:1">
+    <button class="btn-primary" onclick="sendConversationMsg('${convId}')">Send</button></div>`;
+  html+='</div>';
+  document.getElementById('main').innerHTML=html;
+  wsConnectChat(botId,convId);
+}
+
+async function sendConversationMsg(convId){
+  let inp=document.getElementById('send-'+convId);let text=inp.value.trim();if(!text)return;
+  let msg=await api('/api/conversation/'+convId+'/message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:text})});
+  toast('Sent','#10b981');inp.value='';
+  // Append locally instead of full reload
+  let mc=document.getElementById('msg-container');if(mc)mc.insertBefore(renderMessage(msg),mc.firstChild);
+  let cnt=document.getElementById('msg-count');if(cnt){let n=parseInt(cnt.textContent)||0;cnt.textContent=(n+1)+' msgs';}
+}
+
+// ── Plugins ──────────────────────────────────────────────────────
+async function renderPlugins(m){
+  m.innerHTML='<div class="card"><h3>Loading...</h3></div>';
+  let plugins=await api('/api/plugin');
+  let html='<div class="card"><h3>🧩 Plugins</h3><table><thead><tr><th>Name</th><th>Version</th><th>Priority</th><th>Enabled</th><th></th></tr></thead><tbody>';
+  for(let p of plugins){
+    html+=`<tr>
+      <td><b>${p.name}</b><br><span style="font-size:11px;color:var(--muted)">${p.description}</span></td>
+      <td>${p.version}</td><td>${p.priority}</td>
+      <td><span class="badge ${p.enabled?'badge-resolved':'badge-pending'}">${p.enabled?'ON':'OFF'}</span></td>
+      <td><button class="btn-primary btn-sm" onclick="viewPlugin('${p.name}')">Config</button></td>
+    </tr>`;
+  }
+  html+='</tbody></table></div>';m.innerHTML=html;
+}
+
+async function viewPlugin(name){
+  setDetail('plugins',name);
+  let data=await api('/api/plugin/'+name+'/config');
+  let html=`<div class="card"><div class="row"><h3>${name}</h3><span class="spacer"></span>
+    <button class="btn-outline btn-sm" onclick="clearDetail()">← Back</button></div>`;
+  html+=`<div class="row" style="margin:10px 0"><span class="badge ${data.enabled?'badge-resolved':'badge-pending'}">${data.enabled?'Enabled':'Disabled'}</span></div>`;
+  html+=`<div class="field"><label>Config JSON</label><textarea id="cfg-${name}" style="height:200px;font-family:monospace">${JSON.stringify(data.config,null,2)}</textarea></div>`;
+  html+=`<div class="row">
+    <button class="btn-primary" onclick="savePluginConfig('${name}')">Save Config</button>
+    <button class="btn-${data.enabled?'danger':'success'}" onclick="togglePlugin('${name}',${data.enabled})">${data.enabled?'Disable':'Enable'}</button></div>`;
+  html+='</div>';document.getElementById('main').innerHTML=html;
+}
+
+async function savePluginConfig(name){
+  let raw=document.getElementById('cfg-'+name).value;
+  let cfg;try{cfg=JSON.parse(raw)}catch(e){toast('Invalid JSON','#ef4444');return}
+  await api('/api/plugin/'+name+'/config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});
+  toast('Saved','#10b981');viewPlugin(name);
+}
+async function togglePlugin(name,current){
+  await api('/api/plugin/'+name+'/enabled',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:!current})});
+  toast(current?'Disabled':'Enabled','#10b981');viewPlugin(name);
+}
+
+// ── Bots ─────────────────────────────────────────────────────────
+async function renderBots(m){
+  m.innerHTML='<div class="card"><h3>Loading...</h3></div>';
+  let bots=await api('/api/listbot');
+  let health=await api('/api/health');
+  let html=`<div class="card"><h3>🤖 Bots</h3>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+      Uptime: ${Math.floor(health.uptime_seconds/3600)}h ${Math.floor((health.uptime_seconds%3600)/60)}m ·
+      DB bots: ${health.db_bot_count} · WS: ${health.ws_connections} · Threads: ${health.thread_count}
+    </div>`;
+  html+='<table><thead><tr><th>Bot ID</th><th>Status</th><th>Env</th><th>Uptime</th><th></th></tr></thead><tbody>';
+  for(let b of bots){
+    let upt=b.uptime_seconds?Math.floor(b.uptime_seconds/60)+'m':'';
+    let isRunning=b.status==='RUNNING';
+    html+=`<tr><td><b>${b.bot_id}</b></td>
+      <td><span class="badge ${isRunning?'badge-resolved':'badge-pending'}">${b.status}</span></td>
+      <td>${b.env||''}</td><td>${upt}</td>
+      <td>${isRunning
+        ?`<button class="btn-danger btn-sm" onclick="controlBot('${b.bot_id}','stop')">Stop</button>`
+        :`<button class="btn-primary btn-sm" onclick="controlBot('${b.bot_id}','start')">Start</button>`
+      }</td></tr>`;
+  }
+  html+=bots.length===0?'<tr><td colspan=5 style="color:var(--muted)">No bots registered</td></tr>':'';
+  html+='</tbody></table></div>';m.innerHTML=html;
+}
+
+async function controlBot(botId,action){
+  if(action==='start'){
+    toast('Starting '+botId+'...','#3b82f6');
+    await api('/api/startbot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bot_ids:[botId]})});
+    toast('Started '+botId,'#10b981');
+  }else{
+    toast('Stopping '+botId+'...','#f59e0b');
+    await api('/api/stopbot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bot_ids:[botId],mode:'force'})});
+    toast('Stopped '+botId,'#10b981');
+  }
+  render();
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+render();
+// Auto-refresh list views only (detail views use WebSocket)
+setInterval(()=>{if(!detailMode)render()},15000); // Auto-refresh every 15s
+</script>
+</body>
+</html>
