@@ -5,9 +5,9 @@ zowsup is a python whatsapp-protocol project based on [yowsup](https://github.co
 Since the original yowsup project has not been maintained for a long time, we forked yowsup and some associated projects(axolotl, consonance) and integrated into an All-In-One Project and keep updating with the latest version of WhatsApp.
 
 ```
-- ZOWSUP VERSION : 0.9.0
+- ZOWSUP VERSION : 0.9.5
 
-- UPDATE TIME : 2026-06-02
+- UPDATE TIME : 2026-06-15
 
 - WHATSAPP VERSION : 
     2.26.21.75(Android) 
@@ -19,6 +19,15 @@ Since the original yowsup project has not been maintained for a long time, we fo
 
 ## Discussion Groups
  * telegram:  [zowsup](https://t.me/+au1dTQz7jyU0YjU5)
+
+## What's New 0.9.5
+ * **Agent cluster** — multi-agent deployment with transparent Router proxy; auto-registration, heartbeat, centralized escalation & plugin config
+ * **Plugin system** — pluggable translation (Google / LLM / Anthropic) and AI auto-reply (OpenAI / Anthropic / GLM / DeepSeek / Qwen) with keyword escalation
+ * **Web Console** — single-page management UI with 4 tabs: Escalations, Conversations (with real-time WebSocket + message status ticks), Plugins, Bots
+ * **Conversation CRUD** — SQLite-backed E2E conversation & message persistence with LID/PN resolution and contact notify_name
+ * **Escalation queue** — claim / reply / resolve workflow for human takeover of AI-escalated conversations
+ * **Bot last-active tracking** — runtime cache with periodic flush to account store
+ * **Automated bot migration** — stop → tar+base64 export → import → start → cleanup across agents
 
 ## What's New 0.9.0
 IMPORTANT NOTICE:  0.9.0 architecture is not compatible with 0.6.5, so if you have already work in 0.6.5, don't update,  you can track on old code from the branch "legacy"
@@ -32,20 +41,6 @@ IMPORTANT NOTICE:  0.9.0 architecture is not compatible with 0.6.5, so if you ha
 
 ## What's New 0.6.5
  * New interactive mode
-
-## What's New 0.6.0
- * New commands `md.link` and `md.remove`
- * Linkcode for companion device registration
-
-## What's New 0.5.0
- * Latest version (6.3) of noise-protocol and token-dictionary
- * Multi-Environment support (android, smb_android, ios, smb_ios)
- * Multi-Device protocol support
- * Display a QR to login as a companion device
- * 6-parts account support (import / export)
- * Proxy support
- * Bubbling up all config variables to the top layer (app and conf folder)
- * Mass of WA-protocol updates
 
 ## Subsequent update promise
  * Critical protocol update
@@ -62,14 +57,87 @@ A FastAPI-based HTTP + WebSocket service for remote multi-bot WhatsApp managemen
 - Account import / export (6-segment CSV format)
 - Optional access key authentication
 
-Start the agent:
+### Standalone Mode
+
+Single agent manages all bots directly. Good for single-machine deployments.
+
+```
+┌──────────┐
+│  Client  │──→ HTTP/WS ──→ ┌─────────┐
+│ (Web UI) │                │  Agent  │──→ WhatsApp
+└──────────┘                │ (bots)  │
+                            └─────────┘
+```
 
 ```bash
 python -m agent                    # No auth, listens on 0.0.0.0:8000
 python -m agent --accesskey mykey  # Auth required
+python -m agent --port 9090        # Custom port
+
+# Open http://localhost:8000/ for Web Console
 ```
 
+### Cluster Mode
+
+Multiple agents behind a transparent Router. The Router exposes the same API as a single agent — clients don't need to know about the cluster.
+
+```
+                         ┌──────────────┐
+                         │   Browser    │
+                         │ (Web Console)│
+                         └──────┬───────┘
+                                │ HTTP/WS
+                         ┌──────▼───────┐
+                         │    Router    │  ← transparent proxy, port 8000
+                         └──┬───┬───┬───┘
+                            │   │   │
+                   ┌────────┘   │   └────────┐
+                   ▼            ▼            ▼
+              ┌────────┐  ┌────────┐  ┌────────┐
+              │Agent A │  │Agent B │  │Agent C │
+              │ :8001  │  │ :8002  │  │ :8003  │
+              │ bot1   │  │ bot3   │  │ bot5   │
+              │ bot2   │  │ bot4   │  │ bot6   │
+              └────────┘  └────────┘  └────────┘
+```
+
+**Each agent must have its own `ACCOUNT_PATH`.** A bot belongs to whichever agent's `ACCOUNT_PATH` contains its directory. Migration = tar + scp the directory.
+
+**Start Router:**
+```bash
+python -m agent.cluster --host 0.0.0.0 --port 8000
+```
+
+**Start Agents (connect to Router):**
+```bash
+# Agent A
+AGENT_ID=node-1 ROUTER_URL=http://localhost:8000 python -m agent --port 8001
+
+# Agent B (different ACCOUNT_PATH)
+ACCOUNT_PATH=/data/accounts-b/ AGENT_ID=node-2 ROUTER_URL=http://localhost:8000 python -m agent --port 8002
+```
+
+**Router manages the cluster:**
+- `GET /api/cluster/agents` — list all agents, bot counts, status
+- `POST /api/cluster/agents` — register new agent (automatic via `ROUTER_URL`)
+- `POST /api/cluster/migrate` — automated bot migration between agents
+- Plugin config sync: Router is the source of truth, pushes to agents on change
+- Escalation queue: centralized on Router, all agents forward to it
+- Health check: 15s ping, 3 consecutive failures → mark offline
+
+**Features available in both modes:**
+| Feature | Standalone | Cluster |
+|---------|-----------|---------|
+| Web Console (4 tabs) | ✅ | ✅ (via Router) |
+| Translation plugin | ✅ | ✅ (config synced from Router) |
+| AI auto-reply + escalation | ✅ | ✅ (escalation centralized) |
+| Conversation CRUD | ✅ | ✅ (per-agent, proxied) |
+| Message status ticks | ✅ | ✅ |
+| WebSocket real-time events | ✅ | ✅ (relayed by Router) |
+
 Full API reference: [`docs/agent-api.md`](docs/agent-api.md)
+Plugin system docs: [`docs/plugin-system.md`](docs/plugin-system.md)
+Cluster design: [`docs/agent-cluster-design.md`](docs/agent-cluster-design.md)
 
 
 ## Command Architecture Overview
