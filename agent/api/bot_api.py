@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException
 from agent.manager.bot_manager import bot_manager
 from agent.manager.account_store import account_store
 from agent.schemas import (
-    BotInfo, BotStartRequest, BatchStartRequest, BatchStopRequest, ListBotRequest,
+    BotInfo, BotStartRequest, BatchStartRequest, BatchStopRequest,
     BatchResult, BotImportRequest, BotExportRequest, BotExportEntry,
     BotStatus, PurgeRequest, PurgeResponse, PurgeResultEntry,
 )
@@ -24,17 +24,8 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 @router.get("/api/listbot", response_model=list[BotInfo], response_model_exclude_none=True)
-async def list_bots_all():
+async def list_bots():
     return bot_manager.list_bots()
-
-
-@router.post("/api/listbot", response_model=list[BotInfo], response_model_exclude_none=True)
-async def list_bots_filtered(req: ListBotRequest):
-    all_bots = bot_manager.list_bots()
-    if req.bot_ids is None:
-        return all_bots
-    bot_id_set = set(req.bot_ids)
-    return [b for b in all_bots if b.bot_id in bot_id_set]
 
 
 @router.get("/api/bot/{bot_id}", response_model=BotInfo, response_model_exclude_none=True)
@@ -43,31 +34,6 @@ async def get_bot(bot_id: str):
     if info is None:
         raise HTTPException(status_code=404, detail=f"Bot '{bot_id}' not found")
     return info
-
-
-@router.delete("/api/bot/{bot_id}", response_model=dict)
-async def delete_bot(bot_id: str):
-    """Remove an account from the DB and its data directory. Use with caution."""
-    import shutil
-
-    # Stop if running
-    bot_manager.stop_bot(bot_id)
-
-    # Remove from account store
-    existed = account_store.remove(bot_id)
-
-    # Remove data directory (best-effort)
-    try:
-        from conf.constants import SysVar
-        acct_dir = Path(SysVar.ACCOUNT_PATH) / bot_id
-        if acct_dir.exists():
-            shutil.rmtree(acct_dir)
-    except Exception:
-        pass
-
-    if existed:
-        return {"bot_id": bot_id, "deleted": True}
-    raise HTTPException(status_code=404, detail=f"Account '{bot_id}' not found in store")
 
 
 @router.post("/api/startbot", response_model=BatchResult, response_model_exclude_none=True)
@@ -106,9 +72,7 @@ async def start_bots(req: BatchStartRequest):
             bot = await asyncio.to_thread(bot_manager.get_bot_instance, bot_id)
             if bot is None:
                 return BotInfo(bot_id=bot_id, status=BotStatus.ERROR, error="Bot instance lost")
-            # Use per-bot login_timeout if specified, else default 30s
-            timeout = next((r.login_timeout or 30.0 for r in all_requests if hasattr(r, 'login_timeout')), 30.0)
-            return await asyncio.to_thread(bot_manager.wait_bot_login, bot, login_timeout=timeout)
+            return await asyncio.to_thread(bot_manager.wait_bot_login, bot)
         except Exception as e:
             return BotInfo(bot_id=bot_id, status=BotStatus.ERROR, error=str(e))
 
@@ -123,12 +87,11 @@ async def start_bots(req: BatchStartRequest):
 
 @router.post("/api/stopbot", response_model=BatchResult, response_model_exclude_none=True)
 async def stop_bots(req: BatchStopRequest):
-    force = req.mode == "force"
     results = []; success = 0; errors = 0
     for bot_id in req.bot_ids:
-        info = bot_manager.stop_bot(bot_id, force=force)
+        info = bot_manager.stop_bot(bot_id)
         if info is None:
-            results.append(BotInfo(bot_id=bot_id, status=BotStatus.ERROR, error="Bot not running")); errors += 1
+            results.append(BotInfo(bot_id=bot_id, status="ERROR", error="Bot not running")); errors += 1
         else:
             results.append(info); success += 1
     return BatchResult(results=results, success_count=success, error_count=errors)
