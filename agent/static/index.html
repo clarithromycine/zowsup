@@ -25,6 +25,7 @@ main.chat-mode{overflow:hidden;padding:12px}
 .card.chat-card .chat-foot{padding-top:10px;border-top:1px solid var(--border);margin-top:8px}
 .chat-foot textarea{font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r8);line-height:1.4;min-height:36px;max-height:120px}
 .card h3{font-size:14px;margin-bottom:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.card.chat-card h3{text-transform:none;letter-spacing:0;color:var(--text)}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .spacer{flex:1}
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -338,9 +339,10 @@ async function viewConversation(convId){
   setDetail('conversations',convId);
   let data=await api('/api/conversation/'+convId+'?limit=50');
   let parts=convId.split(':');let botId=parts[0];
-  let pnSuffix=data.pn_jid?` <span style="font-size:11px;color:var(--muted);font-weight:normal">(PN: ${data.pn_jid.replace('@s.whatsapp.net','')})</span>`:'';
-  let namePrefix=data.notify_name?`<b>${data.notify_name}</b> `:'';
-  let html=`<div class="card chat-card"><div class="row" style="flex-shrink:0"><h3>${namePrefix}${data.jid}${pnSuffix}</h3><span class="spacer"></span>
+  let name=data.notify_name||'';
+  let pn=data.pn_jid?data.pn_jid.replace('@s.whatsapp.net',''):'';
+  let title=name?`<b>${name}</b> <span style="font-size:11px;color:var(--muted);font-weight:normal">(jid=${data.jid}, pn=${pn})</span>`:`<b>${data.jid}</b>`;
+  let html=`<div class="card chat-card"><div class="row" style="flex-shrink:0"><h3>${title}</h3><span class="spacer"></span>
     <span id="msg-count" style="font-size:12px;color:var(--muted)">${data.message_count} msgs</span>
     <span id="ws-dot" style="color:#10b981;font-size:18px" title="Live">●</span>
     <button class="btn-outline btn-sm" onclick="clearDetail()">← Back</button></div>
