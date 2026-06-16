@@ -156,6 +156,87 @@ def create_cluster_app() -> FastAPI:
         from agent.cluster.migrate import migrate_bot
         return await migrate_bot(request)
 
+    @cluster_router.post("/api/cluster/deploybot")
+    async def deploy_bot(request: Request):
+        """Deploy bot(s) to the least-loaded agent in the cluster.
+
+        Accepts the same JSON body as Agent's POST /api/importbot
+        ({accounts: [{data: "phone,cc,...", env: "android"}, ...]}),
+        picks the best agent, forwards the import, and starts all
+        successfully imported bots.
+
+        Naming: `deploybot` (not `importbot`) to distinguish the cluster-level
+        "pick agent and distribute" responsibility from the agent-level "parse
+        CSV and store locally" responsibility.
+        """
+        body = await request.json()
+        accounts = body.get("accounts", [])
+        if not accounts:
+            raise HTTPException(status_code=400, detail="accounts list required")
+
+        # Pick the least-loaded online agent
+        agent = registry.pick_agent()
+        if not agent:
+            raise HTTPException(status_code=503, detail="No online agent available")
+
+        # Capacity check
+        current_bots = len(registry.list_bot_routes(agent["agent_id"]))
+        new_bots = len(accounts)
+        if current_bots + new_bots > registry.MAX_BOTS_PER_AGENT:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Target agent '{agent['agent_id']}' would exceed capacity "
+                       f"({current_bots + new_bots} > {registry.MAX_BOTS_PER_AGENT})",
+            )
+
+        # Forward import to the agent
+        from agent.cluster.proxy import _get_client
+        client = _get_client()
+        resp = await client.post(
+            f"{agent['url']}/api/importbot",
+            json={"accounts": accounts},
+            timeout=60,
+        )
+        if resp.status_code != 200:
+            detail = ""
+            try:
+                detail = resp.json().get("detail", resp.text[:200])
+            except Exception:
+                detail = resp.text[:200]
+            raise HTTPException(status_code=resp.status_code, detail=f"Agent import failed: {detail}")
+
+        import_result = resp.json()
+        success_count = import_result.get("success_count", 0)
+        results = import_result.get("results", [])
+
+        if success_count == 0:
+            return {
+                "deployed_to": agent["agent_id"],
+                "success_count": 0,
+                "results": results,
+            }
+
+        # Start successfully imported bots on the agent
+        imported_ids = [r["bot_id"] for r in results if r.get("status") == "STOPPED"]
+        if imported_ids:
+            start_resp = await client.post(
+                f"{agent['url']}/api/startbot",
+                json={"bot_ids": imported_ids, "mode": "fire"},
+                timeout=30,
+            )
+            if start_resp.status_code == 200:
+                start_data = start_resp.json()
+                # Route each started bot to this agent
+                for r in start_data.get("results", []):
+                    if r.get("status") != "ERROR":
+                        registry.route_bot(r["bot_id"], agent["agent_id"])
+
+        return {
+            "deployed_to": agent["agent_id"],
+            "success_count": success_count,
+            "results": results,
+        }
+
     # Register cluster management routes (all guarded by _check_cluster_secret)
     app.include_router(cluster_router)
 
@@ -194,6 +275,44 @@ def create_cluster_app() -> FastAPI:
             "agents_online": online,
         }
 
+    @app.get("/api/cluster/health")
+    async def cluster_health_aggregate():
+        """Aggregate health from all online agents. Returns per-agent status
+        plus cluster-wide totals."""
+        agents = registry.list_agents()
+        online_agents = [a for a in agents if a["status"] == "online"]
+        per_agent = []
+        total_bots = 0
+        total_db_bots = 0
+
+        from agent.cluster.proxy import _get_client
+        client = _get_client()
+        for agent in online_agents:
+            try:
+                resp = await client.get(f"{agent['url']}/api/health", timeout=5)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    data["agent_id"] = agent["agent_id"]
+                    per_agent.append(data)
+                    total_bots += data.get("running_bots", 0)
+                    total_db_bots += data.get("db_bot_count", 0)
+            except Exception:
+                per_agent.append({
+                    "agent_id": agent["agent_id"],
+                    "status": "unreachable",
+                })
+
+        return {
+            "status": "ok",
+            "version": "cluster-0.1.0",
+            "uptime_seconds": int(time.time() - _start_time),
+            "agents_total": len(agents),
+            "agents_online": len(online_agents),
+            "total_running_bots": total_bots,
+            "total_db_bots": total_db_bots,
+            "agents": per_agent,
+        }
+
     # ── Bot-specific proxy ───────────────────────────────────────────────────
 
     @app.api_route("/api/bot/{bot_id}/{rest:path}", methods=["GET", "POST", "PUT", "DELETE"])
@@ -225,13 +344,42 @@ def create_cluster_app() -> FastAPI:
 
     @app.get("/api/conversation")
     async def proxy_conversation_list(request: Request):
-        # Route by bot_id query param
+        """List conversations: route by bot_id if provided, otherwise
+        scatter to all online agents, merge results, and dedup by id."""
         bot_id = request.query_params.get("bot_id")
         if bot_id:
             route = registry.resolve_bot(bot_id)
             if route:
                 return await proxy_http(request, route["url"])
-        return await proxy_with_body_fallback(request)
+            raise HTTPException(status_code=404, detail=f"Bot '{bot_id}' not routed")
+
+        # Scatter-gather with dedup
+        from agent.cluster.proxy import _get_client
+        client = _get_client()
+        seen: set[str] = set()
+        merged: list[dict] = []
+        query_str = str(request.url.query) if request.url.query else ""
+
+        for agent in registry.list_agents():
+            if agent["status"] != "online":
+                continue
+            try:
+                url = f"{agent['url']}/api/conversation"
+                if query_str:
+                    url += f"?{query_str}"
+                resp = await client.get(url, timeout=10)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    items = data if isinstance(data, list) else [data]
+                    for item in items:
+                        cid = item.get("id") or item.get("conversation_id", "")
+                        if cid and cid not in seen:
+                            seen.add(cid)
+                            item["agent_id"] = agent["agent_id"]
+                            merged.append(item)
+            except Exception as exc:
+                logger.debug("conversation scatter failed for %s: %s", agent["agent_id"], exc)
+        return merged
 
     # ── Send message proxy ───────────────────────────────────────────────────
 

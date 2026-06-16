@@ -407,3 +407,54 @@ class TestPluginSync:
         assert self.store.is_enabled("translation") is True
         # ai config should be overridden
         assert self.store.get_config("ai")["model"] == "gpt-5"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Phase C — new endpoint tests
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestClusterDeploybot:
+    """C1: POST /api/cluster/deploybot validation."""
+
+    def test_deploybot_missing_accounts_400(self, cluster):
+        r = requests.post(f"{cluster}/api/cluster/deploybot", json={}, headers=_h())
+        assert r.status_code == 400
+
+    def test_deploybot_without_secret_403(self, cluster):
+        r = requests.post(f"{cluster}/api/cluster/deploybot",
+                          json={"accounts": [{"data": "123,cn,k,ios,u,enc", "env": "ios"}]})
+        assert r.status_code == 403
+
+    def test_deploybot_no_online_agent_503(self, cluster):
+        """With no online agents, deploybot returns 503. Otherwise forward fails with 502 (agent unreachable)."""
+        r = requests.post(f"{cluster}/api/cluster/deploybot",
+                          json={"accounts": [{"data": "123,cn,k,ios,u,enc", "env": "ios"}]},
+                          headers=_h())
+        # If there are online agents, the forward to an unreachable agent
+        # returns 502; if no agents, returns 503. Both are valid "can't deploy" states.
+        assert r.status_code in (502, 503), f"Unexpected status: {r.status_code}"
+
+
+class TestClusterHealth:
+    """C5: GET /api/cluster/health aggregate."""
+
+    def test_cluster_health_structure(self, cluster):
+        r = requests.get(f"{cluster}/api/cluster/health")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["status"] == "ok"
+        assert "version" in data
+        assert "agents_total" in data
+        assert "agents_online" in data
+        assert "total_running_bots" in data
+        assert "total_db_bots" in data
+        assert isinstance(data["agents"], list)
+
+
+class TestMigrateCapacity:
+    """C4: Migration capacity check."""
+
+    def test_max_bots_config_exists(self):
+        from agent.cluster.registry import registry
+        assert hasattr(registry, 'MAX_BOTS_PER_AGENT')
+        assert registry.MAX_BOTS_PER_AGENT > 0

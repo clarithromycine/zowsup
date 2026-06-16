@@ -57,6 +57,11 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
 .msg-check.delivered{color:#999}
 .msg-check.read{color:#34b7f1}
 .msg-check.failed{color:#ef4444}
+.plugin-editor-row td{padding:0;border:none}
+.plugin-editor-inner{margin:8px 10px;padding:10px;background:#f8f9fc;border-radius:var(--r8);border:1px solid var(--border)}
+.plugin-editor-inner textarea{width:100%;min-height:120px;font-family:monospace;font-size:12px}
+.plugin-row{cursor:pointer}
+.plugin-row:hover{background:#f0f4ff}
 </style>
 
 </head>
@@ -351,19 +356,66 @@ async function sendConversationMsg(convId){
 }
 
 // ── Plugins ──────────────────────────────────────────────────────
+let _pluginCache={};
 async function renderPlugins(m){
   m.innerHTML='<div class="card"><h3>Loading...</h3></div>';
   let plugins=await api('/api/plugin');
   let html='<div class="card"><h3>🧩 Plugins</h3><table><thead><tr><th>Name</th><th>Version</th><th>Priority</th><th>Enabled</th><th></th></tr></thead><tbody>';
+  _pluginCache={};
   for(let p of plugins){
-    html+=`<tr>
+    _pluginCache[p.name]=p;
+    html+=`<tr id="plugin-row-${p.name}" class="plugin-row" onclick="toggleInlineEditor('${p.name}')">
       <td><b>${p.name}</b><br><span style="font-size:11px;color:var(--muted)">${p.description}</span></td>
       <td>${p.version}</td><td>${p.priority}</td>
       <td><span class="badge ${p.enabled?'badge-resolved':'badge-pending'}">${p.enabled?'ON':'OFF'}</span></td>
-      <td><button class="btn-primary btn-sm" onclick="viewPlugin('${p.name}')">Config</button></td>
-    </tr>`;
+      <td><button class="btn-primary btn-sm" onclick="event.stopPropagation();viewPlugin('${p.name}')">Config</button></td>
+    </tr>
+    <tr id="plugin-edit-${p.name}" style="display:none" class="plugin-editor-row"><td colspan="5"><div class="plugin-editor-inner">
+      <label>Config JSON</label><textarea id="cfg-inline-${p.name}" style="font-family:monospace;font-size:12px"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn-primary btn-sm" onclick="saveInlineConfig('${p.name}')">Save</button>
+        <button class="btn-outline btn-sm" onclick="togglePluginInline('${p.name}')">Toggle Enable</button>
+        <span class="spacer"></span>
+        <button class="btn-outline btn-sm" onclick="closeInlineEditor('${p.name}')">✕</button>
+      </div>
+    </div></td></tr>`;
   }
   html+='</tbody></table></div>';m.innerHTML=html;
+}
+
+async function toggleInlineEditor(name){
+  let row=document.getElementById('plugin-edit-'+name);
+  if(!row)return;
+  if(row.style.display==='none'||!row.style.display){
+    // Load config
+    let data=await api('/api/plugin/'+name+'/config');
+    let ta=document.getElementById('cfg-inline-'+name);
+    if(ta)ta.value=JSON.stringify(data.config,null,2);
+    // Close all other open editors
+    document.querySelectorAll('[id^="plugin-edit-"]').forEach(r=>r.style.display='none');
+    row.style.display='';
+  }else{
+    row.style.display='none';
+  }
+}
+function closeInlineEditor(name){
+  let row=document.getElementById('plugin-edit-'+name);
+  if(row)row.style.display='none';
+}
+async function saveInlineConfig(name){
+  let raw=document.getElementById('cfg-inline-'+name).value;
+  let cfg;try{cfg=JSON.parse(raw)}catch(e){toast('Invalid JSON','#ef4444');return}
+  await api('/api/plugin/'+name+'/config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});
+  toast('Saved','#10b981');
+  closeInlineEditor(name);
+}
+async function togglePluginInline(name){
+  let data=await api('/api/plugin/'+name+'/config');
+  await api('/api/plugin/'+name+'/enabled',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:!data.enabled})});
+  toast(data.enabled?'Disabled':'Enabled','#10b981');
+  closeInlineEditor(name);
+  // Refresh the plugins list
+  renderPlugins(document.getElementById('main'));
 }
 
 async function viewPlugin(name){

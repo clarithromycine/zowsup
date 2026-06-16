@@ -46,6 +46,15 @@ async def migrate_bot(request: Request) -> dict:
         raise HTTPException(status_code=404, detail=f"Target agent '{target_agent_id}' not found")
     target_url = target["url"]
 
+    # ── Capacity check: reject if target would exceed max bots ───────────
+    target_bot_count = len(registry.list_bot_routes(target_agent_id))
+    if target_bot_count >= registry.MAX_BOTS_PER_AGENT:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Target agent '{target_agent_id}' at capacity "
+                   f"({target_bot_count}/{registry.MAX_BOTS_PER_AGENT} bots)",
+        )
+
     # 1. Stop bot on source agent
     logger.info("Migrating bot '%s': %s → %s", bot_id, source_id, target_agent_id)
     _ = await proxy_json(source_url, "POST", "/api/stopbot",

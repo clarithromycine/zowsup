@@ -46,6 +46,7 @@ class Registry:
     """
 
     AGENT_TTL_SECONDS = 120  # Mark offline after 2 minutes without heartbeat
+    MAX_BOTS_PER_AGENT = 50   # Reject migration/deploy if target exceeds this
 
     def __init__(self, db_path: str | None = None):
         self._db_path = db_path
