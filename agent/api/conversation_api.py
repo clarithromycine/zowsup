@@ -62,7 +62,7 @@ async def download_media(conv_id: str, msg_id: int):
     First access: downloads + decrypts + caches locally.
     Subsequent accesses: serves from local cache (instant).
     """
-    from fastapi.responses import FileResponse
+    from fastapi.responses import Response, FileResponse
     import base64 as _b64
     from pathlib import Path
 
@@ -94,9 +94,13 @@ async def download_media(conv_id: str, msg_id: int):
     from conf.constants import SysVar
     parts = resolved.split(":", 1)
     bot_id = parts[0]
-    cache_dir = Path(SysVar.DOWNLOAD_PATH) / "media_cache" / bot_id
+    wa_msg_id = target.get("msg_id") or f"msg{msg_id}"
+    dl_root = getattr(SysVar, 'DOWNLOAD_PATH', '') or 'data/download'
+    cache_root = Path(dl_root) / "media_cache"
+    cache_root.mkdir(parents=True, exist_ok=True)
+    cache_dir = cache_root / bot_id
     cache_dir.mkdir(parents=True, exist_ok=True)
-    cache_file = cache_dir / f"{msg_id}_{content_type_str.lower()}"
+    cache_file = cache_dir / f"{wa_msg_id}_{content_type_str.lower()}"
     if cache_file.exists():
         return FileResponse(str(cache_file), media_type=media_mimetype)
 
@@ -132,9 +136,13 @@ async def download_media(conv_id: str, msg_id: int):
         raise HTTPException(status_code=500, detail="Media decryption produced no data")
 
     # ── Cache to disk ──
-    cache_file.write_bytes(filedata)
+    try:
+        cache_file.write_bytes(filedata)
+        logger.info(f"Media cached: {cache_file} ({len(filedata)} bytes)")
+    except Exception as e:
+        logger.warning(f"Media cache write failed ({cache_file}): {e}")
 
-    return FileResponse(content=filedata, media_type=media_mimetype)
+    return Response(content=filedata, media_type=media_mimetype)
 
 
 # ── Detail ───────────────────────────────────────────────────────────────────
@@ -238,14 +246,9 @@ async def send_message(conv_id: str, req: SendMessageRequest):
         content=display_text, msg_id=msg_id, status="EXECUTED",
     )
 
-    # If translated, store original as a note + include in response
+    # If translated, store original directly on the message row
     if content != original_content:
-        from agent.manager.log_broadcaster import log_broadcaster
-        note = conv_store.record_message(
-            conv_id=resolved, bot_id=bot_id, jid=jid,
-            direction="note", content_type="ORIGINAL",
-            content=original_content, status="",
-        )
+        conv_store.update_message_note(row["id"], original_content, "ORIGINAL")
         row["note"] = original_content
 
     return MessageInfo(**row)

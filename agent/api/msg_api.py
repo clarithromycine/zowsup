@@ -130,8 +130,8 @@ async def _execute(command: str, req: SendMsgRequest, args: list, options: dict)
         # Store outgoing with translated text
         out_id = result if isinstance(result, str) and result not in ("JUSTWAIT", "TIMEOUT") else None
         out_row = conv_store.record_message(conv_id=conv_id, bot_id=req.bot_id, jid=req.to, direction="outgoing", content_type="TEXT", content=f"[{target_lang}] {translated_text}" if target_lang else translated_text, msg_id=out_id, status="EXECUTED")
-        # Store original as note, linked to parent
-        note = conv_store.record_message(conv_id=conv_id, bot_id=req.bot_id, jid=req.to, direction="note", content_type="ORIGINAL", content=original_text, status="")
+        # Store original directly on the message row
+        conv_store.update_message_note(out_row["id"], original_text, "ORIGINAL")
     else:
         _record_outgoing(req.bot_id, req.to, result, req.content)
     return CmdResult(retcode=0, result=result)

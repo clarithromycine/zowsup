@@ -23,6 +23,7 @@ main.chat-mode{overflow:hidden;padding:12px}
 .card.chat-card{display:flex;flex-direction:column;height:100%;padding:12px}
 .card.chat-card .chat-body{flex:1;overflow-y:auto;display:flex;flex-direction:column-reverse;gap:2px;min-height:0}
 .card.chat-card .chat-foot{padding-top:10px;border-top:1px solid var(--border);margin-top:8px}
+.chat-foot textarea{font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r8);line-height:1.4;min-height:36px;max-height:120px}
 .card h3{font-size:14px;margin-bottom:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .spacer{flex:1}
@@ -44,7 +45,7 @@ button{font-size:13px;padding:6px 14px;border:none;border-radius:var(--r8);curso
 .btn-sm{padding:4px 10px;font-size:12px}
 input,select,textarea{font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--r8);width:200px}
 textarea{width:100%;resize:vertical;min-height:60px}
-.msg-bubble{max-width:80%;padding:8px 12px;border-radius:12px;margin:4px 0;font-size:13px;line-height:1.4}
+.msg-bubble{max-width:80%;padding:8px 12px;border-radius:12px;margin:4px 0;font-size:13px;line-height:1.4;white-space:pre-wrap;word-break:break-word}
 .msg-in{background:#e8f0fe;align-self:flex-start}
 .msg-out{background:#e8f5e9;align-self:flex-end;margin-left:auto}
 .msg-note{background:#fff3e0;font-style:italic;font-size:12px;align-self:flex-start}
@@ -58,6 +59,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
 .msg-trans{display:block;margin-top:4px;padding-top:4px;border-top:1px solid rgba(0,0,0,.1);font-style:italic;font-size:12px;color:var(--muted)}
 .msg-check{font-size:13px;margin-left:4px;display:inline-block;width:22px;letter-spacing:-4px}
 .msg-check.sent{color:#999}
+.msg-check.exec{color:#bbb}
 .msg-check.delivered{color:#999}
 .msg-check.read{color:#34b7f1}
 .msg-check.failed{color:#ef4444}
@@ -120,10 +122,10 @@ function wsConnectChat(botId,convId){
         let msgConv=botId+':'+(msg.lid||msg.from_full||'');
         if(msgConv!==convId)return;
         appendChatMessage(msg, convId);
-      }else if(evt.type==='note'){
-        let note=evt.data||{};
-        if(note.conversation_id!==convId)return;
-        appendNoteMessage(note);
+      }else if(evt.type==='message_updated'){
+        let upd=evt.data||{};
+        if(upd.conversation_id!==convId)return;
+        appendNoteDirect(upd);
       }else if(evt.type==='message_status'){
         let st=evt.data||{};
         if(st.msgId) refreshChatStatus(st);
@@ -143,21 +145,22 @@ async function refreshChat(convId){
   }
 }
 
-function appendNoteMessage(note){
+function appendNoteDirect(upd){
   let mc=document.getElementById('msg-container');if(!mc)return;
-  // Match by parent_id (DB id), then msg_id, then latest bubble
-  let bubble=null;
-  if(note.parent_id)bubble=mc.querySelector('[data-db-id="'+note.parent_id+'"]');
-  if(!bubble&&note.msg_id)bubble=mc.querySelector('[data-msg-id="'+note.msg_id+'"]');
-  if(!bubble)return; // No fallback — will appear on next API refresh
-  let trans=document.createElement('div');trans.className='msg-note-inline';
-  trans.textContent=note.content||'';
-  let meta=bubble.querySelector(".msg-meta");if(meta)bubble.insertBefore(trans,meta);else bubble.appendChild(trans);
+  let bubble=mc.querySelector('[data-db-id="'+upd.db_id+'"]');
+  if(!bubble)return;
+  // Remove old note-inline if exists, then append new
+  let old=bubble.querySelector('.msg-note-inline');if(old)old.remove();
+  let div=document.createElement('div');div.className='msg-note-inline';
+  div.innerHTML=(upd.note||'').replace(/\n/g,'<br>');
+  let meta=bubble.querySelector(".msg-meta");if(meta)bubble.insertBefore(div,meta);else bubble.appendChild(div);
 }
 
-function renderMessage(m){if(m.direction==="note")return document.createTextNode("");let cls=m.direction==="incoming"?"msg-in":"msg-out";let check='';if(m.direction==="outgoing"){let s=(m.status||'').toUpperCase();let icon='',c='sent';if(s==='READ'||s==='READ_RECEIPT'){icon='\u2713\u2713';c='read'}else if(s==='DELIVERED'||s==='RECEIVED'){icon='\u2713\u2713';c='delivered'}else if(s==='SENT'||s==='EXECUTED'||s==='SERVER_ACK'){icon='\u2713';c='sent'}else if(s==='FAILED'||s==='ERROR'){icon='\u2717';c='failed'}else{icon='\u2713';c='sent'}check=`<span class="msg-check ${c}" data-msg-status="${s||'SENT'}">${icon}</span>`;}let b=document.createElement("div");b.className="msg-bubble "+cls;if(m.msg_id)b.setAttribute("data-msg-id",m.msg_id);if(m.id)b.setAttribute("data-db-id",m.id);let hasMedia=m.media_url&&m.media_key&&m.id&&m.conversation_id;let mediaUrl=hasMedia?('/api/conversation/'+encodeURIComponent(m.conversation_id)+'/message/'+m.id+'/media'):'';let ct=m.content_type||'TEXT';let fname=m.media_file_name||'';let fsize=m.media_file_length?(' · '+(m.media_file_length>1048576?(m.media_file_length/1048576).toFixed(1)+'MB':(m.media_file_length>1024?(m.media_file_length/1024).toFixed(1)+'KB':m.media_file_length+'B'))):'';let html='';if(ct==='IMAGE'&&mediaUrl){html='<img src="'+mediaUrl+'" style="max-width:240px;max-height:240px;border-radius:8px;cursor:pointer" onclick="window.open(this.src)" loading="lazy" onerror="this.alt=\'[image load failed]\'">';}else if(ct==='VIDEO'&&mediaUrl){html='<video src="'+mediaUrl+'" controls style="max-width:300px;max-height:240px;border-radius:8px" preload="metadata"><\/video>';}else if(ct==='AUDIO'&&mediaUrl){html='<audio src="'+mediaUrl+'" controls style="max-width:300px" preload="metadata"><\/audio>';}else if(ct==='DOCUMENT'&&mediaUrl){html='<div>📄 <a href="'+mediaUrl+'" download="'+(fname||m.content)+'" style="color:var(--primary)">'+(fname||m.content)+'<\/a>'+fsize+'<\/div>';}else{html='<div>'+m.content+'</div>';}
-  if(m.media_caption)html+='<div style="margin-top:4px;font-size:13px">'+m.media_caption+'</div>';
-  if(m.note)html+='<div class="msg-note-inline">'+m.note+'</div>';
+function renderMessage(m){if(m.direction==="note")return document.createTextNode("");let cls=m.direction==="incoming"?"msg-in":"msg-out";let check='';if(m.direction==="outgoing"){let s=(m.status||'').toUpperCase();let icon='',c='sent';if(s==='READ'||s==='READ_RECEIPT'){icon='\u2713\u2713';c='read'}else if(s==='DELIVERED'||s==='RECEIVED'){icon='\u2713\u2713';c='delivered'}else if(s==='SENT'||s==='SERVER_ACK'){icon='\u2713';c='sent'}else if(s==='EXECUTED'){icon='\u23F3';c='exec'}else if(s==='FAILED'||s==='ERROR'){icon='\u2717';c='failed'}else{icon='\u2713';c='sent'}check=`<span class="msg-check ${c}" data-msg-status="${s||'SENT'}">${icon}</span>`;}let b=document.createElement("div");b.className="msg-bubble "+cls;if(m.msg_id)b.setAttribute("data-msg-id",m.msg_id);if(m.id)b.setAttribute("data-db-id",m.id);let txt=(m.content||'').replace(/\n/g,'<br>');let hasMedia=m.media_url&&m.media_key&&m.id&&m.conversation_id;let mediaUrl=hasMedia?('/api/conversation/'+encodeURIComponent(m.conversation_id)+'/message/'+m.id+'/media'):'';let ct=m.content_type||'TEXT';let fname=m.media_file_name||'';let fsize=m.media_file_length?(' · '+(m.media_file_length>1048576?(m.media_file_length/1048576).toFixed(1)+'MB':(m.media_file_length>1024?(m.media_file_length/1024).toFixed(1)+'KB':m.media_file_length+'B'))):'';let html='';if(ct==='IMAGE'&&mediaUrl){html='<img src="'+mediaUrl+'" style="max-width:240px;max-height:240px;border-radius:8px;cursor:pointer" onclick="window.open(this.src)" loading="lazy" onerror="this.alt=\'[image load failed]\'">';}else if(ct==='VIDEO'&&mediaUrl){html='<video src="'+mediaUrl+'" controls style="max-width:300px;max-height:240px;border-radius:8px" preload="metadata"><\/video>';}else if(ct==='AUDIO'&&mediaUrl){html='<audio src="'+mediaUrl+'" controls style="max-width:300px" preload="metadata"><\/audio>';}else if(ct==='DOCUMENT'&&mediaUrl){html='<div>📄 <a href="'+mediaUrl+'" download="'+(fname||txt)+'" style="color:var(--primary)">'+(fname||txt)+'<\/a>'+fsize+'<\/div>';}else{html='<div>'+txt+'</div>';}
+  let cap=m.media_caption?(m.media_caption.replace(/\n/g,'<br>')):'';
+  if(cap)html+='<div style="margin-top:4px;font-size:13px">'+cap+'</div>';
+  let nt=m.note?(m.note.replace(/\n/g,'<br>')):'';
+  if(nt)html+='<div class="msg-note-inline">'+nt+'</div>';
   html+='<div class="msg-meta">'+m.direction+' · '+ct+' · '+new Date((m.created_at||0)*1000).toLocaleString()+check+'</div>';
   b.innerHTML=html;return b}
 
@@ -182,7 +185,8 @@ function refreshChatStatus(st){
   let statusName='';
   if(s==='5'||s==='READ'||s==='READ_RECEIPT'){statusName='READ';check.innerHTML='\u2713\u2713';check.className='msg-check read';}
   else if(s==='4'||s==='DELIVERED'||s==='RECEIVED'){statusName='DELIVERED';check.innerHTML='\u2713\u2713';check.className='msg-check delivered';}
-  else if(s==='3'||s==='SENT'||s==='SERVER_ACK'||s==='EXECUTED'){statusName='SENT';check.innerHTML='\u2713';check.className='msg-check sent';}
+  else if(s==='3'||s==='SENT'||s==='SERVER_ACK'){statusName='SENT';check.innerHTML='\u2713';check.className='msg-check sent';}
+  else if(s==='EXECUTED'){statusName='EXECUTED';check.innerHTML='\u23F3';check.className='msg-check exec';}
   else if(s==='6'||s==='FAILED'||s==='ERROR'){statusName='FAILED';check.innerHTML='\u2717';check.className='msg-check failed';}
   else return;
   check.setAttribute('data-msg-status',statusName);
@@ -346,7 +350,7 @@ async function viewConversation(convId){
     html+=renderMessage(m).outerHTML;
   }
   html+=`</div>
-  <div class="chat-foot row"><input id="send-${convId}" placeholder="Send message..." style="flex:1">
+  <div class="chat-foot row"><textarea id="send-${convId}" rows="1" placeholder="Send... (Enter=send, Shift+Enter=newline)" style="flex:1;resize:none" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendConversationMsg('${convId}')}" oninput="this.style.height='';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea>
     <button class="btn-primary" onclick="sendConversationMsg('${convId}')">Send</button></div></div>`;
   let main=document.getElementById('main');
   main.className='chat-mode';
@@ -356,11 +360,21 @@ async function viewConversation(convId){
 
 async function sendConversationMsg(convId){
   let inp=document.getElementById('send-'+convId);let text=inp.value.trim();if(!text)return;
-  let msg=await api('/api/conversation/'+convId+'/message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:text})});
-  toast('Sent','#10b981');inp.value='';
-  // Append locally instead of full reload
-  let mc=document.getElementById('msg-container');if(mc)mc.insertBefore(renderMessage(msg),mc.firstChild);
+  inp.value='';inp.style.height='';inp.disabled=true;
+  // Optimistic: show outgoing bubble immediately with clock icon
+  let m={direction:'outgoing',content:text,content_type:'TEXT',created_at:Date.now()/1000,conversation_id:convId,status:'EXECUTED'};
+  let mc=document.getElementById('msg-container');let bubble=null;
+  if(mc){bubble=renderMessage(m);mc.insertBefore(bubble,mc.firstChild);}
   let cnt=document.getElementById('msg-count');if(cnt){let n=parseInt(cnt.textContent)||0;cnt.textContent=(n+1)+' msgs';}
+  // Send in background, then replace bubble with real message (includes translation note etc.)
+  try{
+    let msg=await api('/api/conversation/'+convId+'/message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:text})});
+    if(bubble&&mc){let real=renderMessage(msg);mc.replaceChild(real,bubble);bubble=null;}
+  }catch(e){
+    if(bubble)bubble.style.opacity='0.5';toast('Send failed','#ef4444');
+  }finally{
+    inp.disabled=false;inp.focus();
+  }
 }
 
 // ── Plugins ──────────────────────────────────────────────────────

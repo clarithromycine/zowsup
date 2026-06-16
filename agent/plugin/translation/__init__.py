@@ -55,25 +55,20 @@ class TranslationPlugin(Plugin):
         if translated is None or translated == text:
             return [NoAction()]
 
-        # Store translation as a note in the conversation
+        # Store translation directly on the message row
         from agent.manager.conversation_store import conv_store
-        parent_id = ctx.db_id  # directly from the incoming message
+        parent_id = ctx.db_id
+        if parent_id:
+            conv_store.update_message_note(parent_id, f"[{work_lang}] {translated}", "TRANSLATION")
 
-        note = conv_store.record_message(
-            conv_id=ctx.conversation_id,
-            bot_id=ctx.bot_id,
-            jid=ctx.jid,
-            direction="note",
-            content_type="TRANSLATION",
-            content=f"[{work_lang}] {translated}",
-            status="",
-        )
-
-        # Push note to WebSocket clients in real time (with parent_id for matching)
+        # Push note to WebSocket clients in real time as message_updated
         from agent.manager.log_broadcaster import log_broadcaster
-        note_data = dict(note)
-        note_data["parent_id"] = parent_id
-        log_broadcaster.emit_event(ctx.bot_id, "note", note_data)
+        log_broadcaster.emit_event(ctx.bot_id, "message_updated", {
+            "db_id": parent_id,
+            "note": f"[{work_lang}] {translated}",
+            "note_type": "TRANSLATION",
+            "conversation_id": ctx.conversation_id,
+        })
 
         logger.debug("Translated incoming: %s → %s", target_lang, work_lang)
         return [NoAction()]

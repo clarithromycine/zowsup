@@ -45,6 +45,9 @@ CREATE TABLE IF NOT EXISTS messages (
     raw             TEXT,
     sent_at         REAL NOT NULL,
     created_at      REAL NOT NULL DEFAULT (strftime('%s', 'now')),
+    parent_id       INTEGER REFERENCES messages(id),
+    note            TEXT,
+    note_type       TEXT,
     media_url       TEXT,
     media_key       TEXT,
     media_mimetype  TEXT
@@ -61,6 +64,9 @@ _MIGRATIONS = [
     "ALTER TABLE conversations ADD COLUMN notify_name TEXT",
     "CREATE INDEX IF NOT EXISTS idx_conv_notify ON conversations(notify_name)",
     # Add media columns for IMAGE/VIDEO/AUDIO/DOCUMENT message support
+    "ALTER TABLE messages ADD COLUMN parent_id INTEGER REFERENCES messages(id)",
+    "ALTER TABLE messages ADD COLUMN note TEXT",
+    "ALTER TABLE messages ADD COLUMN note_type TEXT",
     "ALTER TABLE messages ADD COLUMN media_url TEXT",
     "ALTER TABLE messages ADD COLUMN media_key TEXT",
     "ALTER TABLE messages ADD COLUMN media_mimetype TEXT",
@@ -287,19 +293,23 @@ class ConversationStore:
 
     @staticmethod
     def _merge_notes(msgs: list[dict]) -> list[dict]:
-        """Merge note-direction rows into their parent message.
-        In DESC order, notes appear before their parent, so we iterate
-        forward and attach remembered notes to the next non-note message."""
+        """Merge note rows into their parent message using parent_id column."""
+        # Build a map of parent_id → note content
+        notes: dict[int, str] = {}
+        for m in msgs:
+            if m["direction"] == "note" and m.get("parent_id"):
+                pid = m["parent_id"]
+                if pid not in notes:
+                    notes[pid] = m["content"]
+        # Attach notes to their parent messages
         result = []
-        pending = None
         for m in msgs:
             if m["direction"] == "note":
-                pending = m["content"]
-            else:
-                if pending is not None:
-                    m["note"] = pending
-                    pending = None
-                result.append(m)
+                continue
+            pid = m.get("id")
+            if pid in notes:
+                m["note"] = notes[pid]
+            result.append(m)
         return result
 
     def get_messages(
@@ -339,7 +349,7 @@ class ConversationStore:
                 (conv_id, limit),
             ).fetchall()
         msgs = [dict(r) for r in rows]
-        return self._merge_notes(msgs)
+        return msgs
 
     def record_message(
         self,
@@ -361,6 +371,7 @@ class ConversationStore:
         media_file_name: str | None = None,
         media_file_length: int | None = None,
         media_caption: str | None = None,
+        parent_id: int | None = None,
     ) -> dict:
         """Record a message and update conversation metadata.
 
@@ -391,10 +402,12 @@ class ConversationStore:
                 """INSERT INTO messages
                    (conversation_id, msg_id, direction, content_type, content,
                     participant_jid, status, raw, sent_at, created_at,
+                    parent_id,
                     media_url, media_key, media_mimetype, media_file_name, media_file_length, media_caption)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (conv_id, msg_id, direction, content_type, content,
                  participant_jid, status, raw, sent_at, now,
+                 parent_id,
                  media_url, media_key, media_mimetype, media_file_name, media_file_length, media_caption),
             )
             # Update conversation metadata (skip notes for message_count)
@@ -415,6 +428,18 @@ class ConversationStore:
             conn.commit()
             row = conn.execute("SELECT * FROM messages WHERE id = ?", (cursor.lastrowid,)).fetchone()
         return dict(row)
+
+    def update_message_note(self, message_db_id: int, note_content: str, note_type: str = "TRANSLATION") -> bool:
+        """Update the note columns on an existing message."""
+        self._ensure_init()
+        with self._lock:
+            conn = self._get_conn()
+            cursor = conn.execute(
+                "UPDATE messages SET note = ?, note_type = ? WHERE id = ?",
+                (note_content, note_type, message_db_id),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
 
     def update_message_status(self, msg_id: str, status: str, sent_at=None) -> bool:
         """Update the delivery status of an outgoing message.
