@@ -1,0 +1,148 @@
+/* ── Zowsup Console — Professional Admin Theme ── */
+
+:root {
+  --zs-sidebar: #1a1d29;
+  --zs-sidebar-hover: #262a38;
+  --zs-sidebar-active: #3b82f6;
+  --zs-bg: #f0f2f5;
+  --zs-card: #ffffff;
+  --zs-accent: #3b82f6;
+  --zs-text: #1e293b;
+  --zs-muted: #64748b;
+  --zs-border: #e2e8f0;
+  --zs-shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --zs-shadow-lg: 0 4px 12px rgba(0,0,0,.08);
+}
+
+/* ── Layout ──────────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #app { height: 100%; overflow: hidden; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  color: var(--zs-text);
+  -webkit-font-smoothing: antialiased;
+}
+.app-layout { display: flex; height: 100%; }
+
+/* ── Dark Sidebar ────────────────────────────────────────── */
+.app-nav {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--zs-sidebar) !important;
+  border-right: none !important;
+  padding-top: 8px;
+}
+.app-nav .nav-title {
+  padding: 20px 24px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.35) !important;
+}
+.app-nav .el-menu-item {
+  color: rgba(255,255,255,.65) !important;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 2px 8px;
+  border-radius: 8px;
+  height: 40px;
+  line-height: 40px;
+  transition: all .15s;
+}
+.app-nav .el-menu-item:hover {
+  background: var(--zs-sidebar-hover) !important;
+  color: #fff !important;
+}
+.app-nav .el-menu-item.is-active {
+  background: var(--zs-sidebar-active) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+.app-nav .el-menu-item .el-icon { margin-right: 10px; }
+
+/* ── Main Area ───────────────────────────────────────────── */
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 24px;
+  background: var(--zs-bg);
+}
+.app-main > :deep(div) {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Element Plus Overrides ──────────────────────────────── */
+.el-card {
+  border-radius: 12px !important;
+  box-shadow: var(--zs-shadow) !important;
+  border: 1px solid var(--zs-border) !important;
+}
+.el-card__header {
+  padding: 16px 20px !important;
+  border-bottom: 1px solid var(--zs-border) !important;
+}
+.el-card__body { padding: 20px !important; }
+
+.el-table {
+  --el-table-border-color: transparent;
+  --el-table-header-bg-color: #f8fafc;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.el-table th {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--zs-muted) !important;
+  padding: 10px 12px !important;
+}
+.el-table td { font-size: 13px; padding: 10px 12px !important; }
+.el-table .el-table__row:hover > td { background: #f1f5f9 !important; }
+
+.el-button {
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 13px;
+  transition: all .15s;
+}
+.el-button--primary { background: var(--zs-accent); border-color: var(--zs-accent); }
+.el-button--primary:hover { background: #2563eb; border-color: #2563eb; }
+
+.el-tag {
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: .3px;
+}
+
+.el-input__wrapper, .el-select .el-input__wrapper {
+  border-radius: 8px;
+  box-shadow: none;
+  border: 1px solid var(--zs-border);
+}
+.el-input__wrapper:hover { border-color: var(--zs-accent); }
+
+.el-dialog {
+  border-radius: 16px;
+  box-shadow: var(--zs-shadow-lg);
+}
+
+/* ── Badges ───────────────────────────────────────────────── */
+.badge-online { background: #dcfce7; color: #16a34a; }
+.badge-offline { background: #fee2e2; color: #dc2626; }
+
+/* ── Scrollbar ────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Transitions ──────────────────────────────────────────── */
+.fade-enter-active, .fade-leave-active { transition: opacity .2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }

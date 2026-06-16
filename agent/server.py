@@ -153,8 +153,10 @@ async def lifespan(app: FastAPI):
     from agent.plugin.translation import TranslationPlugin
     _plugin_manager.register(TranslationPlugin())
     _plugin_manager.register(AIPlugin())
-    _plugin_store.set_config("translation", {"work_lang":"zh","target_lang":"en","provider":"google"})
-    _plugin_store.set_enabled("translation", True)
+    # Set defaults only on first run — never overwrite saved config
+    if not _plugin_store.get_config("translation").get("work_lang"):
+        _plugin_store.set_config("translation", {"work_lang":"zh","target_lang":"en","provider":"google"})
+        _plugin_store.set_enabled("translation", True)
 
     from agent.api.bot_api import router as bot_router
     from agent.api.cmd_api import router as cmd_router
@@ -368,18 +370,36 @@ def create_app() -> FastAPI:
             cpu_time_seconds=cpu_time,
         )
 
-    # Web console: http://host:port/console
+    # Web console: serve Vue build if available, fall back to legacy index.html
     import os as _os
+    from starlette.responses import FileResponse
+    from starlette.staticfiles import StaticFiles
+
     _dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "static")
-    _idx = _os.path.join(_dir, "index.html")
-    if _os.path.isfile(_idx):
-        from starlette.responses import FileResponse
+    _vue_dir = _os.path.join(_dir, "console", "dist")
+    _vue_idx = _os.path.join(_vue_dir, "index.html")
+    _legacy_idx = _os.path.join(_dir, "index.html")
+
+    if _os.path.isfile(_vue_idx):
+        # Vue 3 build — serve SPA + static assets
+        _assets = _os.path.join(_vue_dir, "assets")
+        if _os.path.isdir(_assets):
+            app.mount("/assets", StaticFiles(directory=_assets), name="console_assets")
+
         @app.get("/console", include_in_schema=False)
-        async def _console(): return FileResponse(_idx)
+        async def _console(): return FileResponse(_vue_idx)
         @app.get("/console/", include_in_schema=False)
-        async def _console_slash(): return FileResponse(_idx)
+        async def _console_slash(): return FileResponse(_vue_idx)
         @app.get("/", include_in_schema=False)
-        async def _root(): return FileResponse(_idx)
+        async def _root(): return FileResponse(_vue_idx)
+    elif _os.path.isfile(_legacy_idx):
+        # Legacy single-file index.html (backward compatible)
+        @app.get("/console", include_in_schema=False)
+        async def _console(): return FileResponse(_legacy_idx)
+        @app.get("/console/", include_in_schema=False)
+        async def _console_slash(): return FileResponse(_legacy_idx)
+        @app.get("/", include_in_schema=False)
+        async def _root(): return FileResponse(_legacy_idx)
 
     app.include_router(api_router)
 
