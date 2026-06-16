@@ -168,3 +168,30 @@ async def purge_accounts(req: PurgeRequest):
         for bot_id, entry in raw_results.items()
     }
     return PurgeResponse(results=results)
+
+
+@router.delete("/api/bot/{bot_id}", response_model=dict)
+async def delete_bot(bot_id: str):
+    """Delete a single bot account: stop it, remove from DB, and delete its
+    local data directory. Usable for any status (not just auth_failed)."""
+    import shutil
+    from pathlib import Path
+    from conf.constants import SysVar
+
+    # 1. Stop bot if running
+    try:
+        bot_manager.stop_bot(bot_id, join_timeout=5.0)
+    except Exception:
+        pass
+
+    # 2. Remove from account store DB
+    existed = account_store.remove(bot_id)
+
+    # 3. Delete local data directory
+    dir_removed = False
+    acct_dir = Path(SysVar.ACCOUNT_PATH) / bot_id
+    if acct_dir.exists():
+        shutil.rmtree(str(acct_dir))
+        dir_removed = True
+
+    return {"bot_id": bot_id, "existed": existed, "dir_removed": dir_removed}

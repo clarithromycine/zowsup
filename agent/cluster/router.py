@@ -14,6 +14,7 @@ import asyncio
 import logging
 import time
 from contextlib import asynccontextmanager
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketException, Header, Depends
 from starlette.responses import Response
@@ -53,6 +54,29 @@ async def _check_cluster_secret(x_cluster_secret: str | None = Header(None, alia
         raise HTTPException(status_code=403, detail="Invalid or missing cluster secret")
 
 
+# ── Helper: loopback / port detection ────────────────────────────────────────
+
+_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1", "0.0.0.0"}
+
+
+def _is_loopback_url(url: str) -> bool:
+    """Return True if the URL's host part is a loopback / unspecified address."""
+    try:
+        host = urlparse(url).hostname
+        return host is not None and host.lower() in _LOOPBACK_HOSTS
+    except Exception:
+        return False
+
+
+def _extract_port(url: str) -> int | None:
+    """Extract port number from URL, or None if not present."""
+    try:
+        port = urlparse(url).port
+        return port if port else None
+    except Exception:
+        return None
+
+
 # ── Lifespan ─────────────────────────────────────────────────────────────────
 
 @asynccontextmanager
@@ -69,7 +93,7 @@ async def lifespan(app: FastAPI):
 
 # ── Health checker ───────────────────────────────────────────────────────────
 
-async def _health_check_loop(interval: float = 15.0):
+async def _health_check_loop(interval: float = 30.0):
     """Periodically ping all agents. 3 consecutive failures → mark offline."""
     fail_counts: dict[str, int] = {}
     while True:
@@ -121,9 +145,16 @@ def create_cluster_app() -> FastAPI:
     async def register_agent(request: Request):
         body = await request.json()
         agent_id = body.get("agent_id")
-        url = body.get("url")
-        if not agent_id or not url:
-            raise HTTPException(status_code=400, detail="agent_id and url required")
+        url = body.get("url", "")
+        if not agent_id:
+            raise HTTPException(status_code=400, detail="agent_id required")
+
+        # ── Auto-detect agent address from request when url is missing or loopback ──
+        if not url or _is_loopback_url(url):
+            client_ip = request.client.host if request.client else "unknown"
+            port = _extract_port(url) or 8000
+            url = f"http://{client_ip}:{port}"
+
         agent = registry.register_agent(agent_id, url, body.get("access_key", ""))
         # Sync bot routes from agent
         bots = body.get("bots", [])

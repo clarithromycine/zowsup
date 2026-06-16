@@ -70,20 +70,31 @@ def main(argv: list[str] | None = None) -> None:
     set_agent_id(agent_id)
     print(f"[Agent] ID: {agent_id}")
 
+    # Advertised host for cluster registration (env override, or resolve from --host)
+    from agent.server import set_agent_port, set_agent_host
+    advertise_host = os.environ.get("CLUSTER_ADVERTISE_HOST", "")
+    if not advertise_host:
+        if args.host in ("0.0.0.0", "::", ""):
+            advertise_host = socket.gethostname()
+        else:
+            advertise_host = args.host
+    set_agent_host(advertise_host)
+    set_agent_port(args.port)
+    print(f"[Agent] Advertised cluster URL: http://{advertise_host}:{args.port}")
+
     if args.accesskey:
         print(f"[Agent] Access key configured: {'*' * len(args.accesskey)}")
     else:
         print("[Agent] ⚠️  No access key set — API is open (debug mode)")
-
-    from agent.server import set_agent_port
-    set_agent_port(args.port)
     app = create_app()
 
     import uvicorn
     import asyncio
     import signal
+    from conf.logging_config import get_uvicorn_log_config
 
-    config = uvicorn.Config(app, host=args.host, port=args.port, log_level="info")
+    config = uvicorn.Config(app, host=args.host, port=args.port, log_level="info",
+                            log_config=get_uvicorn_log_config())
     server = uvicorn.Server(config)
     server.install_signal_handlers = lambda: None
 

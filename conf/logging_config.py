@@ -71,10 +71,10 @@ LOG_LEVELS = {
 DEFAULT_LOG_LEVEL = 'INFO'
 
 # 日志格式
-CONSOLE_FORMAT = '[%(asctime)s] %(name)-25s %(levelname)-8s %(message)s'
-FILE_FORMAT = '[%(asctime)s] %(name)-25s %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s'
+CONSOLE_FORMAT = '%(asctime)s.%(msecs)03d | %(levelname)-5s | %(name)-18s | %(message)s'
+FILE_FORMAT = '%(asctime)s.%(msecs)03d | %(levelname)-5s | %(name)-18s | [%(filename)s:%(lineno)d] %(message)s'
 
-# 日期格式
+# 日期格式（仅日期部分，时间+毫秒由 %(msecs)03d 补充）
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 # 模块名缩略模式: 'full' | 'short' | 'abbr'
@@ -217,6 +217,46 @@ def get_logger(name):
     """
     return logging.getLogger(name)
 
+
+# ============================================================================
+# Uvicorn 日志配置（带时间戳，与项目日志格式对齐）
+# ============================================================================
+
+def get_uvicorn_log_config() -> dict:
+    """Return a logging config dict for uvicorn with millisecond timestamps."""
+    return {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "()": "uvicorn.logging.DefaultFormatter",
+                "format": "%(asctime)s.%(msecs)03d | %(levelname)-5s | uvicorn              | %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S",
+            },
+            "access": {
+                "()": "uvicorn.logging.AccessFormatter",
+                "format": '%(asctime)s.%(msecs)03d | ACCESS  | uvicorn              | %(client_addr)s - "%(request_line)s" %(status_code)s',
+                "datefmt": "%Y-%m-%d %H:%M:%S",
+            },
+        },
+        "handlers": {
+            "default": {
+                "formatter": "default",
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stdout",
+            },
+            "access": {
+                "formatter": "access",
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stdout",
+            },
+        },
+        "loggers": {
+            "uvicorn": {"handlers": ["default"], "level": "INFO", "propagate": False},
+            "uvicorn.error": {"handlers": ["default"], "level": "INFO", "propagate": False},
+            "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
+        },
+    }
 
 def set_log_level(level):
     """

@@ -27,7 +27,13 @@ def main(argv: list[str] | None = None) -> None:
     from conf.constants import SysVar
     SysVar.loadConfig()
 
+    # Initialize logging with timestamp format
+    from common.utils import Utils
+    import logging
+    Utils.init_log(logging.INFO, "cluster.log")
+
     from agent.cluster.router import create_cluster_app, set_cluster_secret, set_console_token
+    from conf.logging_config import get_uvicorn_log_config
     import uvicorn
 
     if args.cluster_secret:
@@ -36,7 +42,7 @@ def main(argv: list[str] | None = None) -> None:
         set_console_token(args.console_token)
 
     app = create_cluster_app()
-    uvicorn.run(app, host=args.host, port=args.port)
+    uvicorn.run(app, host=args.host, port=args.port, log_config=get_uvicorn_log_config())
 
 
 if __name__ == "__main__":

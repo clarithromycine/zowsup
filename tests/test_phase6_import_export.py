@@ -69,5 +69,8 @@ class TestImport:
             result = r.json()
             assert result["success_count"] >= 1
         finally:
-            # Clean up fake account
-            requests.delete(f"{self.base}/api/bot/{fake_id}")
+            # Clean up fake account — remove from DB and delete data directory
+            r = requests.delete(f"{self.base}/api/bot/{fake_id}")
+            assert r.status_code == 200, f"Delete failed: {r.status_code} {r.text}"
+            body = r.json()
+            assert body["dir_removed"], f"Account dir not cleaned: {body}"

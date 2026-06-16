@@ -49,6 +49,7 @@ def ws_disconnected():
 _access_key: Optional[str] = None  # Set at startup from CLI args
 _agent_id: str = ""  # Set at startup from CLI/env
 _agent_port: int | None = None  # Set from CLI --port for cluster self-URL
+_agent_host: str = "127.0.0.1"  # Advertised host for cluster registration (env: CLUSTER_ADVERTISE_HOST)
 
 
 def set_access_key(key: Optional[str]) -> None:
@@ -71,6 +72,16 @@ def set_agent_port(port: int) -> None:
     """Set the agent port for cluster self-URL."""
     global _agent_port
     _agent_port = port
+
+
+def set_agent_host(host: str) -> None:
+    """Set the advertised host for cluster registration.
+
+    If the bound host is 0.0.0.0, the real hostname/IP should be resolved
+    by the caller (or overridden via CLUSTER_ADVERTISE_HOST env var).
+    """
+    global _agent_host
+    _agent_host = host
 
 
 def _check_rest_access_key(x_access_key: Optional[str] = Header(None)) -> None:
@@ -159,7 +170,7 @@ async def lifespan(app: FastAPI):
         import asyncio, httpx
         agent_id = _agent_id
         own_port = _agent_port or 8000
-        own_url = f"http://127.0.0.1:{own_port}"
+        own_url = f"http://{_agent_host}:{own_port}"
         cluster_secret = os.environ.get("CLUSTER_SECRET", "")
         _cluster_headers = {"X-Cluster-Secret": cluster_secret} if cluster_secret else {}
 
@@ -195,7 +206,7 @@ async def lifespan(app: FastAPI):
         # Heartbeat task
         async def _heartbeat():
             while True:
-                await asyncio.sleep(30)
+                await asyncio.sleep(60)
                 try:
                     async with httpx.AsyncClient(timeout=httpx.Timeout(10)) as c:
                         bots = [info.bot_id for info in bot_manager.list_bots()]

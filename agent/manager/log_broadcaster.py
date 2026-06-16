@@ -22,7 +22,7 @@ class BotLogHandler(logging.Handler):
         super().__init__()
         self._broadcaster = broadcaster
         self.setFormatter(logging.Formatter(
-            "[%(asctime)s] %(levelname)-8s %(message)s",
+            "%(asctime)s.%(msecs)03d | %(levelname)-5s | %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         ))
 
