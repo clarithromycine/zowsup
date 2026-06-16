@@ -62,6 +62,8 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
 .plugin-editor-inner textarea{width:100%;min-height:120px;font-family:monospace;font-size:12px}
 .plugin-row{cursor:pointer}
 .plugin-row:hover{background:#f0f4ff}
+.msg-bubble img,.msg-bubble video{display:block;margin:4px 0}
+.msg-bubble img:hover{opacity:.85}
 </style>
 
 </head>
@@ -149,9 +151,9 @@ function appendNoteMessage(note){
   let meta=bubble.querySelector(".msg-meta");if(meta)bubble.insertBefore(trans,meta);else bubble.appendChild(trans);
 }
 
-function renderMessage(m){if(m.direction==="note")return document.createTextNode("");let cls=m.direction==="incoming"?"msg-in":"msg-out";let check='';if(m.direction==="outgoing"){let s=(m.status||'').toUpperCase();let icon='',c='sent';if(s==='READ'||s==='READ_RECEIPT'){icon='\u2713\u2713';c='read'}else if(s==='DELIVERED'||s==='RECEIVED'){icon='\u2713\u2713';c='delivered'}else if(s==='SENT'||s==='EXECUTED'||s==='SERVER_ACK'){icon='\u2713';c='sent'}else if(s==='FAILED'||s==='ERROR'){icon='\u2717';c='failed'}else{icon='\u2713';c='sent'}check=`<span class="msg-check ${c}" data-msg-status="${s||'SENT'}">${icon}</span>`;}let b=document.createElement("div");b.className="msg-bubble "+cls;if(m.msg_id)b.setAttribute("data-msg-id",m.msg_id);if(m.id)b.setAttribute("data-db-id",m.id);let html='<div>'+m.content+'</div>';
+function renderMessage(m){if(m.direction==="note")return document.createTextNode("");let cls=m.direction==="incoming"?"msg-in":"msg-out";let check='';if(m.direction==="outgoing"){let s=(m.status||'').toUpperCase();let icon='',c='sent';if(s==='READ'||s==='READ_RECEIPT'){icon='\u2713\u2713';c='read'}else if(s==='DELIVERED'||s==='RECEIVED'){icon='\u2713\u2713';c='delivered'}else if(s==='SENT'||s==='EXECUTED'||s==='SERVER_ACK'){icon='\u2713';c='sent'}else if(s==='FAILED'||s==='ERROR'){icon='\u2717';c='failed'}else{icon='\u2713';c='sent'}check=`<span class="msg-check ${c}" data-msg-status="${s||'SENT'}">${icon}</span>`;}let b=document.createElement("div");b.className="msg-bubble "+cls;if(m.msg_id)b.setAttribute("data-msg-id",m.msg_id);if(m.id)b.setAttribute("data-db-id",m.id);let mediaUrl=m.id&&['IMAGE','VIDEO','AUDIO','DOCUMENT'].includes(m.content_type)?('/api/conversation/'+encodeURIComponent(m.conversation_id)+'/message/'+m.id+'/media'):'';let ct=m.content_type||'TEXT';let html='';if(ct==='IMAGE'&&mediaUrl){html='<img src="'+mediaUrl+'" style="max-width:240px;max-height:240px;border-radius:8px;cursor:pointer" onclick="window.open(this.src)" loading="lazy" onerror="this.alt=\'[image load failed]\'">';}else if(ct==='VIDEO'&&mediaUrl){html='<video src="'+mediaUrl+'" controls style="max-width:300px;max-height:240px;border-radius:8px" preload="metadata"><\/video>';}else if(ct==='AUDIO'&&mediaUrl){html='<audio src="'+mediaUrl+'" controls style="max-width:300px" preload="metadata"><\/audio>';}else if(ct==='DOCUMENT'&&mediaUrl){html='<div>📄 <a href="'+mediaUrl+'" download style="color:var(--primary)">'+m.content+'<\/a><\/div>';}else{html='<div>'+m.content+'</div>';}
   if(m.note)html+='<div class="msg-note-inline">'+m.note+'</div>';
-  html+='<div class="msg-meta">'+m.direction+' · '+(m.content_type||'TEXT')+' · '+new Date((m.created_at||0)*1000).toLocaleString()+check+'</div>';
+  html+='<div class="msg-meta">'+m.direction+' · '+ct+' · '+new Date((m.created_at||0)*1000).toLocaleString()+check+'</div>';
   b.innerHTML=html;return b}
 
 function appendChatMessage(msg){
@@ -443,30 +445,82 @@ async function togglePlugin(name,current){
 }
 
 // ── Bots ─────────────────────────────────────────────────────────
+let botsFilterId='',botsFilterAgent='',botsShowImport=false;
 async function renderBots(m){
   m.innerHTML='<div class="card"><h3>Loading...</h3></div>';
-  let bots=await api('/api/listbot');
+  let bots=await api('/api/listbot'+(botsFilterId?'?bot_id='+encodeURIComponent(botsFilterId):''));
   let health=await api('/api/health');
-  let html=`<div class="card"><h3>🤖 Bots</h3>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
-      Uptime: ${Math.floor(health.uptime_seconds/3600)}h ${Math.floor((health.uptime_seconds%3600)/60)}m ·
-      DB bots: ${health.db_bot_count} · WS: ${health.ws_connections} · Threads: ${health.thread_count}
-    </div>`;
-  html+='<table><thead><tr><th>Bot ID</th><th>Agent</th><th>Status</th><th>Env</th><th>Uptime</th><th></th></tr></thead><tbody>';
-  for(let b of bots){
-    let upt=b.uptime_seconds?Math.floor(b.uptime_seconds/60)+'m':'';
-    let isRunning=b.status==='RUNNING';
-    html+=`<tr><td><b>${b.bot_id}</b></td>
-      <td style="font-size:11px;color:var(--muted)">${b.agent_id||'—'}</td>
-      <td><span class="badge ${isRunning?'badge-resolved':'badge-pending'}">${b.status}</span></td>
-      <td>${b.env||''}</td><td>${upt}</td>
-      <td>${isRunning
-        ?`<button class="btn-danger btn-sm" onclick="controlBot('${b.bot_id}','stop')">Stop</button>`
-        :`<button class="btn-primary btn-sm" onclick="controlBot('${b.bot_id}','start')">Start</button>`
-      }</td></tr>`;
+  // Detect cluster mode: if any bot has agent_id, fetch agents list for filter
+  let isCluster=bots.some(b=>b.agent_id);
+  let agents=[];
+  if(isCluster){
+    try{agents=await api('/api/cluster/agents');}catch(e){}
   }
-  html+=bots.length===0?'<tr><td colspan=6 style="color:var(--muted)">No bots registered</td></tr>':'';
+  // Apply agent filter if on cluster
+  if(isCluster&&botsFilterAgent){
+    bots=bots.filter(b=>b.agent_id===botsFilterAgent);
+  }
+  let html=`<div class="card"><h3>🤖 Bots</h3>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">
+      Uptime: ${Math.floor(health.uptime_seconds/3600)}h ${Math.floor((health.uptime_seconds%3600)/60)}m ·
+      DB bots: ${health.db_bot_count||health.agents_total||'?'} · WS: ${health.ws_connections||0} · Threads: ${health.thread_count||0}
+      <span class="spacer"></span><button class="btn-outline btn-sm" onclick="refreshBotsTable()">Refresh</button>
+    </div>`;
+  // Filters row
+  html+=`<div class="row" style="margin-bottom:8px;gap:6px">
+    <input id="bots-filter-id" placeholder="Filter BotID..." style="width:150px" value="${botsFilterId||''}" oninput="botsFilterId=this.value;refreshBotsTable()">
+    ${isCluster?`<select id="bots-filter-agent" style="width:160px" onchange="botsFilterAgent=this.value;refreshBotsTable()"><option value="">All Agents</option>${agents.map(a=>`<option value="${a.agent_id}" ${a.agent_id===botsFilterAgent?'selected':''}>${a.agent_id}</option>`).join('')}</select>`:''}
+    <button class="btn-outline btn-sm" onclick="botsShowImport=!botsShowImport;renderBots(document.getElementById('main'))">${botsShowImport?'— Import':'+ Import'}</button>
+    <button class="btn-outline btn-sm" onclick="scanAccounts()">🔍 Scan</button>
+  </div>`;
+  // Import form (collapsible)
+  if(botsShowImport){
+    html+=`<div class="card" style="margin-bottom:10px;background:#f8f9fc"><h3>Import Bot Account</h3>
+      <div class="row" style="gap:8px;align-items:flex-end">
+        <div class="field"><label>6-Segment CSV Data</label>
+          <input id="import-csv" placeholder="phone,cc,..." style="width:300px"></div>
+        <div class="field"><label>Env</label>
+          <select id="import-env" style="width:120px">
+            <option value="android">android</option><option value="smb_android">smb_android</option>
+            <option value="ios">ios</option><option value="smb_ios">smb_ios</option>
+          </select></div>
+        <button class="btn-primary btn-sm" onclick="importBotFromUI()">Import</button>
+      </div></div>`;
+  }
+  // Table
+  html+=`<table><thead><tr><th>Bot ID</th>${isCluster?'<th>Agent</th>':''}<th>Status</th><th>Env</th><th>Uptime</th><th></th></tr></thead><tbody id="bots-tbody">`;
+  for(let b of bots){
+    html+=_botRowHtml(b,isCluster);
+  }
+  html+=bots.length===0?`<tr><td colspan=${isCluster?6:5} style="color:var(--muted)">No bots registered</td></tr>`:'';
   html+='</tbody></table></div>';m.innerHTML=html;
+}
+
+function _botRowHtml(b,isCluster){
+  let upt=b.uptime_seconds?Math.floor(b.uptime_seconds/60)+'m':'';
+  let isRunning=b.status==='RUNNING';
+  return `<tr id="bot-row-${b.bot_id}"><td><b>${b.bot_id}</b></td>
+    ${isCluster?`<td style="font-size:11px;color:var(--muted)">${b.agent_id||'—'}</td>`:''}
+    <td><span class="badge ${isRunning?'badge-resolved':'badge-pending'}">${b.status}</span></td>
+    <td>${b.env||''}</td><td>${upt}</td>
+    <td>${isRunning
+      ?`<button class="btn-danger btn-sm" onclick="controlBot('${b.bot_id}','stop')">Stop</button>`
+      :`<button class="btn-primary btn-sm" onclick="controlBot('${b.bot_id}','start')">Start</button>`
+    }</td></tr>`;
+}
+
+async function refreshBotsTable(){
+  let tbody=document.getElementById('bots-tbody');
+  if(!tbody)return;
+  let bots=await api('/api/listbot'+(botsFilterId?'?bot_id='+encodeURIComponent(botsFilterId):''));
+  let isCluster=bots.some(b=>b.agent_id);
+  if(isCluster&&botsFilterAgent){
+    bots=bots.filter(b=>b.agent_id===botsFilterAgent);
+  }
+  let html='';
+  for(let b of bots)html+=_botRowHtml(b,isCluster);
+  if(!bots.length)html=`<tr><td colspan=${isCluster?6:5} style="color:var(--muted)">No bots registered</td></tr>`;
+  tbody.innerHTML=html;
 }
 
 async function controlBot(botId,action){
@@ -479,8 +533,48 @@ async function controlBot(botId,action){
     await api('/api/stopbot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bot_ids:[botId],mode:'force'})});
     toast('Stopped '+botId,'#10b981');
   }
-  render();
+  refreshBotsTable();
 }
+
+async function importBotFromUI(){
+  let csv=document.getElementById('import-csv').value.trim();
+  let env=document.getElementById('import-env').value;
+  if(!csv){toast('Enter CSV data','#ef4444');return}
+  if(csv.split(',').length!==6){toast('Need exactly 6 CSV fields','#ef4444');return}
+  let isCluster=!!document.getElementById('bots-filter-agent');
+  if(isCluster){
+    let r=await api('/api/cluster/deploybot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accounts:[{data:csv,env}]})});
+    toast('Deployed: '+r.success_count+' bots → '+r.deployed_to,'#10b981');
+  }else{
+    let r=await api('/api/importbot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accounts:[{data:csv,env}]})});
+    toast('Imported: '+r.success_count+' bots','#10b981');
+  }
+  document.getElementById('import-csv').value='';
+  refreshBotsTable();
+}
+
+async function scanAccounts(){
+  let agentId=botsFilterAgent||'';
+  let isCluster=!!document.getElementById('bots-filter-agent');
+  if(isCluster){
+    if(!agentId){toast('Select an Agent first','#f59e0b');return}
+    toast('Scanning agent: '+agentId+'...','#3b82f6');
+    let r=await api('/api/cluster/agents/'+encodeURIComponent(agentId)+'/scan',{method:'POST'});
+    toast('Scan done: '+r.added+' new accounts','#10b981');
+  }else{
+    toast('Scanning local accounts...','#3b82f6');
+    let r=await api('/api/scan',{method:'POST'});
+    let msg='Scan done: '+r.accounts_before+' → '+r.accounts_after+' (+'+r.added+')';
+    if(r.orphaned>0)msg+=' · purged '+r.orphaned+' orphaned';
+    toast(msg,'#10b981');
+  }
+  refreshBotsTable();
+}
+
+// ── Periodic bot-table refresh (non-disruptive) ────────────────────
+setInterval(()=>{
+  if(currentTab==='bots'&&!detailMode)refreshBotsTable();
+},15000);
 
 // ── Cluster ────────────────────────────────────────────────────────
 async function renderCluster(m){

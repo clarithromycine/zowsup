@@ -8,7 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from agent.manager.bot_manager import bot_manager
 from agent.manager.account_store import account_store
@@ -24,8 +24,14 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 @router.get("/api/listbot", response_model=list[BotInfo], response_model_exclude_none=True)
-async def list_bots():
-    return bot_manager.list_bots()
+async def list_bots(
+    bot_id: str | None = Query(None, description="Filter by bot_id (substring match)"),
+):
+    bots = bot_manager.list_bots()
+    if bot_id:
+        q = bot_id.lower()
+        bots = [b for b in bots if q in (b.bot_id or '').lower()]
+    return bots
 
 
 @router.get("/api/bot/{bot_id}", response_model=BotInfo, response_model_exclude_none=True)
@@ -195,3 +201,22 @@ async def delete_bot(bot_id: str):
         dir_removed = True
 
     return {"bot_id": bot_id, "existed": existed, "dir_removed": dir_removed}
+
+
+@router.post("/api/scan", response_model=dict)
+async def scan_accounts():
+    """Re-scan the account directory on disk to sync the database.
+
+    - New directories on disk → added to DB
+    - DB entries with no disk directory → purged (orphaned)
+    """
+    count_before = len(account_store.list_all())
+    added, orphaned = account_store._migrate_from_filesystem()
+    count_after = len(account_store.list_all())
+    return {
+        "scan_complete": True,
+        "accounts_before": count_before,
+        "accounts_after": count_after,
+        "added": added,
+        "orphaned": orphaned,
+    }

@@ -44,7 +44,10 @@ CREATE TABLE IF NOT EXISTS messages (
     status_updated  REAL,
     raw             TEXT,
     sent_at         REAL NOT NULL,
-    created_at      REAL NOT NULL DEFAULT (strftime('%s', 'now'))
+    created_at      REAL NOT NULL DEFAULT (strftime('%s', 'now')),
+    media_url       TEXT,
+    media_key       TEXT,
+    media_mimetype  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_msg_conv ON messages(conversation_id, sent_at);
 CREATE INDEX IF NOT EXISTS idx_msg_msgid ON messages(msg_id);
@@ -57,6 +60,10 @@ _MIGRATIONS = [
     # Add notify_name column for contact display name
     "ALTER TABLE conversations ADD COLUMN notify_name TEXT",
     "CREATE INDEX IF NOT EXISTS idx_conv_notify ON conversations(notify_name)",
+    # Add media columns for IMAGE/VIDEO message support
+    "ALTER TABLE messages ADD COLUMN media_url TEXT",
+    "ALTER TABLE messages ADD COLUMN media_key TEXT",
+    "ALTER TABLE messages ADD COLUMN media_mimetype TEXT",
 ]
 
 
@@ -345,6 +352,9 @@ class ConversationStore:
         status: str | None = None,
         raw: str | None = None,
         sent_at: float | None = None,
+        media_url: str | None = None,
+        media_key: str | None = None,
+        media_mimetype: str | None = None,
     ) -> dict:
         """Record a message and update conversation metadata.
 
@@ -374,10 +384,12 @@ class ConversationStore:
             cursor = conn.execute(
                 """INSERT INTO messages
                    (conversation_id, msg_id, direction, content_type, content,
-                    participant_jid, status, raw, sent_at, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    participant_jid, status, raw, sent_at, created_at,
+                    media_url, media_key, media_mimetype)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (conv_id, msg_id, direction, content_type, content,
-                 participant_jid, status, raw, sent_at, now),
+                 participant_jid, status, raw, sent_at, now,
+                 media_url, media_key, media_mimetype),
             )
             # Update conversation metadata (skip notes for message_count)
             if direction != "note":

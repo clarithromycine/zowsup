@@ -212,7 +212,7 @@ async def lifespan(app: FastAPI):
                         bots = [info.bot_id for info in bot_manager.list_bots()]
                         await c.post(
                             f"{cluster_url}/api/cluster/agents/{agent_id}/heartbeat",
-                            json={"bots": bots},
+                            json={"bots": bots, "url": own_url},
                             headers=_cluster_headers,
                         )
                 except Exception:

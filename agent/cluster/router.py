@@ -164,8 +164,13 @@ def create_cluster_app() -> FastAPI:
         # Sync bot routes
         for bot_id in bots:
             registry.route_bot(bot_id, agent_id)
+        # Auto-re-register if agent was lost (e.g. cluster restart)
         if not registry.heartbeat(agent_id):
-            raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+            # Re-register with the real client IP as URL
+            client_ip = request.client.host if request.client else "unknown"
+            url = body.get("url") or f"http://{client_ip}:8000"
+            registry.register_agent(agent_id, url)
+            registry.heartbeat(agent_id)
         return {"ok": True}
 
     @cluster_router.post("/api/cluster/migrate")
@@ -257,22 +262,44 @@ def create_cluster_app() -> FastAPI:
             "results": results,
         }
 
+    @cluster_router.post("/api/cluster/agents/{agent_id}/scan")
+    async def agent_scan(agent_id: str):
+        """Trigger a directory re-scan on a specific agent to rebuild its account DB."""
+        agent = registry.get_agent(agent_id)
+        if not agent:
+            raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+        from agent.cluster.proxy import _get_client
+        client = _get_client()
+        resp = await client.post(f"{agent['url']}/api/scan", timeout=30)
+        if resp.status_code != 200:
+            raise HTTPException(status_code=resp.status_code, detail=resp.text[:200])
+        return resp.json()
+
     # Register cluster management routes (all guarded by _check_cluster_secret)
     app.include_router(cluster_router)
 
     # ── Aggregate endpoints ──────────────────────────────────────────────────
 
     @app.get("/api/listbot")
-    async def list_bots():
-        """Aggregate bots from all agents, tagging each with its agent_id."""
+    async def list_bots(
+        agent_id: str | None = Query(None, description="Filter by agent_id"),
+        bot_id: str | None = Query(None, description="Filter by bot_id (substring match)"),
+    ):
+        """Aggregate bots from all (or filtered) agents, tagging each with its agent_id."""
+        agents = registry.list_agents()
+        if agent_id:
+            agents = [a for a in agents if a["agent_id"] == agent_id]
         results = []
-        for agent in registry.list_agents():
+        for agent in agents:
             if agent["status"] != "online":
                 continue
             try:
                 from agent.cluster.proxy import _get_client
                 client = _get_client()
-                resp = await client.get(f"{agent['url']}/api/listbot", timeout=10)
+                url = f"{agent['url']}/api/listbot"
+                if bot_id:
+                    url += f"?bot_id={bot_id}"
+                resp = await client.get(url, timeout=10)
                 if resp.status_code == 200:
                     bots = resp.json()
                     if isinstance(bots, list):
@@ -281,6 +308,9 @@ def create_cluster_app() -> FastAPI:
                         results.extend(bots)
             except Exception as exc:
                 logger.debug("listbot failed for %s: %s", agent["agent_id"], exc)
+        # Sort: RUNNING first, then by started_at descending
+        results.sort(key=lambda b: (0 if b.get("status") == "RUNNING" else 1,
+                                     -(b.get("started_at") or 0)))
         return results
 
     @app.get("/api/health")

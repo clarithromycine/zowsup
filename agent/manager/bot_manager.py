@@ -223,6 +223,12 @@ class BotManager:
                     started_at=row.get("started_at"),
                     last_active=int(last_seen) if last_seen else None,
                 ))
+        # Sort: RUNNING first, then by started_at descending (most recent on top)
+        def _sort_key(info: BotInfo) -> tuple:
+            running = 0 if info.status == BotStatus.RUNNING else 1
+            started = info.started_at or 0
+            return (running, -started)
+        result.sort(key=_sort_key)
         return result
 
     def get_bot(self, bot_id: str) -> BotInfo | None:
@@ -455,6 +461,9 @@ class BotManager:
                 msg_id=str(message.get("msgId","")) or None,
                 participant_jid=message.get("participant"),
                 pn_jid=message.get("pn_jid"), status="", raw=str(message),
+                media_url=message.get("media_url"),
+                media_key=message.get("media_key"),
+                media_mimetype=message.get("media_mimetype"),
             )
             # Update notify_name (contact display name) if present
             notify = message.get("notify")

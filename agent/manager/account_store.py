@@ -66,7 +66,6 @@ class AccountStore:
         self._migrate_add_column("agent_id", "ALTER TABLE accounts ADD COLUMN agent_id TEXT NOT NULL DEFAULT ''")
         conn.commit()
         self._initialized = True
-        self._migrate_from_filesystem()
 
     def _migrate_add_column(self, col_name: str, ddl: str):
         """Idempotent column addition — checks if column exists first."""
@@ -84,23 +83,32 @@ class AccountStore:
         return self._conn
 
     def _migrate_from_filesystem(self):
-        """One-time: scan ACCOUNT_PATH for existing accounts not yet in DB."""
+        """Scan ACCOUNT_PATH: add new accounts from disk, remove orphaned DB entries.
+
+        Called manually via POST /api/scan — no longer automatic on startup.
+
+        Returns (added_count, orphaned_count).
+        """
         account_dir = Path(SysVar.ACCOUNT_PATH) if SysVar.ACCOUNT_PATH else None
         if not account_dir or not account_dir.exists():
-            return
+            return (0, 0)
 
         conn = self._get_conn()
-        existing = {r["bot_id"] for r in conn.execute("SELECT bot_id FROM accounts")}
-
         import re
         pattern = re.compile(r'^[\d_]+$')
+
+        # ── Discover real directories on disk ──
+        dirs_on_disk = {d.name for d in account_dir.iterdir()
+                        if d.is_dir() and pattern.match(d.name) and not d.name.startswith('_')}
+
+        # ── Discover accounts in DB ──
+        db_ids = {r["bot_id"] for r in conn.execute("SELECT bot_id FROM accounts")}
+
+        # ── Add: directories on disk not in DB ──
         new_accounts = []
-        for d in account_dir.iterdir():
-            if d.is_dir() and pattern.match(d.name) and not d.name.startswith('_'):
-                if d.name not in existing:
-                    # Read env from config.json os_name field
-                    env = self._read_env_from_config(d.name)
-                    new_accounts.append((d.name, env))
+        for name in dirs_on_disk - db_ids:
+            env = self._read_env_from_config(name)
+            new_accounts.append((name, env))
 
         if new_accounts:
             now = int(time.time())
@@ -112,9 +120,24 @@ class AccountStore:
                 conn.commit()
             logger.info(f"Migrated {len(new_accounts)} existing accounts into agent DB")
 
+        # ── Purge: DB entries with no directory on disk ──
+        orphaned = db_ids - dirs_on_disk
+        orphaned_count = 0
+        if orphaned:
+            import shutil
+            for bot_id in orphaned:
+                try:
+                    with self._lock:
+                        conn.execute("DELETE FROM accounts WHERE bot_id = ?", (bot_id,))
+                        conn.commit()
+                    logger.info(f"Scan: purged orphaned account '{bot_id}' (no disk directory)")
+                    orphaned_count += 1
+                except Exception:
+                    pass
+
         # Repair: update env for existing accounts that still have the SQLite default
-        # (caused by a bug in the original migration that didn't read config.json)
         self._repair_env_defaults()
+        return (len(new_accounts), orphaned_count)
 
     def _read_env_from_config(self, bot_id: str) -> str:
         """Read the device environment from an account's config.json.

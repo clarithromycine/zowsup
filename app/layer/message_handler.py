@@ -93,6 +93,7 @@ class MessageHandler:
                 "pn_jid": pn_jid,
                 "timestamp": messageProtocolEntity.getTimestamp() or int(time.time()),
                 "raw": base64.b64encode(messageProtocolEntity.raw),
+                **self._extract_media_attrs(messageProtocolEntity, msg_type),
             }
         )
 
@@ -298,3 +299,29 @@ class MessageHandler:
                 text = "[media]"
 
         return message_type, text
+
+    @staticmethod
+    def _extract_media_attrs(entity, msg_type: int) -> dict:
+        """Extract media metadata (url, mimetype, media_key) for IMAGE/VIDEO messages.
+
+        Returns empty dict for non-media or unsupported types. STICKER is excluded.
+        """
+        if msg_type not in (zowsup_pb2.MessageType.IMAGE, zowsup_pb2.MessageType.VIDEO,
+                             zowsup_pb2.MessageType.AUDIO, zowsup_pb2.MessageType.DOCUMENT):
+            return {}
+        try:
+            attrs = entity.message_attributes
+            if attrs is None:
+                return {}
+            media = attrs.media_specific_attributes
+            if media is None:
+                return {}
+            import base64 as _b64
+            return {
+                "media_url": getattr(media, "url", None) or "",
+                "media_mimetype": getattr(media, "mimetype", None) or "",
+                "media_key": _b64.b64encode(getattr(media, "media_key", b"")).decode()
+                if getattr(media, "media_key", None) else "",
+            }
+        except Exception:
+            return {}

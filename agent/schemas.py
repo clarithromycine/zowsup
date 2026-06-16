@@ -245,6 +245,9 @@ class MessageInfo(BaseModel):
     sent_at: float = 0.0
     created_at: float = 0.0
     note: Optional[str] = None
+    media_url: Optional[str] = None
+    media_key: Optional[str] = None
+    media_mimetype: Optional[str] = None
 
 
 class ConversationDetail(ConversationInfo):
