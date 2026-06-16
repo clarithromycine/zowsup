@@ -81,6 +81,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
   <button onclick="switchTab('conversations')" id="tab-conversations">💬 Conversations</button>
   <button onclick="switchTab('plugins')" id="tab-plugins">🧩 Plugins</button>
   <button onclick="switchTab('bots')" id="tab-bots">🤖 Bots</button>
+  <button onclick="switchTab('audit')" id="tab-audit">📋 Audit</button>
   <button onclick="switchTab('cluster')" id="tab-cluster" style="display:none">🖥 Cluster</button>
 </nav>
 
@@ -209,6 +210,7 @@ function render(){
   else if(currentTab==='conversations') renderConversations(m);
   else if(currentTab==='plugins') renderPlugins(m);
   else if(currentTab==='bots') renderBots(m);
+  else if(currentTab==='audit') renderAudit(m);
   else if(currentTab==='cluster') renderCluster(m);
 }
 function setDetail(tab,id){detailMode={tab,id};}
@@ -676,6 +678,34 @@ async function migrateBot(botId){
   viewAgent(detailMode.id);
 }
 
+// ── Audit Log ─────────────────────────────────────────────────────
+async function renderAudit(m){
+  m.innerHTML='<div class="card"><h3>Loading...</h3></div>';
+  let data=await api('/api/audit?limit=200');
+  let html='<div class="card"><h3>📋 API Audit Log</h3>';
+  html+='<div style="margin-bottom:8px;color:var(--muted);font-size:13px">Recent API requests (auto-refreshes every 15s)</div>';
+  html+='<div style="overflow-x:auto"><table><thead><tr>';
+  html+='<th>Time</th><th>Method</th><th>Path</th><th>Bot</th><th>IP</th><th>Status</th><th>Latency</th>';
+  html+='</tr></thead><tbody>';
+  if(!data.length) html+='<tr><td colspan=7 style="color:var(--muted)">No records yet</td></tr>';
+  for(let e of data){
+    let ts=new Date(e.timestamp*1000).toLocaleString();
+    let statusCls=e.status>=400?'style="color:#ef4444;font-weight:bold"':'';
+    let methodCls={'GET':'#10b981','POST':'#3b82f6','PUT':'#f59e0b','DELETE':'#ef4444'}[e.method]||'#333';
+    html+='<tr>';
+    html+='<td style="white-space:nowrap;font-size:12px">'+ts+'</td>';
+    html+='<td style="color:'+methodCls+';font-weight:bold">'+e.method+'</td>';
+    html+='<td style="font-family:monospace;font-size:12px;max-width:300px;overflow:hidden;text-overflow:ellipsis">'+e.path+'</td>';
+    html+='<td>'+e.bot_id+'</td>';
+    html+='<td style="font-size:12px">'+e.source_ip+'</td>';
+    html+='<td '+statusCls+'>'+e.status+'</td>';
+    html+='<td style="font-size:12px">'+(e.duration_ms||0)+'ms</td>';
+    html+='</tr>';
+  }
+  html+='</tbody></table></div></div>';
+  m.innerHTML=html;
+}
+
 // ── Init ──────────────────────────────────────────────────────────
 (async function(){
   // Detect cluster mode: only show Cluster tab if /api/cluster/agents responds
@@ -685,6 +715,8 @@ async function migrateBot(botId){
       document.getElementById('tab-cluster').style.display='';
     }
   }catch(e){/* standalone agent — tab stays hidden */}
+  // Audit tab always visible
+  document.getElementById('tab-audit').style.display='';
   render();
   // Auto-refresh list views only (detail views use WebSocket)
   setInterval(()=>{if(!detailMode)render()},15000);

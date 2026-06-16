@@ -70,6 +70,13 @@ def _extract_port(url: str) -> int | None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     registry.start()
+
+    # ── Cluster audit ──────────────────────────────────────────────────
+    from agent.manager.audit_store import AuditStore, set_default as _set_audit
+    cluster_audit = AuditStore(db_name="cluster_audit.db")
+    cluster_audit.start()
+    _set_audit(cluster_audit)
+
     health_task = asyncio.ensure_future(_health_check_loop())
     logger.info("Cluster started")
     yield
@@ -115,6 +122,38 @@ async def _ping_agent(url: str) -> bool:
 
 def create_cluster_app() -> FastAPI:
     app = FastAPI(title="Zowsup Cluster", version="0.1.0", lifespan=lifespan)
+
+    # ── Audit middleware (cluster records all proxied requests w/ real client IP) ──
+    import uuid as _uuid
+    _AUDIT_SKIP = ("/api/health", "/api/cluster/health", "/api/audit", "/console", "/static", "/ws")
+
+    @app.middleware("http")
+    async def _cluster_audit(request: Request, call_next):
+        t0 = time.time()
+        response = await call_next(request)
+        elapsed = time.time() - t0
+        path = request.url.path
+        if not any(path.startswith(p) for p in _AUDIT_SKIP):
+            try:
+                from agent.manager.audit_store import get_default as _gs
+                bot_id = ""
+                parts = path.split("/")
+                if len(parts) >= 4 and parts[1] == "api" and parts[2] == "bot":
+                    bot_id = parts[3]
+                elif "bot_id" in request.query_params:
+                    bot_id = request.query_params.get("bot_id", "")
+                source_ip = request.client.host if request.client else ""
+                _gs().record(
+                    method=request.method,
+                    path=path,
+                    source_ip=source_ip,
+                    bot_id=bot_id,
+                    status=response.status_code,
+                    duration_ms=int(elapsed * 1000),
+                )
+            except Exception:
+                pass
+        return response
 
     # ── Cluster management (auth required when CLUSTER_SECRET is set) ─────
     from fastapi.routing import APIRouter
@@ -739,6 +778,10 @@ def create_cluster_app() -> FastAPI:
     @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
     async def catch_all(path: str, request: Request):
         return await proxy_with_body_fallback(request)
+
+    # ── Audit API ───────────────────────────────────────────────────────────
+    from agent.api.audit_api import router as audit_router
+    app.include_router(audit_router)
 
     return app
 

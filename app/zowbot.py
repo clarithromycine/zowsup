@@ -368,6 +368,14 @@ class ZowBot:
                     self.inloop = False 
                     await self._async_disconnect()              
                     break
+                except Exception:
+                    self.logger.error(
+                        "Unhandled exception in main loop — disconnecting",
+                        exc_info=True,
+                    )
+                    self.inloop = False
+                    await self._async_disconnect()
+                    break
         finally:
             # Clean up command runner task (only if event loop is still running)
             try:

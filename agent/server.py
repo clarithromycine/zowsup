@@ -50,6 +50,8 @@ _access_key: Optional[str] = None  # Set at startup from CLI args
 _agent_id: str = ""  # Set at startup from CLI/env
 _agent_port: int | None = None  # Set from CLI --port for cluster self-URL
 _agent_host: str = "127.0.0.1"  # Advertised host for cluster registration (env: CLUSTER_ADVERTISE_HOST)
+_cluster_mode: bool = False  # True when CLUSTER_URL env is set — audit is handled by Cluster
+_audit_store = None  # type: AuditStore | None — created in lifespan, used by middleware
 
 
 def set_access_key(key: Optional[str]) -> None:
@@ -130,6 +132,15 @@ async def lifespan(app: FastAPI):
     conv_store.start()
     bot_manager.start_periodic_flush(interval=600.0)
 
+    # ── Audit: only active in standalone mode (cluster handles its own) ──
+    global _cluster_mode, _audit_store
+    _cluster_mode = bool(os.environ.get("CLUSTER_URL", ""))
+    if not _cluster_mode:
+        from agent.manager.audit_store import AuditStore, set_default as _set_audit
+        _audit_store = AuditStore(db_name="agent_audit.db")
+        _audit_store.start()
+        _set_audit(_audit_store)
+
     from agent.plugin.store import plugin_store as _plugin_store
     from agent.plugin.manager import plugin_manager as _plugin_manager
     from agent.manager.escalation_queue import escalation_queue as _escalation_queue
@@ -151,6 +162,7 @@ async def lifespan(app: FastAPI):
     from agent.api.plugin_api import router as plugin_router
     from agent.api.escalation_api import router as escalation_router
     from agent.api.migrate_api import router as migrate_router
+    from agent.api.audit_api import router as audit_router
     app.include_router(bot_router)
     app.include_router(cmd_router)
     app.include_router(msg_router)
@@ -159,12 +171,12 @@ async def lifespan(app: FastAPI):
     app.include_router(plugin_router)
     app.include_router(escalation_router)
     app.include_router(migrate_router)
+    app.include_router(audit_router)
 
     import logging
     logging.getLogger('transitions').setLevel(logging.WARNING)
 
     # ── Cluster auto-registration ────────────────────────────────────────────
-    import os
     cluster_url = os.environ.get("CLUSTER_URL", "")
     if cluster_url:
         import asyncio, httpx
@@ -277,7 +289,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # ── X-Request-ID + Slow Request tracking ──
+    # ── X-Request-ID + Slow Request tracking + Audit log ──
+    _AUDIT_SKIP_PREFIXES = ("/api/health", "/api/audit", "/console", "/static", "/ws")
+
     @app.middleware("http")
     async def request_tracker(request: Request, call_next):
         req_id = request.headers.get("X-Request-ID", str(uuid.uuid4())[:8])
@@ -287,6 +301,29 @@ def create_app() -> FastAPI:
         response.headers["X-Request-ID"] = req_id
         if elapsed > 5.0:
             logger.warning(f"[{req_id}] {request.method} {request.url.path} took {elapsed:.1f}s")
+
+        # Audit log (only in standalone mode; cluster handles its own)
+        path = request.url.path
+        if not _cluster_mode and not any(path.startswith(p) for p in _AUDIT_SKIP_PREFIXES):
+            try:
+                # Extract bot_id from path: /api/bot/{bot_id}/... or query param
+                bot_id = ""
+                parts = path.split("/")
+                if len(parts) >= 4 and parts[1] == "api" and parts[2] == "bot":
+                    bot_id = parts[3]
+                elif "bot_id" in request.query_params:
+                    bot_id = request.query_params.get("bot_id", "")
+                source_ip = request.client.host if request.client else ""
+                _audit_store.record(
+                    method=request.method,
+                    path=path,
+                    source_ip=source_ip,
+                    bot_id=bot_id,
+                    status=response.status_code,
+                    duration_ms=int(elapsed * 1000),
+                )
+            except Exception:
+                pass  # Never let audit logging break the request
         return response
 
     # Health check (uses api_router for auth)

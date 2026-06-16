@@ -17,6 +17,15 @@ Since the original yowsup project has not been maintained for a long time, we fo
 
 ```
 
+> [!IMPORTANT]
+> **Scope of the public release**
+>
+> This public release is designed for **managing existing WhatsApp accounts** only — messaging, group management, media handling, multi-device pairing, and agent-based multi-bot orchestration.
+>
+> **New account registration is intentionally not included** in the public version. WhatsApp's registration flow requires device attestation (Google Play Integrity API, SafetyNet, and runtime device environment metrics) that cannot be reproduced at the protocol layer. This is a common industry barrier — there are currently no well-functioning open-source registration solutions.
+>
+> If you need to register new accounts, a private solution is required. Please use this project with accounts that are already active.
+
 ## Discussion Groups
  * telegram:  [zowsup](https://t.me/+au1dTQz7jyU0YjU5)
 
