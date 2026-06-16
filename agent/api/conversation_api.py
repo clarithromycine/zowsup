@@ -105,9 +105,11 @@ async def download_media(conv_id: str, msg_id: int):
         return FileResponse(str(cache_file), media_type=media_mimetype)
 
     # ── Download encrypted file from WhatsApp CDN ──
-    import requests as _requests
+    import httpx as _httpx
     try:
-        enc_data = _requests.get(media_url, timeout=30).content
+        async with _httpx.AsyncClient(timeout=_httpx.Timeout(30.0)) as client:
+            resp = await client.get(media_url)
+            enc_data = resp.content
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Media download failed: {e}")
 

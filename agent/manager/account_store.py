@@ -221,8 +221,9 @@ class AccountStore:
             conn.commit()
         logger.info(f"Account '{bot_id}' registered (env={env}, agent={agent_id})")
 
-    def update_status(self, bot_id: str, status: str, env: str | None = None, auth_detail: str | None = None) -> None:
-        """Update running status. Optionally update env and/or auth_detail.
+    def update_status(self, bot_id: str, status: str, env: str | None = None, auth_detail: str | None = None,
+                      started_at: int | None = None) -> None:
+        """Update running status. Optionally update env, auth_detail, and/or started_at.
 
         When status is 'running', auth_detail is cleared (login succeeded).
         """
@@ -245,7 +246,14 @@ class AccountStore:
                 conn.execute("UPDATE accounts SET auth_detail = ? WHERE bot_id = ?", (auth_detail, bot_id))
             elif status == "running":
                 conn.execute("UPDATE accounts SET auth_detail = NULL WHERE bot_id = ?", (bot_id,))
-            if status == "running":
+            # started_at: always update on running (not just first time),
+            # and allow explicit update on stop (to persist the last known start time)
+            if started_at is not None:
+                conn.execute(
+                    "UPDATE accounts SET started_at = ? WHERE bot_id = ?",
+                    (started_at, bot_id),
+                )
+            elif status == "running":
                 conn.execute(
                     "UPDATE accounts SET started_at = ? WHERE bot_id = ? AND started_at IS NULL",
                     (now, bot_id),

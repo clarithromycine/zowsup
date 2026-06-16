@@ -158,7 +158,8 @@ class BotManager:
             try: bot.quit()
             except Exception: pass
             info = self._build_bot_info(bot_id, bot)
-            account_store.update_status(bot_id, "stopped")
+            account_store.update_status(bot_id, "stopped",
+                                        started_at=info.started_at)
             return info
 
         with self._lock:
@@ -194,8 +195,10 @@ class BotManager:
         with self._lock:
             self._bots.pop(bot_id, None)
 
-        # Record stopped status in account store
-        account_store.update_status(bot_id, "stopped")
+        # Record stopped status in account store — persist current started_at
+        # so list_bots() won't show a stale timestamp for stopped bots.
+        account_store.update_status(bot_id, "stopped",
+                                    started_at=info.started_at)
 
         return info
 

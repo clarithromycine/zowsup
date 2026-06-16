@@ -3,7 +3,7 @@
 import logging
 import mimetypes
 
-import requests
+import httpx
 from core.layers.protocol_media.mediacipher import MediaCipher
 from conf.constants import SysVar
 
@@ -20,9 +20,11 @@ class MediaManager:
         """
         self.layer = layer
 
-    def download(self, params):
+    async def download(self, params):
         """Download and decrypt a media file from WhatsApp servers."""
-        enc_data = requests.get(url=params["url"]).content
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
+            resp = await client.get(url=params["url"])
+            enc_data = resp.content
 
         if enc_data is None:
             logger.error("Download failed")

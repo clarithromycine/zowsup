@@ -227,8 +227,8 @@ class ZowBotLayer(YowInterfaceLayer):
     def genProfile(self, device_identity):
         return self.pairing.gen_profile(device_identity)
 
-    def download(self, params):
-        return self.media.download(params)
+    async def download(self, params):
+        return await self.media.download(params)
 
     def parseMediaCommonAttributes(self, msg, media_specific_attributes):
         return self.media.parse_media_common_attributes(msg, media_specific_attributes)
