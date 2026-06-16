@@ -181,6 +181,12 @@ def create_cluster_app() -> FastAPI:
         from agent.cluster.migrate import migrate_bot
         return await migrate_bot(request)
 
+    @cluster_router.get("/api/cluster/migrate/status")
+    async def _migrate_status(bot_id: str | None = Query(None)):
+        """Get migration status for a specific bot or all ongoing migrations."""
+        from agent.cluster.migrate import get_migration_status
+        return get_migration_status(bot_id)
+
     @cluster_router.post("/api/cluster/deploybot")
     async def deploy_bot(request: Request):
         """Deploy bot(s) to the least-loaded agent in the cluster.

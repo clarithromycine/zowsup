@@ -7,7 +7,7 @@ Since the original yowsup project has not been maintained for a long time, we fo
 ```
 - ZOWSUP VERSION : 0.9.5
 
-- UPDATE TIME : 2026-06-15
+- UPDATE TIME : 2026-06-16
 
 - WHATSAPP VERSION : 
     2.26.21.75(Android) 
@@ -21,13 +21,15 @@ Since the original yowsup project has not been maintained for a long time, we fo
  * telegram:  [zowsup](https://t.me/+au1dTQz7jyU0YjU5)
 
 ## What's New 0.9.5
- * **Agent cluster** — multi-agent deployment with transparent Cluster proxy; auto-registration, heartbeat, centralized escalation & plugin config
+ * **Agent cluster** — multi-agent deployment with transparent Cluster proxy; auto-registration, heartbeat, centralized escalation & plugin config; Cluster secret authentication (`CLUSTER_SECRET`)
  * **Plugin system** — pluggable translation (Google / LLM / Anthropic) and AI auto-reply (OpenAI / Anthropic / GLM / DeepSeek / Qwen) with keyword escalation
- * **Web Console** — single-page management UI with 4 tabs: Escalations, Conversations (with real-time WebSocket + message status ticks), Plugins, Bots
- * **Conversation CRUD** — SQLite-backed E2E conversation & message persistence with LID/PN resolution and contact notify_name
+ * **Web Console** — single-page management UI with: Escalations, Conversations (real-time WebSocket, message status ticks, optimistic send, multi-line input), Plugins (inline JSON editor), Bots (filter, import, scan), Cluster dashboard
+ * **Media messages** — IMAGE/VIDEO/AUDIO/DOCUMENT display in chat with download + decrypt + local caching; caption rendering & translation
+ * **Conversation CRUD** — SQLite-backed E2E conversation & message persistence with LID/PN resolution, contact notify_name, note/parent_id linkage
+ * **Bot management** — BotID/Agent filter, CSV import from UI, directory scan-to-DB, sort by status + started_at, `DELETE /api/bot/{id}` cleanup
  * **Escalation queue** — claim / reply / resolve workflow for human takeover of AI-escalated conversations
- * **Bot last-active tracking** — runtime cache with periodic flush to account store
- * **Automated bot migration** — stop → tar+base64 export → import → start → cleanup across agents
+ * **Automated bot migration** — stop → tar+base64 export → import → start → cleanup across agents, with per-step rollback and status tracking
+ * **Stability improvements** — Agent address auto-detection, startbot/stopbot routing fix, heartbeat auto-re-register, log format with millisecond timestamps
 
 ## What's New 0.9.0
 IMPORTANT NOTICE:  0.9.0 architecture is not compatible with 0.6.5, so if you have already work in 0.6.5, don't update,  you can track on old code from the branch "legacy"
@@ -103,9 +105,10 @@ Multiple agents behind a transparent Cluster. The Cluster exposes the same API a
 
 **Each agent must have its own `ACCOUNT_PATH`.** A bot belongs to whichever agent's `ACCOUNT_PATH` contains its directory. Migration = tar + scp the directory.
 
-**Start Cluster:**
+**Start Cluster (with optional security):**
 ```bash
 python -m agent.cluster --host 0.0.0.0 --port 8000
+python -m agent.cluster --cluster-secret mysecret --console-token mytoken
 ```
 
 **Start Agents (connect to Cluster):**
@@ -119,20 +122,27 @@ ACCOUNT_PATH=/data/accounts-b/ AGENT_ID=node-2 CLUSTER_URL=http://localhost:8000
 
 **Cluster manages the cluster:**
 - `GET /api/cluster/agents` — list all agents, bot counts, status
-- `POST /api/cluster/agents` — register new agent (automatic via `CLUSTER_URL`)
-- `POST /api/cluster/migrate` — automated bot migration between agents
+- `POST /api/cluster/agents` — register new agent (automatic via `CLUSTER_URL`; auto-detects real IP)
+- `POST /api/cluster/deploybot` — deploy new bots to least-loaded agent
+- `POST /api/cluster/migrate` — automated bot migration with per-step rollback
+- `POST /api/cluster/agents/{id}/scan` — trigger account directory re-scan on agent
+- `GET /api/cluster/migrate/status` — check migration progress
+- `GET /api/cluster/health` — aggregated health across all agents
 - Plugin config sync: Cluster is the source of truth, pushes to agents on change
 - Escalation queue: centralized on Cluster, all agents forward to it
-- Health check: 15s ping, 3 consecutive failures → mark offline
+- Health check: 30s ping, 3 consecutive failures → mark offline
+- Agent heartbeat auto-re-register: cluster restart doesn't require agent restart
 
 **Features available in both modes:**
 | Feature | Standalone | Cluster |
 |---------|-----------|---------|
-| Web Console (4 tabs) | ✅ | ✅ (via Cluster) |
+| Web Console (5 tabs) | ✅ | ✅ (via Cluster) |
 | Translation plugin | ✅ | ✅ (config synced from Cluster) |
 | AI auto-reply + escalation | ✅ | ✅ (escalation centralized) |
 | Conversation CRUD | ✅ | ✅ (per-agent, proxied) |
+| Media display (image/video/audio/doc) | ✅ | ✅ |
 | Message status ticks | ✅ | ✅ |
+| Bot import/export/scan/filter | ✅ | ✅ |
 | WebSocket real-time events | ✅ | ✅ (relayed by Cluster) |
 
 Full API reference: [`docs/agent-api.md`](docs/agent-api.md)

@@ -65,11 +65,11 @@ Claude 的原始评估 **整体方向正确，细节有 4 处修正**：
 
 ### 🟠 低优先级
 
-| 缺口 | 说明 |
-|------|------|
-| **消息发送无重试机制** | `sendmsg` proxy 失败直接返回错误，无 retry/queue |
-| **Bot 迁移前无容量检查** | 迁移时不检查目标 Agent 是否有余量 |
-| **迁移失败清理不完整** | import 失败有回滚，但 export/start/cleanup 失败时残留状态未处理 |
+| 缺口 | 说明 | 状态 |
+|------|------|------|
+| **消息发送无重试机制** | `sendmsg` proxy 失败直接返回错误，无 retry/queue | 🟠 |
+| **Bot 迁移前无容量检查** | ~~迁移时不检查目标 Agent 是否有余量~~ → 已实现 `MAX_BOTS_PER_AGENT=50` | ✅ |
+| **迁移失败清理不完整** | ~~import 失败有回滚，但 export/start/cleanup 失败时残留状态未处理~~ → Phase E 已修复：每步均有回滚 | ✅ |
 
 ---
 
@@ -118,14 +118,18 @@ Claude 的原始评估 **整体方向正确，细节有 4 处修正**：
 - [x] **`DELETE /api/bot/{bot_id}` 新增** — 完整清理：stop bot + 删 DB 记录 + 删磁盘目录
 - [x] **日志格式升级** — 毫秒精度时间戳 `2026-06-16 10:30:45.123 | INFO  | module | msg`，uvicorn 日志统一格式
 - [x] **心跳间隔调整** — Agent 主动心跳 30s→60s，Cluster 被动探测 15s→30s
-- [x] **测试清理修复** — `test_import_and_export_roundtrip` 的 fake 账号目录现在正确清理
+### ✅ 方向 E — 迁移完整性（已完成）
+
+- [x] **每步回滚** — stop/export/import/start 失败均自动回滚（restart on source）
+- [x] **迁移状态追踪** — `_migration_states` 字典追踪每个 bot 的迁移进度
+- [x] **Status API** — `GET /api/cluster/migrate/status?bot_id=` 查询迁移状态- [x] **测试清理修复** — `test_import_and_export_roundtrip` 的 fake 账号目录现在正确清理
 
 ---
 
 ## 五、执行状态
 
 ```
-✅ A（安全 + 残留修复） → ✅ A.5（router 拆分） → ✅ B（测试补全） → ✅ C（功能扩展） → ✅ D（稳定性修复）
+✅ A（安全 + 残留修复） → ✅ A.5（router 拆分） → ✅ B（测试补全） → ✅ C（功能扩展） → ✅ D（稳定性修复） → ✅ E（迁移完整性）
 ```
 
 - **全部完成**：Cluster 管理端点有认证、Agent 注册有 TTL、router.py 已拆分、测试从 50 → 110。
@@ -134,11 +138,12 @@ Claude 的原始评估 **整体方向正确，细节有 4 处修正**：
 
 ### 下一步方向
 
-- **方向 D2 — Media 消息支持**：Conversation API 扩展 media 字段 + 下载端点 + Web Console 渲染 IMAGE/VIDEO/AUDIO/STICKER
-- **方向 E — 迁移完整性**：迁移失败回滚、断点续传、迁移进度追踪
+- **方向 D2 — Media 消息支持** ✅ 已完成（IMAGE/VIDEO/AUDIO/DOCUMENT + 缓存 + caption + 翻译）
+- **方向 E — 迁移完整性** ✅ 已完成（回滚 + 状态追踪 + status API）
+- **方向 F — 前端完善**：聊天换行、乐观发送、自适应布局、名称显示等（本次会话已修复）
 
 ---
 
 *初评: GitHub Copilot (Claude Sonnet 4.6)*  
 *复核 & 补充: GitHub Copilot (DeepSeek V4 Pro)*  
-*最后更新: 2026-06-16（Phase A + A.5 + B + C + D 完成）*
+*最后更新: 2026-06-16（Phase A→E 全部完成 + Media 消息支持 + 前端完善）*
