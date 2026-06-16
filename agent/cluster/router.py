@@ -54,19 +54,7 @@ async def _check_cluster_secret(x_cluster_secret: str | None = Header(None, alia
         raise HTTPException(status_code=403, detail="Invalid or missing cluster secret")
 
 
-# ── Helper: loopback / port detection ────────────────────────────────────────
-
-_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1", "0.0.0.0"}
-
-
-def _is_loopback_url(url: str) -> bool:
-    """Return True if the URL's host part is a loopback / unspecified address."""
-    try:
-        host = urlparse(url).hostname
-        return host is not None and host.lower() in _LOOPBACK_HOSTS
-    except Exception:
-        return False
-
+# ── Helper: port extraction ─────────────────────────────────────────────────
 
 def _extract_port(url: str) -> int | None:
     """Extract port number from URL, or None if not present."""
@@ -145,15 +133,16 @@ def create_cluster_app() -> FastAPI:
     async def register_agent(request: Request):
         body = await request.json()
         agent_id = body.get("agent_id")
-        url = body.get("url", "")
+        agent_url = body.get("url", "")
         if not agent_id:
             raise HTTPException(status_code=400, detail="agent_id required")
 
-        # ── Auto-detect agent address from request when url is missing or loopback ──
-        if not url or _is_loopback_url(url):
-            client_ip = request.client.host if request.client else "unknown"
-            port = _extract_port(url) or 8000
-            url = f"http://{client_ip}:{port}"
+        # ── Always use the real client IP from the HTTP request, not what
+        #     the agent advertises (which may be a hostname, .local, or loopback).
+        #     Only the port is taken from the agent's URL. ──
+        client_ip = request.client.host if request.client else "unknown"
+        port = _extract_port(agent_url) or 8000
+        url = f"http://{client_ip}:{port}"
 
         agent = registry.register_agent(agent_id, url, body.get("access_key", ""))
         # Sync bot routes from agent
