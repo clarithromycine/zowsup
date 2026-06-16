@@ -93,7 +93,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
 </head>
 <body>
 <nav>
-  <h2>Zowsup Console</h2>
+  <h2>ZOWSUP CONSOLE</h2>
   <button onclick="switchTab('escalations')" id="tab-escalations" class="active">🟡 Escalations</button>
   <button onclick="switchTab('conversations')" id="tab-conversations">💬 Conversations</button>
   <button onclick="switchTab('plugins')" id="tab-plugins">🧩 Plugins</button>
@@ -744,10 +744,11 @@ async function renderAudit(m){
 }
 
 // ── Bot Log Viewer ───────────────────────────────────────────────
-let _logWs=null,_logBotId='',_logAutoScroll=true;
+let _logWs=null,_logBotId='',_logAutoScroll=true,_logClosing=false;
 
 async function openBotLogs(botId){
   _logBotId=botId;
+  _logClosing=false;
   document.getElementById('log-title').textContent='📋 '+botId+' Logs';
   document.getElementById('log-body').innerHTML='<span style="color:rgba(255,255,255,.3)">Loading...</span>';
   document.getElementById('log-overlay').classList.remove('hidden');
@@ -778,19 +779,23 @@ async function openBotLogs(botId){
     renderLogLines([e.data],false);
   };
   _logWs.onclose=function(){
-    if(_logWs){ // not manually closed
-      document.getElementById('log-status').className='log-status stale';
-      document.getElementById('log-status').textContent='● Disconnected';
-    }
+    if(_logClosing){_logClosing=false;return;}
+    document.getElementById('log-status').className='log-status stale';
+    document.getElementById('log-status').textContent='● Disconnected';
   };
   _logWs.onerror=function(){
+    if(_logClosing)return;
     document.getElementById('log-status').className='log-status stale';
     document.getElementById('log-status').textContent='● Error';
   };
 }
 
 function closeBotLogs(){
-  if(_logWs){_logWs.close();_logWs=null;}
+  if(_logWs){
+    _logClosing=true;
+    _logWs.close();
+    _logWs=null;
+  }
   _logBotId='';
   document.getElementById('log-overlay').classList.add('hidden');
   document.getElementById('log-body').innerHTML='';

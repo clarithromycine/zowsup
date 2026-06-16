@@ -39,10 +39,12 @@ _ws_connection_count = 0
 def ws_connected():
     global _ws_connection_count
     _ws_connection_count += 1
+    logger.debug(f"WS connected → count={_ws_connection_count}")
 
 def ws_disconnected():
     global _ws_connection_count
     _ws_connection_count = max(0, _ws_connection_count - 1)
+    logger.debug(f"WS disconnected → count={_ws_connection_count}")
 
 # ── Access Key ───────────────────────────────────────────────────────────────
 

@@ -82,42 +82,56 @@ async def ws_bot_logs(
     ws_connected()
     logger.info(f"WebSocket log client connected for bot '{bot_id}' (tail={tail})")
 
-    # Send history
-    if tail > 0:
-        history = log_broadcaster.get_recent(bot_id, lines=tail)
-        for line in history:
-            try:
-                await websocket.send_text(line)
-            except WebSocketDisconnect:
-                return
-
-    # Subscribe for real-time updates
-    sub = log_broadcaster.subscribe(bot_id)
-
-    async def _read_loop():
-        """Read from queue; None sentinel or _shutting_down exits."""
-        while not log_broadcaster._shutting_down:
-            try:
-                line = await sub.queue.get()
-            except asyncio.CancelledError:
-                return False
-
-            if line is None:
-                return False
-            try:
-                await websocket.send_text(line)
-            except WebSocketDisconnect:
-                return False
-        return True
-
+    sub = None
     try:
-        await _read_loop()
-    except WebSocketDisconnect:
-        logger.info(f"WebSocket log client disconnected for bot '{bot_id}'")
+        # Send history
+        if tail > 0:
+            history = log_broadcaster.get_recent(bot_id, lines=tail)
+            for line in history:
+                try:
+                    await websocket.send_text(line)
+                except WebSocketDisconnect:
+                    return
+
+        # Subscribe for real-time updates
+        sub = log_broadcaster.subscribe(bot_id)
+
+        async def _read_loop():
+            while not log_broadcaster._shutting_down:
+                try:
+                    line = await sub.queue.get()
+                except asyncio.CancelledError:
+                    return
+
+                if line is None:
+                    return
+                try:
+                    await websocket.send_text(line)
+                except WebSocketDisconnect:
+                    return
+
+        async def _close_watcher():
+            """Block until client disconnects (receive_text raises on close)."""
+            try:
+                while True:
+                    await websocket.receive_text()
+            except WebSocketDisconnect:
+                pass
+
+        read_task = asyncio.ensure_future(_read_loop())
+        watch_task = asyncio.ensure_future(_close_watcher())
+        done, pending = await asyncio.wait(
+            [read_task, watch_task], return_when=asyncio.FIRST_COMPLETED
+        )
+        for t in pending:
+            t.cancel()
+        if read_task in pending:
+            logger.info(f"WebSocket log client disconnected for bot '{bot_id}'")
     finally:
         from agent.server import ws_disconnected
         ws_disconnected()
-        log_broadcaster.unsubscribe(bot_id, sub)
+        if sub is not None:
+            log_broadcaster.unsubscribe(bot_id, sub)
 
 
 # ── WebSocket: Real-time Event Stream ────────────────────────────────────────
@@ -143,40 +157,56 @@ async def ws_bot_events(
         return
 
     await websocket.accept()
+    from agent.server import ws_connected
+    ws_connected()
     logger.info(f"WebSocket event client connected for bot '{bot_id}' (tail={tail})")
 
-    # Send history
-    if tail > 0:
-        history = log_broadcaster.get_recent_events(bot_id, count=tail)
-        for event in history:
-            try:
-                await websocket.send_text(json.dumps(event, ensure_ascii=False, default=str))
-            except WebSocketDisconnect:
-                return
-
-    # Subscribe for real-time updates
-    sub = log_broadcaster.subscribe_events(bot_id)
-
-    async def _read_loop():
-        while not log_broadcaster._shutting_down:
-            try:
-                payload = await sub.queue.get()
-            except asyncio.CancelledError:
-                return False
-
-            if payload is None:  # Sentinel
-                return False
-            try:
-                await websocket.send_text(payload)
-            except WebSocketDisconnect:
-                return False
-        return True
-
+    sub = None
     try:
-        await _read_loop()
-    except WebSocketDisconnect:
-        logger.info(f"WebSocket event client disconnected for bot '{bot_id}'")
+        # Send history
+        if tail > 0:
+            history = log_broadcaster.get_recent_events(bot_id, count=tail)
+            for event in history:
+                try:
+                    await websocket.send_text(json.dumps(event, ensure_ascii=False, default=str))
+                except WebSocketDisconnect:
+                    return
+
+        # Subscribe for real-time updates
+        sub = log_broadcaster.subscribe_events(bot_id)
+
+        async def _read_loop():
+            while not log_broadcaster._shutting_down:
+                try:
+                    payload = await sub.queue.get()
+                except asyncio.CancelledError:
+                    return
+
+                if payload is None:  # Sentinel
+                    return
+                try:
+                    await websocket.send_text(payload)
+                except WebSocketDisconnect:
+                    return
+
+        async def _close_watcher():
+            try:
+                while True:
+                    await websocket.receive_text()
+            except WebSocketDisconnect:
+                pass
+
+        read_task = asyncio.ensure_future(_read_loop())
+        watch_task = asyncio.ensure_future(_close_watcher())
+        done, pending = await asyncio.wait(
+            [read_task, watch_task], return_when=asyncio.FIRST_COMPLETED
+        )
+        for t in pending:
+            t.cancel()
+        if read_task in pending:
+            logger.info(f"WebSocket event client disconnected for bot '{bot_id}'")
     finally:
         from agent.server import ws_disconnected
         ws_disconnected()
-        log_broadcaster.unsubscribe_events(bot_id, sub)
+        if sub is not None:
+            log_broadcaster.unsubscribe_events(bot_id, sub)
