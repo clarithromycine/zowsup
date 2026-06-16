@@ -52,6 +52,91 @@ async def list_conversations(
     return [ConversationInfo(**r) for r in rows]
 
 
+# ── Media Download (must be before Detail — :path is greedy) ────────────────
+
+@router.get("/api/conversation/{conv_id:path}/message/{msg_id:int}/media")
+async def download_media(conv_id: str, msg_id: int):
+    """Download and decrypt media (IMAGE/VIDEO/AUDIO/DOCUMENT) for a message.
+
+    Returns the media file with the correct Content-Type.
+    First access: downloads + decrypts + caches locally.
+    Subsequent accesses: serves from local cache (instant).
+    """
+    from fastapi.responses import FileResponse
+    import base64 as _b64
+    from pathlib import Path
+
+    resolved = _resolve_conv_id(conv_id)
+    if resolved is None:
+        raise HTTPException(status_code=404, detail=f"Conversation '{conv_id}' not found")
+
+    # Find the message
+    target = None
+    for m in conv_store.get_messages(resolved, limit=1000):
+        if m["id"] == msg_id:
+            target = m
+            break
+    if target is None:
+        raise HTTPException(status_code=404, detail=f"Message {msg_id} not found")
+
+    media_url = target.get("media_url")
+    media_key_b64 = target.get("media_key")
+    media_mimetype = target.get("media_mimetype") or "application/octet-stream"
+    content_type_str = target.get("content_type", "")
+
+    if not media_url or not media_key_b64:
+        raise HTTPException(status_code=404,
+                            detail=f"Message {msg_id} has no media "
+                                   f"(url={'yes' if media_url else 'no'}, "
+                                   f"key={'yes' if media_key_b64 else 'no'})")
+
+    # ── Cache check ──
+    from conf.constants import SysVar
+    parts = resolved.split(":", 1)
+    bot_id = parts[0]
+    cache_dir = Path(SysVar.DOWNLOAD_PATH) / "media_cache" / bot_id
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_file = cache_dir / f"{msg_id}_{content_type_str.lower()}"
+    if cache_file.exists():
+        return FileResponse(str(cache_file), media_type=media_mimetype)
+
+    # ── Download encrypted file from WhatsApp CDN ──
+    import requests as _requests
+    try:
+        enc_data = _requests.get(media_url, timeout=30).content
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Media download failed: {e}")
+
+    if not enc_data:
+        raise HTTPException(status_code=502, detail="Empty media response")
+
+    # ── Decrypt ──
+    from core.layers.protocol_media.mediacipher import MediaCipher
+    media_key = _b64.b64decode(media_key_b64)
+
+    if content_type_str == "VIDEO":
+        media_info = MediaCipher.INFO_VIDEO
+    elif content_type_str == "AUDIO":
+        media_info = MediaCipher.INFO_AUDIO
+    elif content_type_str == "DOCUMENT":
+        media_info = MediaCipher.INFO_DOCUMENT
+    else:
+        media_info = MediaCipher.INFO_IMAGE
+
+    try:
+        filedata = MediaCipher().decrypt(enc_data, media_key, media_info)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Media decryption failed: {e}")
+
+    if filedata is None:
+        raise HTTPException(status_code=500, detail="Media decryption produced no data")
+
+    # ── Cache to disk ──
+    cache_file.write_bytes(filedata)
+
+    return FileResponse(content=filedata, media_type=media_mimetype)
+
+
 # ── Detail ───────────────────────────────────────────────────────────────────
 
 @router.get("/api/conversation/{conv_id:path}", response_model=ConversationDetail)
@@ -208,70 +293,3 @@ async def revoke_message(conv_id: str, msg_id: int):
 
     conv_store.update_message_status(wa_msg_id, "REVOKE")
     return {"revoked": True, "msg_id": wa_msg_id}
-
-
-# ── Media Download ───────────────────────────────────────────────────────────
-
-@router.get("/api/conversation/{conv_id:path}/message/{msg_id:int}/media")
-async def download_media(conv_id: str, msg_id: int):
-    """Download and decrypt media (IMAGE/VIDEO) for a message.
-
-    Returns the media file with the correct Content-Type.
-    Works standalone — does not require the bot to be running.
-    """
-    from fastapi.responses import Response as FileResponse
-    import base64 as _b64
-
-    resolved = _resolve_conv_id(conv_id)
-    if resolved is None:
-        raise HTTPException(status_code=404, detail=f"Conversation '{conv_id}' not found")
-
-    # Find the message
-    target = None
-    for m in conv_store.get_messages(resolved, limit=1000):
-        if m["id"] == msg_id:
-            target = m
-            break
-    if target is None:
-        raise HTTPException(status_code=404, detail=f"Message {msg_id} not found")
-
-    media_url = target.get("media_url")
-    media_key_b64 = target.get("media_key")
-    media_mimetype = target.get("media_mimetype") or "application/octet-stream"
-    content_type_str = target.get("content_type", "")
-
-    if not media_url or not media_key_b64:
-        raise HTTPException(status_code=404, detail="Message has no downloadable media")
-
-    # Download encrypted file from WhatsApp CDN
-    import requests as _requests
-    try:
-        enc_data = _requests.get(media_url, timeout=30).content
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Media download failed: {e}")
-
-    if not enc_data:
-        raise HTTPException(status_code=502, detail="Empty media response")
-
-    # Decrypt
-    from core.layers.protocol_media.mediacipher import MediaCipher
-    media_key = _b64.b64decode(media_key_b64)
-
-    if content_type_str == "VIDEO":
-        media_info = MediaCipher.INFO_VIDEO
-    elif content_type_str == "AUDIO":
-        media_info = MediaCipher.INFO_AUDIO
-    elif content_type_str == "DOCUMENT":
-        media_info = MediaCipher.INFO_DOCUMENT
-    else:
-        media_info = MediaCipher.INFO_IMAGE  # IMAGE + fallback
-
-    try:
-        filedata = MediaCipher().decrypt(enc_data, media_key, media_info)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Media decryption failed: {e}")
-
-    if filedata is None:
-        raise HTTPException(status_code=500, detail="Media decryption produced no data")
-
-    return FileResponse(content=filedata, media_type=media_mimetype)

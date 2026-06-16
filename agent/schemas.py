@@ -248,6 +248,9 @@ class MessageInfo(BaseModel):
     media_url: Optional[str] = None
     media_key: Optional[str] = None
     media_mimetype: Optional[str] = None
+    media_file_name: Optional[str] = None
+    media_file_length: Optional[int] = None
+    media_caption: Optional[str] = None
 
 
 class ConversationDetail(ConversationInfo):

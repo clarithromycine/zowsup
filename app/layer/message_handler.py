@@ -79,22 +79,28 @@ class MessageHandler:
 
         participant_full = messageProtocolEntity.getParticipant(True)
 
+
+        message={
+            "type": msg_type,
+            "text": text,
+            "notify": messageProtocolEntity.getNotify() or None,
+            "msgId": messageProtocolEntity.getId(),
+            "from": messageProtocolEntity.getFrom(False),
+            "from_full": from_full,
+            "to": messageProtocolEntity.getTo(False) if messageProtocolEntity.fromme else self.layer.bot.botId,
+            "participant": participant_full,
+            "lid": canonical_jid,
+            "pn_jid": pn_jid,
+            "timestamp": messageProtocolEntity.getTimestamp() or int(time.time()),
+            "raw": base64.b64encode(messageProtocolEntity.raw),
+            **self._extract_media_attrs(messageProtocolEntity, msg_type),
+        }
+        # Feed media caption into translation pipeline by setting it as text
+        if message.get("media_caption"):
+            message["text"] = message["media_caption"]
+
         self.layer.callback(
-            message={
-                "type": msg_type,
-                "text": text,
-                "notify": messageProtocolEntity.getNotify() or None,
-                "msgId": messageProtocolEntity.getId(),
-                "from": messageProtocolEntity.getFrom(False),
-                "from_full": from_full,
-                "to": messageProtocolEntity.getTo(False) if messageProtocolEntity.fromme else self.layer.bot.botId,
-                "participant": participant_full,
-                "lid": canonical_jid,
-                "pn_jid": pn_jid,
-                "timestamp": messageProtocolEntity.getTimestamp() or int(time.time()),
-                "raw": base64.b64encode(messageProtocolEntity.raw),
-                **self._extract_media_attrs(messageProtocolEntity, msg_type),
-            }
+            message=message,
         )
 
         # Send message acks with probabilistic behavior
@@ -302,26 +308,43 @@ class MessageHandler:
 
     @staticmethod
     def _extract_media_attrs(entity, msg_type: int) -> dict:
-        """Extract media metadata (url, mimetype, media_key) for IMAGE/VIDEO messages.
-
-        Returns empty dict for non-media or unsupported types. STICKER is excluded.
+        """Extract media metadata (url, mimetype, media_key, file_name, file_length)
+        for media messages.
+        
+        DOCUMENT/IMAGE/VIDEO/AUDIO:   entity.downloadablemedia_specific_attributes
+        STICKER is excluded.
         """
         if msg_type not in (zowsup_pb2.MessageType.IMAGE, zowsup_pb2.MessageType.VIDEO,
                              zowsup_pb2.MessageType.AUDIO, zowsup_pb2.MessageType.DOCUMENT):
             return {}
         try:
-            attrs = entity.message_attributes
+            import base64 as _b64
+            # DOCUMENT uses a different attribute path
+
+            attrs = getattr(entity, 'downloadablemedia_specific_attributes', None)
+
+
             if attrs is None:
                 return {}
-            media = attrs.media_specific_attributes
-            if media is None:
-                return {}
-            import base64 as _b64
+                        
+
+            url = attrs.url 
+            mime = attrs.mimetype 
+            key = attrs.media_key
+
+            print(url)
+            print(mime)
+            print(key)
+            fname = getattr(entity, 'file_name', '') or ''
+            flen = getattr(entity, 'file_length', None) or 0
+            caption = getattr(entity, 'caption', '') or ''
             return {
-                "media_url": getattr(media, "url", None) or "",
-                "media_mimetype": getattr(media, "mimetype", None) or "",
-                "media_key": _b64.b64encode(getattr(media, "media_key", b"")).decode()
-                if getattr(media, "media_key", None) else "",
+                "media_url": url,
+                "media_mimetype": mime,
+                "media_key": _b64.b64encode(key).decode() if key else "",
+                "media_file_name": fname,
+                "media_file_length": flen,
+                "media_caption": caption,
             }
         except Exception:
             return {}

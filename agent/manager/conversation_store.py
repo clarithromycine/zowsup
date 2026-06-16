@@ -60,10 +60,13 @@ _MIGRATIONS = [
     # Add notify_name column for contact display name
     "ALTER TABLE conversations ADD COLUMN notify_name TEXT",
     "CREATE INDEX IF NOT EXISTS idx_conv_notify ON conversations(notify_name)",
-    # Add media columns for IMAGE/VIDEO message support
+    # Add media columns for IMAGE/VIDEO/AUDIO/DOCUMENT message support
     "ALTER TABLE messages ADD COLUMN media_url TEXT",
     "ALTER TABLE messages ADD COLUMN media_key TEXT",
     "ALTER TABLE messages ADD COLUMN media_mimetype TEXT",
+    "ALTER TABLE messages ADD COLUMN media_file_name TEXT",
+    "ALTER TABLE messages ADD COLUMN media_file_length INTEGER",
+    "ALTER TABLE messages ADD COLUMN media_caption TEXT",
 ]
 
 
@@ -355,6 +358,9 @@ class ConversationStore:
         media_url: str | None = None,
         media_key: str | None = None,
         media_mimetype: str | None = None,
+        media_file_name: str | None = None,
+        media_file_length: int | None = None,
+        media_caption: str | None = None,
     ) -> dict:
         """Record a message and update conversation metadata.
 
@@ -385,11 +391,11 @@ class ConversationStore:
                 """INSERT INTO messages
                    (conversation_id, msg_id, direction, content_type, content,
                     participant_jid, status, raw, sent_at, created_at,
-                    media_url, media_key, media_mimetype)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    media_url, media_key, media_mimetype, media_file_name, media_file_length, media_caption)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (conv_id, msg_id, direction, content_type, content,
                  participant_jid, status, raw, sent_at, now,
-                 media_url, media_key, media_mimetype),
+                 media_url, media_key, media_mimetype, media_file_name, media_file_length, media_caption),
             )
             # Update conversation metadata (skip notes for message_count)
             if direction != "note":

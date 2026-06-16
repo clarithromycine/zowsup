@@ -18,7 +18,11 @@ nav button{text-align:left;padding:8px 10px;border:none;background:none;cursor:p
 nav button:hover{background:#f0f1f5}
 nav button.active{background:var(--primary);color:#fff}
 main{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px}
+main.chat-mode{overflow:hidden;padding:12px}
 .card{background:var(--card);border-radius:var(--r8);box-shadow:var(--sh);padding:16px}
+.card.chat-card{display:flex;flex-direction:column;height:100%;padding:12px}
+.card.chat-card .chat-body{flex:1;overflow-y:auto;display:flex;flex-direction:column-reverse;gap:2px;min-height:0}
+.card.chat-card .chat-foot{padding-top:10px;border-top:1px solid var(--border);margin-top:8px}
 .card h3{font-size:14px;margin-bottom:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .spacer{flex:1}
@@ -45,7 +49,7 @@ textarea{width:100%;resize:vertical;min-height:60px}
 .msg-out{background:#e8f5e9;align-self:flex-end;margin-left:auto}
 .msg-note{background:#fff3e0;font-style:italic;font-size:12px;align-self:flex-start}
 .msg-meta{font-size:11px;color:var(--muted);margin-top:2px}
-#msg-container{display:flex;flex-direction:column-reverse;gap:2px;max-height:400px;overflow-y:auto}
+#msg-container{display:flex;flex-direction:column-reverse;gap:2px;overflow-y:auto}
 label{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
 .field{margin-bottom:10px}
 .toast{position:fixed;bottom:20px;right:20px;padding:10px 20px;border-radius:var(--r8);color:#fff;font-size:13px;z-index:999;animation:fade .3s}
@@ -115,7 +119,7 @@ function wsConnectChat(botId,convId){
         let msg=evt.data||{};
         let msgConv=botId+':'+(msg.lid||msg.from_full||'');
         if(msgConv!==convId)return;
-        appendChatMessage(msg);
+        appendChatMessage(msg, convId);
       }else if(evt.type==='note'){
         let note=evt.data||{};
         if(note.conversation_id!==convId)return;
@@ -151,16 +155,17 @@ function appendNoteMessage(note){
   let meta=bubble.querySelector(".msg-meta");if(meta)bubble.insertBefore(trans,meta);else bubble.appendChild(trans);
 }
 
-function renderMessage(m){if(m.direction==="note")return document.createTextNode("");let cls=m.direction==="incoming"?"msg-in":"msg-out";let check='';if(m.direction==="outgoing"){let s=(m.status||'').toUpperCase();let icon='',c='sent';if(s==='READ'||s==='READ_RECEIPT'){icon='\u2713\u2713';c='read'}else if(s==='DELIVERED'||s==='RECEIVED'){icon='\u2713\u2713';c='delivered'}else if(s==='SENT'||s==='EXECUTED'||s==='SERVER_ACK'){icon='\u2713';c='sent'}else if(s==='FAILED'||s==='ERROR'){icon='\u2717';c='failed'}else{icon='\u2713';c='sent'}check=`<span class="msg-check ${c}" data-msg-status="${s||'SENT'}">${icon}</span>`;}let b=document.createElement("div");b.className="msg-bubble "+cls;if(m.msg_id)b.setAttribute("data-msg-id",m.msg_id);if(m.id)b.setAttribute("data-db-id",m.id);let mediaUrl=m.id&&['IMAGE','VIDEO','AUDIO','DOCUMENT'].includes(m.content_type)?('/api/conversation/'+encodeURIComponent(m.conversation_id)+'/message/'+m.id+'/media'):'';let ct=m.content_type||'TEXT';let html='';if(ct==='IMAGE'&&mediaUrl){html='<img src="'+mediaUrl+'" style="max-width:240px;max-height:240px;border-radius:8px;cursor:pointer" onclick="window.open(this.src)" loading="lazy" onerror="this.alt=\'[image load failed]\'">';}else if(ct==='VIDEO'&&mediaUrl){html='<video src="'+mediaUrl+'" controls style="max-width:300px;max-height:240px;border-radius:8px" preload="metadata"><\/video>';}else if(ct==='AUDIO'&&mediaUrl){html='<audio src="'+mediaUrl+'" controls style="max-width:300px" preload="metadata"><\/audio>';}else if(ct==='DOCUMENT'&&mediaUrl){html='<div>📄 <a href="'+mediaUrl+'" download style="color:var(--primary)">'+m.content+'<\/a><\/div>';}else{html='<div>'+m.content+'</div>';}
+function renderMessage(m){if(m.direction==="note")return document.createTextNode("");let cls=m.direction==="incoming"?"msg-in":"msg-out";let check='';if(m.direction==="outgoing"){let s=(m.status||'').toUpperCase();let icon='',c='sent';if(s==='READ'||s==='READ_RECEIPT'){icon='\u2713\u2713';c='read'}else if(s==='DELIVERED'||s==='RECEIVED'){icon='\u2713\u2713';c='delivered'}else if(s==='SENT'||s==='EXECUTED'||s==='SERVER_ACK'){icon='\u2713';c='sent'}else if(s==='FAILED'||s==='ERROR'){icon='\u2717';c='failed'}else{icon='\u2713';c='sent'}check=`<span class="msg-check ${c}" data-msg-status="${s||'SENT'}">${icon}</span>`;}let b=document.createElement("div");b.className="msg-bubble "+cls;if(m.msg_id)b.setAttribute("data-msg-id",m.msg_id);if(m.id)b.setAttribute("data-db-id",m.id);let hasMedia=m.media_url&&m.media_key&&m.id&&m.conversation_id;let mediaUrl=hasMedia?('/api/conversation/'+encodeURIComponent(m.conversation_id)+'/message/'+m.id+'/media'):'';let ct=m.content_type||'TEXT';let fname=m.media_file_name||'';let fsize=m.media_file_length?(' · '+(m.media_file_length>1048576?(m.media_file_length/1048576).toFixed(1)+'MB':(m.media_file_length>1024?(m.media_file_length/1024).toFixed(1)+'KB':m.media_file_length+'B'))):'';let html='';if(ct==='IMAGE'&&mediaUrl){html='<img src="'+mediaUrl+'" style="max-width:240px;max-height:240px;border-radius:8px;cursor:pointer" onclick="window.open(this.src)" loading="lazy" onerror="this.alt=\'[image load failed]\'">';}else if(ct==='VIDEO'&&mediaUrl){html='<video src="'+mediaUrl+'" controls style="max-width:300px;max-height:240px;border-radius:8px" preload="metadata"><\/video>';}else if(ct==='AUDIO'&&mediaUrl){html='<audio src="'+mediaUrl+'" controls style="max-width:300px" preload="metadata"><\/audio>';}else if(ct==='DOCUMENT'&&mediaUrl){html='<div>📄 <a href="'+mediaUrl+'" download="'+(fname||m.content)+'" style="color:var(--primary)">'+(fname||m.content)+'<\/a>'+fsize+'<\/div>';}else{html='<div>'+m.content+'</div>';}
+  if(m.media_caption)html+='<div style="margin-top:4px;font-size:13px">'+m.media_caption+'</div>';
   if(m.note)html+='<div class="msg-note-inline">'+m.note+'</div>';
   html+='<div class="msg-meta">'+m.direction+' · '+ct+' · '+new Date((m.created_at||0)*1000).toLocaleString()+check+'</div>';
   b.innerHTML=html;return b}
 
-function appendChatMessage(msg){
+function appendChatMessage(msg, convId){
   let mc=document.getElementById('msg-container');if(!mc)return;
   let typeMap={1:'TEXT',2:'AD',3:'INTERACTIVE',4:'URL',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT',9:'STICKER',10:'REACTION',11:'POLL',20:'REVOKE',91:'UNKNOWN_MEDIA',99:'OTHER'};
   let rawType=msg.type;let ctype=typeMap[parseInt(rawType)||rawType]||rawType||'?';
-  let m={direction:msg.from_full?'incoming':'outgoing',content:msg.text||'['+ctype+']',content_type:ctype,created_at:Date.now()/1000,msg_id:msg.msgId||null,id:msg.db_id||null};
+  let m={direction:msg.from_full?'incoming':'outgoing',content:msg.text||'['+ctype+']',content_type:ctype,created_at:Date.now()/1000,msg_id:msg.msgId||null,id:msg.db_id||null,conversation_id:convId||'',media_url:msg.media_url||null,media_key:msg.media_key||null,media_mimetype:msg.media_mimetype||null,media_file_name:msg.media_file_name||null,media_file_length:msg.media_file_length||null,media_caption:msg.media_caption||null};
   mc.insertBefore(renderMessage(m),mc.firstChild);
   let cnt=document.getElementById('msg-count');if(cnt){let n=parseInt(cnt.textContent)||0;cnt.textContent=(n+1)+' msgs';}
 }
@@ -202,7 +207,7 @@ function render(){
   else if(currentTab==='cluster') renderCluster(m);
 }
 function setDetail(tab,id){detailMode={tab,id};}
-function clearDetail(){detailMode=null;wsClose();render();}
+function clearDetail(){detailMode=null;wsClose();document.getElementById('main').className='';render();}
 
 // ── Escalations ───────────────────────────────────────────────────
 let escFilter='pending';
@@ -331,20 +336,21 @@ async function viewConversation(convId){
   let parts=convId.split(':');let botId=parts[0];
   let pnSuffix=data.pn_jid?` <span style="font-size:11px;color:var(--muted);font-weight:normal">(PN: ${data.pn_jid.replace('@s.whatsapp.net','')})</span>`:'';
   let namePrefix=data.notify_name?`<b>${data.notify_name}</b> `:'';
-  let html=`<div class="card"><div class="row"><h3>${namePrefix}${data.jid}${pnSuffix}</h3><span class="spacer"></span>
+  let html=`<div class="card chat-card"><div class="row" style="flex-shrink:0"><h3>${namePrefix}${data.jid}${pnSuffix}</h3><span class="spacer"></span>
     <span id="msg-count" style="font-size:12px;color:var(--muted)">${data.message_count} msgs</span>
     <span id="ws-dot" style="color:#10b981;font-size:18px" title="Live">●</span>
-    <button class="btn-outline btn-sm" onclick="clearDetail()">← Back</button></div>`;
-  html+='<div id="msg-container">';
+    <button class="btn-outline btn-sm" onclick="clearDetail()">← Back</button></div>
+  <div class="chat-body" id="msg-container">`;
   for(let m of data.messages){
     if(m.direction==='note')continue;
     html+=renderMessage(m).outerHTML;
   }
-  html+='</div>';
-  html+=`<div class="row" style="margin-top:12px"><input id="send-${convId}" placeholder="Send message..." style="flex:1">
-    <button class="btn-primary" onclick="sendConversationMsg('${convId}')">Send</button></div>`;
-  html+='</div>';
-  document.getElementById('main').innerHTML=html;
+  html+=`</div>
+  <div class="chat-foot row"><input id="send-${convId}" placeholder="Send message..." style="flex:1">
+    <button class="btn-primary" onclick="sendConversationMsg('${convId}')">Send</button></div></div>`;
+  let main=document.getElementById('main');
+  main.className='chat-mode';
+  main.innerHTML=html;
   wsConnectChat(botId,convId);
 }
 

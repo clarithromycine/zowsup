@@ -464,6 +464,9 @@ class BotManager:
                 media_url=message.get("media_url"),
                 media_key=message.get("media_key"),
                 media_mimetype=message.get("media_mimetype"),
+                media_file_name=message.get("media_file_name"),
+                media_file_length=message.get("media_file_length"),
+                media_caption=message.get("media_caption"),
             )
             # Update notify_name (contact display name) if present
             notify = message.get("notify")
