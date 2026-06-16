@@ -61,7 +61,14 @@ async def _extract_bot_id_from_body(request: Request) -> str | None:
         return None
     try:
         body = await request.json()
-        return body.get("bot_id") or body.get("botId")
+        # Single bot_id or first element of bot_ids array
+        bid = body.get("bot_id") or body.get("botId")
+        if bid:
+            return bid
+        ids = body.get("bot_ids")
+        if isinstance(ids, list) and ids:
+            return ids[0]
+        return None
     except Exception:
         return None
 

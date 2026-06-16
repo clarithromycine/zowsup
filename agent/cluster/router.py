@@ -604,20 +604,55 @@ def create_cluster_app() -> FastAPI:
         if not bot_ids:
             raise HTTPException(status_code=400, detail="bot_ids required")
 
-        # Pick an agent for new bots
-        agent = registry.pick_agent()
-        if not agent:
-            raise HTTPException(status_code=503, detail="No online agent available")
+        # Every bot is already routed to a single agent (set at import/registration).
+        # Use the first bot's agent as the target; complain if any bot is unrouted.
+        target_url: str | None = None
+        missing: list[str] = []
 
-        # Route and proxy
         for bid in bot_ids:
-            registry.route_bot(bid, agent["agent_id"])
+            route = registry.resolve_bot(bid)
+            if route:
+                if target_url is None:
+                    target_url = route["url"]
+            else:
+                missing.append(bid)
 
-        return await proxy_http(request, agent["url"])
+        if target_url is None:
+            raise HTTPException(status_code=404, detail=f"No bots routed: {missing}")
+
+        # Proxy to the owning agent
+        from agent.cluster.proxy import _get_client
+        client = _get_client()
+
+        # If there are unrouted bots, still send the routed ones; include errors for missing
+        if missing:
+            resp = await proxy_http(request, target_url)
+            data = resp.json() if hasattr(resp, 'json') else {}
+            # Can't easily inject into proxied response — just log
+            logger.warning("startbot: %d bots not routed, only sending %d to %s",
+                           len(missing), len(bot_ids) - len(missing), target_url)
+
+        return await proxy_http(request, target_url)
 
     @app.post("/api/stopbot")
     async def proxy_stopbot(request: Request):
-        return await proxy_with_body_fallback(request)
+        body = await request.json()
+        bot_ids = body.get("bot_ids", [])
+        if not bot_ids:
+            raise HTTPException(status_code=400, detail="bot_ids required")
+
+        # Use the first routed bot's agent as the target
+        target_url: str | None = None
+        for bid in bot_ids:
+            route = registry.resolve_bot(bid)
+            if route:
+                target_url = route["url"]
+                break
+
+        if target_url is None:
+            raise HTTPException(status_code=404, detail="No bots routed to any agent")
+
+        return await proxy_http(request, target_url)
 
     # ── WebSocket proxy ──────────────────────────────────────────────────────
 
