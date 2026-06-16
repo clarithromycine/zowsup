@@ -16,7 +16,7 @@ import time
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketException, Header, Depends
+from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketException, Header, Depends, Query
 from starlette.responses import Response
 
 from agent.cluster.proxy import proxy_http, scatter_gather, proxy_ws
