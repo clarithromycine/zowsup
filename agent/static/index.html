@@ -72,7 +72,7 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
   <button onclick="switchTab('conversations')" id="tab-conversations">💬 Conversations</button>
   <button onclick="switchTab('plugins')" id="tab-plugins">🧩 Plugins</button>
   <button onclick="switchTab('bots')" id="tab-bots">🤖 Bots</button>
-  <button onclick="switchTab('cluster')" id="tab-cluster">🖥 Cluster</button>
+  <button onclick="switchTab('cluster')" id="tab-cluster" style="display:none">🖥 Cluster</button>
 </nav>
 
 <main id="main"></main>
@@ -561,9 +561,18 @@ async function migrateBot(botId){
 }
 
 // ── Init ──────────────────────────────────────────────────────────
-render();
-// Auto-refresh list views only (detail views use WebSocket)
-setInterval(()=>{if(!detailMode)render()},15000); // Auto-refresh every 15s
+(async function(){
+  // Detect cluster mode: only show Cluster tab if /api/cluster/agents responds
+  try{
+    let r=await fetch('/api/cluster/agents');
+    if(r.ok||r.status===403){ // 403 = exists but requires auth
+      document.getElementById('tab-cluster').style.display='';
+    }
+  }catch(e){/* standalone agent — tab stays hidden */}
+  render();
+  // Auto-refresh list views only (detail views use WebSocket)
+  setInterval(()=>{if(!detailMode)render()},15000);
+})();
 </script>
 </body>
 </html>
