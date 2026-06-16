@@ -37,7 +37,15 @@ CREATE INDEX IF NOT EXISTS idx_agents_status ON agents(status);
 
 
 class Registry:
-    """Thread-safe routing table for bot → agent mapping."""
+    """Thread-safe routing table for bot → agent mapping.
+
+    Agents that fail to heartbeat within AGENT_TTL_SECONDS are
+    automatically marked offline on next query (list/pick/resolve).
+    This protects against kill -9 / network partition scenarios
+    where the agent cannot send a graceful deregister.
+    """
+
+    AGENT_TTL_SECONDS = 120  # Mark offline after 2 minutes without heartbeat
 
     def __init__(self, db_path: str | None = None):
         self._db_path = db_path
@@ -46,6 +54,8 @@ class Registry:
 
     def start(self):
         self._init_db()
+        # Mark any previously-online agents as offline on cold start
+        self._reset_online_on_startup()
 
     def _init_db(self):
         if self._db_path is None:
@@ -56,6 +66,32 @@ class Registry:
         conn.executescript(_SCHEMA)
         conn.commit()
         logger.info("Registry started: %s", self._db_path)
+
+    def _reset_online_on_startup(self):
+        """On router restart, all previously-online agents are stale.
+        Mark them offline so they must re-register."""
+        with self._lock:
+            conn = self._get_conn()
+            c = conn.execute(
+                "UPDATE agents SET status = 'offline' WHERE status = 'online'"
+            )
+            if c.rowcount:
+                logger.info("Marked %d agent(s) offline on startup", c.rowcount)
+            conn.commit()
+
+    def _expire_stale_agents(self) -> None:
+        """Mark agents offline whose heartbeat has exceeded TTL."""
+        cutoff = time.time() - self.AGENT_TTL_SECONDS
+        with self._lock:
+            conn = self._get_conn()
+            c = conn.execute(
+                "UPDATE agents SET status = 'offline' "
+                "WHERE status = 'online' AND last_heartbeat < ?",
+                (cutoff,),
+            )
+            if c.rowcount:
+                logger.info("Expired %d stale agent(s) (heartbeat TTL exceeded)", c.rowcount)
+            conn.commit()
 
     def _get_conn(self) -> sqlite3.Connection:
         if self._conn is None:
@@ -92,11 +128,13 @@ class Registry:
             return c.rowcount > 0
 
     def get_agent(self, agent_id: str) -> dict | None:
+        self._expire_stale_agents()
         conn = self._get_conn()
         row = conn.execute("SELECT * FROM agents WHERE agent_id = ?", (agent_id,)).fetchone()
         return dict(row) if row else None
 
     def list_agents(self) -> list[dict]:
+        self._expire_stale_agents()
         conn = self._get_conn()
         return [dict(r) for r in conn.execute("SELECT * FROM agents ORDER BY agent_id").fetchall()]
 
@@ -139,6 +177,7 @@ class Registry:
 
     def resolve_bot(self, bot_id: str) -> dict | None:
         """Find which agent owns a bot. Returns {agent_id, url} or None."""
+        self._expire_stale_agents()
         conn = self._get_conn()
         row = conn.execute(
             """SELECT a.agent_id, a.url, a.status
@@ -167,7 +206,9 @@ class Registry:
         return row[0] if row else None
 
     def pick_agent(self) -> dict | None:
-        """Pick the online agent with fewest bots (for new bot placement)."""
+        """Pick the online agent with fewest bots (for new bot placement).
+        Automatically expires stale agents before selection."""
+        self._expire_stale_agents()
         conn = self._get_conn()
         row = conn.execute(
             """SELECT a.agent_id, a.url, COUNT(b.bot_id) as bot_count

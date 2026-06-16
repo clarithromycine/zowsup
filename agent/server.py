@@ -160,6 +160,8 @@ async def lifespan(app: FastAPI):
         agent_id = _agent_id
         own_port = _agent_port or 8000
         own_url = f"http://127.0.0.1:{own_port}"
+        cluster_secret = os.environ.get("CLUSTER_SECRET", "")
+        _cluster_headers = {"X-Cluster-Secret": cluster_secret} if cluster_secret else {}
 
         # Register
         try:
@@ -169,9 +171,12 @@ async def lifespan(app: FastAPI):
                 resp = await client.post(
                     f"{cluster_url}/api/cluster/agents",
                     json={"agent_id": agent_id, "url": own_url, "bots": bots},
+                    headers=_cluster_headers,
                 )
                 if resp.status_code == 200:
                     print(f"[Agent] Registered with cluster {cluster_url} as '{agent_id}'")
+                elif resp.status_code == 403:
+                    print(f"[Agent] Cluster rejected registration (403) — check CLUSTER_SECRET")
 
             # Sync plugin config from Router
             try:
@@ -197,6 +202,7 @@ async def lifespan(app: FastAPI):
                         await c.post(
                             f"{cluster_url}/api/cluster/agents/{agent_id}/heartbeat",
                             json={"bots": bots},
+                            headers=_cluster_headers,
                         )
                 except Exception:
                     pass
@@ -209,7 +215,10 @@ async def lifespan(app: FastAPI):
         heartbeat_task.cancel()
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(10)) as c:
-                await c.delete(f"{cluster_url}/api/cluster/agents/{_agent_id}")
+                await c.delete(
+                    f"{cluster_url}/api/cluster/agents/{_agent_id}",
+                    headers=_cluster_headers,
+                )
                 print(f"[Agent] Deregistered from cluster")
         except Exception:
             pass

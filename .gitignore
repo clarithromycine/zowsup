@@ -6,7 +6,6 @@ __pycache__
 todo
 *.egg-info
 tp
-tests
 dist
 build
 .idea
@@ -18,6 +17,7 @@ pnpm-lock.yaml
 .venv
 *.log
 logs/
+.pytest_cache/
 .env
 data/dashboard.db
 data/*.db

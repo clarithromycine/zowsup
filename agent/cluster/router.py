@@ -15,13 +15,42 @@ import logging
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, HTTPException, WebSocket
+from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketException, Header, Depends
 from starlette.responses import Response
 
 from agent.cluster.proxy import proxy_http, scatter_gather, proxy_ws
 from agent.cluster.registry import registry
 
 logger = logging.getLogger(__name__)
+
+# ── Cluster Secret ───────────────────────────────────────────────────────────
+
+_cluster_secret: str | None = None
+_console_token: str | None = None
+
+
+def set_cluster_secret(secret: str | None) -> None:
+    """Configure the shared cluster secret for agent authentication."""
+    global _cluster_secret
+    _cluster_secret = secret
+
+
+def set_console_token(token: str | None) -> None:
+    """Configure an optional console bearer token."""
+    global _console_token
+    _console_token = token
+
+
+async def _check_cluster_secret(x_cluster_secret: str | None = Header(None, alias="X-Cluster-Secret")) -> None:
+    """FastAPI dependency: verify X-Cluster-Secret header.
+
+    Raises HTTPException(403) if cluster secret is configured and header is
+    missing or wrong.  No-op when cluster_secret is None (backward compatible).
+    """
+    if _cluster_secret is None:
+        return  # Auth disabled — backward compatible
+    if x_cluster_secret != _cluster_secret:
+        raise HTTPException(status_code=403, detail="Invalid or missing cluster secret")
 
 
 # ── Lifespan ─────────────────────────────────────────────────────────────────
@@ -75,9 +104,11 @@ async def _ping_agent(url: str) -> bool:
 def create_cluster_app() -> FastAPI:
     app = FastAPI(title="Zowsup Cluster", version="0.1.0", lifespan=lifespan)
 
-    # ── Cluster management ──────────────────────────────────────────────────
+    # ── Cluster management (auth required when CLUSTER_SECRET is set) ─────
+    from fastapi.routing import APIRouter
+    cluster_router = APIRouter(dependencies=[Depends(_check_cluster_secret)])
 
-    @app.get("/api/cluster/agents")
+    @cluster_router.get("/api/cluster/agents")
     async def list_agents():
         agents = registry.list_agents()
         for a in agents:
@@ -86,7 +117,7 @@ def create_cluster_app() -> FastAPI:
             a["bots"] = [b["bot_id"] for b in bots]
         return agents
 
-    @app.post("/api/cluster/agents")
+    @cluster_router.post("/api/cluster/agents")
     async def register_agent(request: Request):
         body = await request.json()
         agent_id = body.get("agent_id")
@@ -100,13 +131,13 @@ def create_cluster_app() -> FastAPI:
             registry.route_bot(bot_id, agent_id)
         return agent
 
-    @app.delete("/api/cluster/agents/{agent_id}")
+    @cluster_router.delete("/api/cluster/agents/{agent_id}")
     async def unregister_agent(agent_id: str):
         if not registry.unregister_agent(agent_id):
             raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
         return {"unregistered": agent_id}
 
-    @app.post("/api/cluster/agents/{agent_id}/heartbeat")
+    @cluster_router.post("/api/cluster/agents/{agent_id}/heartbeat")
     async def agent_heartbeat(agent_id: str, request: Request):
         body = await request.json() if request.headers.get("content-type") else {}
         bots = body.get("bots", [])
@@ -117,66 +148,16 @@ def create_cluster_app() -> FastAPI:
             raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
         return {"ok": True}
 
-    @app.post("/api/cluster/migrate")
-    async def migrate_bot(request: Request):
+    @cluster_router.post("/api/cluster/migrate")
+    async def _migrate_bot(request: Request):
         """Automated bot migration between agents.
-
         Flow: stop → export from source → import to target → start → update route.
-        Uses agent-side /api/migrate/export and /api/migrate/import endpoints.
         """
-        body = await request.json()
-        bot_id = body.get("bot_id")
-        target_agent_id = body.get("target_agent")
-        if not bot_id or not target_agent_id:
-            raise HTTPException(status_code=400, detail="bot_id and target_agent required")
+        from agent.cluster.migrate import migrate_bot
+        return await migrate_bot(request)
 
-        route = registry.resolve_bot(bot_id)
-        if not route:
-            raise HTTPException(status_code=404, detail=f"Bot '{bot_id}' not found in routing table")
-
-        source_id = route["agent_id"]
-        source_url = route["url"]
-
-        if source_id == target_agent_id:
-            raise HTTPException(status_code=400, detail="Source and target agent are the same")
-
-        target = registry.get_agent(target_agent_id)
-        if not target:
-            raise HTTPException(status_code=404, detail=f"Target agent '{target_agent_id}' not found")
-        target_url = target["url"]
-
-        # 1. Stop bot on source agent
-        logger.info("Migrating bot '%s': %s → %s", bot_id, source_id, target_agent_id)
-        _ = await _proxy_json(source_url, "POST", "/api/stopbot",
-                              {"bot_ids": [bot_id], "mode": "force"})
-
-        # 2. Export from source agent
-        export = await _proxy_json(source_url, "POST", "/api/migrate/export", {"bot_id": bot_id})
-        if not export or not export.get("tar_b64"):
-            raise HTTPException(status_code=500, detail="Export failed — agent returned no data")
-        env = export.get("env", "android")
-        tar_b64 = export["tar_b64"]
-
-        # 3. Import to target agent
-        imp = await _proxy_json(target_url, "POST", "/api/migrate/import",
-                                {"bot_id": bot_id, "env": env, "tar_b64": tar_b64})
-        if not imp or not imp.get("ok"):
-            # Try to restart on source as rollback
-            logger.warning("Import to %s failed, rolling back on %s", target_agent_id, source_id)
-            _ = await _proxy_json(source_url, "POST", "/api/startbot", {"bot_ids": [bot_id]})
-            raise HTTPException(status_code=500, detail="Import failed — rolled back")
-
-        # 4. Start bot on target agent
-        _ = await _proxy_json(target_url, "POST", "/api/startbot", {"bot_ids": [bot_id]})
-
-        # 5. Update routing table
-        registry.route_bot(bot_id, target_agent_id)
-
-        # 6. Clean up source agent (delete account dir + DB entry)
-        _ = await _proxy_json(source_url, "POST", "/api/migrate/cleanup", {"bot_id": bot_id})
-        logger.info("Bot '%s' migrated: %s → %s", bot_id, source_id, target_agent_id)
-
-        return {"bot_id": bot_id, "from": source_id, "to": target_agent_id, "status": "migrated"}
+    # Register cluster management routes (all guarded by _check_cluster_secret)
+    app.include_router(cluster_router)
 
     # ── Aggregate endpoints ──────────────────────────────────────────────────
 
@@ -488,12 +469,31 @@ def create_cluster_app() -> FastAPI:
     _idx = _os.path.join(_dir, "index.html")
     if _os.path.isfile(_idx):
         from starlette.responses import FileResponse
+
+        async def _console_auth(request: Request) -> bool:
+            """Check console token if configured. Returns True if access granted."""
+            if _console_token is None:
+                return True
+            token = request.query_params.get("token", "")
+            return token == _console_token
+
         @app.get("/console", include_in_schema=False)
-        async def _console(): return FileResponse(_idx)
+        async def _console(request: Request):
+            if not await _console_auth(request):
+                raise HTTPException(status_code=403, detail="Invalid or missing console token")
+            return FileResponse(_idx)
+
         @app.get("/console/", include_in_schema=False)
-        async def _console_slash(): return FileResponse(_idx)
+        async def _console_slash(request: Request):
+            if not await _console_auth(request):
+                raise HTTPException(status_code=403, detail="Invalid or missing console token")
+            return FileResponse(_idx)
+
         @app.get("/", include_in_schema=False)
-        async def _root(): return FileResponse(_idx)
+        async def _root(request: Request):
+            if not await _console_auth(request):
+                raise HTTPException(status_code=403, detail="Invalid or missing console token")
+            return FileResponse(_idx)
 
     # ── Catch-all proxy ─────────────────────────────────────────────────────
 
@@ -504,39 +504,8 @@ def create_cluster_app() -> FastAPI:
     return app
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# ── Re-exported from helpers (kept for backward compatibility) ───────────────
 
-async def proxy_with_body_fallback(request: Request) -> dict:
-    """Try extracting bot_id from body, else pick any online agent."""
-    from agent.cluster.proxy import _extract_bot_id_from_body
-    bot_id = await _extract_bot_id_from_body(request)
-    if bot_id:
-        route = registry.resolve_bot(bot_id)
-        if route:
-            return await proxy_http(request, route["url"])
-
-    # Fallback: pick any online agent
-    agent = registry.pick_agent()
-    if not agent:
-        raise HTTPException(status_code=503, detail="No online agent available")
-    return await proxy_http(request, agent["url"])
-
-
-async def _proxy_json(agent_url: str, method: str, path: str, body: dict) -> dict | None:
-    """Make a JSON request to an agent and return parsed response."""
-    from agent.cluster.proxy import _get_client
-    import json
-    client = _get_client()
-    try:
-        resp = await client.request(
-            method=method, url=f"{agent_url}{path}",
-            json=body, timeout=30,
-        )
-        if resp.status_code == 200:
-            return resp.json()
-    except Exception as exc:
-        logger.warning("_proxy_json %s %s failed: %s", method, path, exc)
-    return None
-
+from agent.cluster.helpers import proxy_with_body_fallback, proxy_json as _proxy_json
 
 _start_time = time.time()
