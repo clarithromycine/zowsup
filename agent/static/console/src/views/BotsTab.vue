@@ -45,7 +45,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="env" label="Env" width="100" />
+        <el-table-column prop="env" label="Env" width="120" />
         <el-table-column label="Uptime" width="100">
           <template #default="{ row }">
             {{ row.uptime_seconds ? Math.floor(row.uptime_seconds / 60) + 'm' : '—' }}

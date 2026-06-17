@@ -25,6 +25,7 @@ class GetPictureIqProtocolEntity(IqProtocolEntity):
         node.setAttribute("target",self.jid)
         pictureNode = ProtocolTreeNode("picture", {"type": "preview" if self.isPreview() else "image" ,"query":"url"})
         node.addChild(pictureNode)
+        
         return node
 
     @staticmethod

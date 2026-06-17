@@ -433,6 +433,8 @@ class BotManager:
 
         if event:
             log_broadcaster.emit_event(bot_id, "event", event)
+            # Handle CONTACT_UPDATE / AVATAR: invalidate cached avatar for the contact
+            self._handle_contact_update(bot_id, event)
         if message:
             db_id = self._capture_incoming_message(bot_id, message)
             log_broadcaster.emit_event(bot_id, "message", message)
@@ -442,6 +444,44 @@ class BotManager:
             self._capture_message_status(bot_id, messageStatus)
         if cmdResult:
             log_broadcaster.emit_event(bot_id, "cmd_result", cmdResult)
+
+    # ── Contact Update ───────────────────────────────────────────────────────
+
+    def _handle_contact_update(self, bot_id: str, event: dict) -> None:
+        """Handle CONTACT_UPDATE events, specifically AVATAR changes.
+        
+        When a contact changes their avatar, invalidate the cached avatar_id
+        and delete the cached image file so the next request fetches the new one.
+        """        
+        try:
+            ev = str(event.get("event", ""))
+            if ev not in ("8",):
+                return
+            detail = event.get("detail", {})
+            if detail.get("key") != "AVATAR":
+                return
+            target_jid = detail.get("target", "")
+            new_picture_id = str(detail.get("value", ""))
+            if not target_jid or not new_picture_id:
+                return
+
+            from agent.manager.conversation_store import conv_store
+            from agent.api.avatar_api import _avatar_path, _get_avatar_dir
+            import os
+
+            conv_ids = conv_store.find_conv_ids_by_jid(bot_id, target_jid)
+            for conv_id in conv_ids:
+                # Update to new pictureId and delete old cache so next request re-downloads
+                conv_store.set_avatar_id(conv_id, new_picture_id)
+                path = _avatar_path(conv_id)
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
+            if conv_ids:
+                logger.debug("Avatar invalidated for %s: %s", target_jid, conv_ids)
+        except Exception:
+            pass  # Non-critical, don't break the event pipeline
 
     # ── Conversation Capture ─────────────────────────────────────────────────
 

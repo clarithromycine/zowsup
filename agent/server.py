@@ -167,6 +167,7 @@ async def lifespan(app: FastAPI):
     from agent.api.escalation_api import router as escalation_router
     from agent.api.migrate_api import router as migrate_router
     from agent.api.audit_api import router as audit_router
+    from agent.api.avatar_api import router as avatar_router
     app.include_router(bot_router)
     app.include_router(cmd_router)
     app.include_router(msg_router)
@@ -176,6 +177,7 @@ async def lifespan(app: FastAPI):
     app.include_router(escalation_router)
     app.include_router(migrate_router)
     app.include_router(audit_router)
+    app.include_router(avatar_router)
 
     import logging
     logging.getLogger('transitions').setLevel(logging.WARNING)

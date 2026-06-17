@@ -15,12 +15,19 @@
           :class="{ active: chatId === c.id }"
           @click="openChat(c)"
         >
-          <div class="conv-item-top">
-            <span class="conv-name">{{ c.notify_name || c.jid }}</span>
-            <span class="conv-time">{{ c.last_message_at ? fmtShort(c.last_message_at) : '' }}</span>
+          <div class="avatar-circle" :style="{background:avatarProps(c).bg}">
+            <img :src="avatarUrl(c)" class="avatar-img" @error="onAvatarErr($event)" @load="onAvatarLoad($event)" />
+            <span class="avatar-initials" :class="{'avatar-group':c.type==='group'}">{{ c.type==='group'?'👥':avatarProps(c).initials }}</span>
           </div>
-          <div class="conv-item-sub">
-            <span class="conv-last">{{ c.last_message || '' }}</span>
+          <div class="conv-item-body">
+            <div class="conv-item-top">
+              <span class="conv-name">{{ c.notify_name || c.jid }}</span>
+              <span class="conv-time">{{ c.last_message_at ? fmtShort(c.last_message_at) : '' }}</span>
+            </div>
+            <div class="conv-item-sub">
+              <span class="conv-last">{{ c.last_message || '' }}</span>
+              <span v-if="unread.has(c.id)" class="conv-dot"></span>
+            </div>
           </div>
         </div>
         <div v-if="!filteredConvs.length && !loading" class="conv-empty">No conversations</div>
@@ -76,8 +83,8 @@ const { api } = useApi()
 const { connect: wsConnect, close: wsClose, connected: wsLive } = useWebSocket()
 
 const selBot=ref(''),search=ref(''),bots=ref([]),convs=ref([]),loading=ref(false),chatId=ref(null),chatMsgs=ref([]),sendText=ref(''),sending=ref(false),escalating=ref(false),escalated=ref(false)
-const chatBody=ref(null),msgCount=ref(0)
-let timer=null,_k=0,_autoScroll=true,_escTimer=null
+const chatBody=ref(null),msgCount=ref(0),unread=ref(new Set())
+let timer=null,_k=0,_autoScroll=true,_escTimer=null,_autoOpenDone=false
 
 function scrollBottom(){if(!chatBody.value)return;chatBody.value.scrollTop=0}
 function onChatScroll(){if(!chatBody.value)return;_autoScroll=chatBody.value.scrollTop===0}
@@ -96,6 +103,9 @@ function fsize(b){if(!b)return'';return b>1048576?(b/1048576).toFixed(1)+'MB':(b
 function cico(s){const v=String(s||'').toUpperCase();const m={READ:'✓✓',DELIVERED:'✓✓',RECEIVED:'✓✓',SENT:'✓',SERVER_ACK:'✓',EXECUTED:'⏳',FAILED:'✗',ERROR:'✗','3':'✓','4':'✓✓','5':'✓✓','6':'✗'};return m[v]||'✓'}
 function ccls(s){const v=String(s||'').toUpperCase();const m={READ:'read',DELIVERED:'delivered',RECEIVED:'delivered',SENT:'sent',SERVER_ACK:'sent',EXECUTED:'exec',FAILED:'failed',ERROR:'failed','3':'sent','4':'delivered','5':'read','6':'failed'};return m[v]||'sent'}
 function media(m){return m.conversation_id&&m.id?`/api/conversation/${encodeURIComponent(m.conversation_id)}/message/${m.id}/media`:''}
+function avatarUrl(c){return `/api/avatar/${encodeURIComponent(c.id)}?v=${c.avatar_id||0}`}
+function onAvatarErr(e){e.target.style.display='none'}
+function onAvatarLoad(e){e.target.style.display=''}
 
 const AVATAR_COLORS=['#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#14b8a6','#06b6d4','#0ea5e9','#3b82f6','#6366f1','#8b5cf6','#a855f7','#d946ef','#ec4899','#f43f5e']
 function avatarProps(row){
@@ -114,10 +124,20 @@ function avatarProps(row){
   return{initials:initials.toUpperCase(),bg}
 }
 
-async function loadBots(){try{bots.value=await api('/api/listbot')}catch{bots.value=[]};if(!selBot.value&&botIds.value.length)selBot.value=botIds.value[0]}
-async function loadList(){if(!selBot.value)return;loading.value=true;try{convs.value=await api('/api/conversation?bot_id='+selBot.value)}catch{convs.value=[]}loading.value=false}
+function updateConvPreview(convId, text, ts){
+  const idx=convs.value.findIndex(c=>c.id===convId)
+  if(idx<0)return
+  const now=ts||Date.now()/1000
+  const item={...convs.value[idx],last_message:text||convs.value[idx].last_message,last_message_at:now,updated_at:now,message_count:convs.value[idx].message_count+1}
+  const arr=convs.value.filter(c=>c.id!==convId)
+  arr.unshift(item)
+  convs.value=arr
+}
 
-async function openChat(row){chatId.value=row.id;escalated.value=false;try{const d=await api('/api/conversation/'+chatId.value+'?limit=50');chatMsgs.value=(d.messages||[]).filter(m=>m.direction!=='note'||m.content_type==='SYSTEM');msgCount.value=d.message_count||0;_autoScroll=true;connectWs();checkEscalated();_escTimer=setInterval(checkEscalated,10000);nextTick(scrollBottom)}catch{closeChat()}}
+async function loadBots(){try{bots.value=await api('/api/listbot')}catch{bots.value=[]};if(!selBot.value&&botIds.value.length)selBot.value=botIds.value[0]}
+async function loadList(){if(!selBot.value)return;loading.value=true;try{convs.value=await api('/api/conversation?bot_id='+selBot.value)}catch{convs.value=[]}loading.value=false;if(!_autoOpenDone&&convs.value.length>0&&!chatId.value){_autoOpenDone=true;openChat(convs.value[0])}}
+
+async function openChat(row){chatId.value=row.id;escalated.value=false;if(unread.value.has(row.id)){unread.value.delete(row.id);unread.value=new Set(unread.value)}try{const d=await api('/api/conversation/'+chatId.value+'?limit=50');chatMsgs.value=(d.messages||[]).filter(m=>m.direction!=='note'||m.content_type==='SYSTEM');msgCount.value=d.message_count||0;_autoScroll=true;connectWs();checkEscalated();_escTimer=setInterval(checkEscalated,10000);nextTick(scrollBottom)}catch{closeChat()}}
 function closeChat(){chatId.value=null;chatMsgs.value=[];escalated.value=false;wsClose();clearInterval(_escTimer)}
 
 async function checkEscalated(){
@@ -149,9 +169,9 @@ function insertSysMsg(text){
   chatMsgs.value.unshift({_key:'sys'+(_k++),direction:'system',content:text,created_at:Date.now()/1000})
 }
 
-function connectWs(){const url=`/api/bot/${encodeURIComponent(chatBotId.value)}/events?tail=0`;wsConnect(url,{onmessage(e){try{const evt=JSON.parse(e.data);if(evt.type==='message'){const msg=evt.data||{};const mc=chatBotId.value+':'+(msg.lid||msg.from_full||'');if(mc!==chatId.value){loadList();return}const m={_key:'ws'+(_k++),direction:msg.from_full?'incoming':'outgoing',content:msg.text||'['+({1:'TEXT',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT'}[msg.type]||'?')+']',content_type:{1:'TEXT',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT'}[msg.type]||'TEXT',created_at:Date.now()/1000,msg_id:msg.msgId||null,id:msg.db_id||null,conversation_id:chatId.value,media_url:msg.media_url||null,media_key:msg.media_key||null,media_file_name:msg.media_file_name||null,media_file_length:msg.media_file_length||null,media_caption:msg.media_caption||null,status:'EXECUTED'};chatMsgs.value.unshift(m);msgCount.value++;if(_autoScroll)nextTick(scrollBottom);loadList()}else if(evt.type==='message_status'){const st=evt.data||{};if(!st.msgId)return;const bub=chatMsgs.value.find(m=>m.msg_id===st.msgId);if(bub)bub.status=st.status}}catch{}}})}
+function connectWs(){const url=`/api/bot/${encodeURIComponent(chatBotId.value)}/events?tail=0`;wsConnect(url,{onmessage(e){try{const evt=JSON.parse(e.data);if(evt.type==='message'){const msg=evt.data||{};const mc=chatBotId.value+':'+(msg.lid||msg.from_full||'');const wsText=msg.text||'['+({1:'TEXT',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT'}[msg.type]||'?')+']';updateConvPreview(mc,wsText);if(mc!==chatId.value){if(!unread.value.has(mc)){unread.value.add(mc);unread.value=new Set(unread.value)}loadList();return}const m={_key:'ws'+(_k++),direction:msg.from_full?'incoming':'outgoing',content:wsText,content_type:{1:'TEXT',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT'}[msg.type]||'TEXT',created_at:Date.now()/1000,msg_id:msg.msgId||null,id:msg.db_id||null,conversation_id:chatId.value,media_url:msg.media_url||null,media_key:msg.media_key||null,media_file_name:msg.media_file_name||null,media_file_length:msg.media_file_length||null,media_caption:msg.media_caption||null,status:'EXECUTED'};chatMsgs.value.unshift(m);msgCount.value++;if(_autoScroll)nextTick(scrollBottom);loadList()}else if(evt.type==='message_status'){const st=evt.data||{};if(!st.msgId)return;const bub=chatMsgs.value.find(m=>m.msg_id===st.msgId);if(bub)bub.status=st.status}else if(evt.type==='event'){const ed=evt.data||{};const ev=String(ed.event||'');if(ev==='8'||ev==='CONTACT_UPDATE'){const d=ed.detail||{};if(d.key==='AVATAR'){loadList()}}}}catch{}}})}
 
-async function sendMsg(){const t=sendText.value.trim();if(!t)return;sending.value=true;const tmp={_key:'opt'+(_k++),direction:'outgoing',content:t,content_type:'TEXT',created_at:Date.now()/1000,conversation_id:chatId.value,status:'EXECUTED'};chatMsgs.value.unshift(tmp);sendText.value='';msgCount.value++;if(_autoScroll)nextTick(scrollBottom);try{const msg=await api('/api/conversation/'+chatId.value+'/message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:t})});const idx=chatMsgs.value.indexOf(tmp);if(idx>=0)chatMsgs.value.splice(idx,1,msg);loadList()}catch{ElMessage.error('Send failed');tmp.status='FAILED'}sending.value=false}
+async function sendMsg(){const t=sendText.value.trim();if(!t)return;sending.value=true;const tmp={_key:'opt'+(_k++),direction:'outgoing',content:t,content_type:'TEXT',created_at:Date.now()/1000,conversation_id:chatId.value,status:'EXECUTED'};chatMsgs.value.unshift(tmp);sendText.value='';msgCount.value++;if(_autoScroll)nextTick(scrollBottom);updateConvPreview(chatId.value,t,Date.now()/1000);try{const msg=await api('/api/conversation/'+chatId.value+'/message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:t})});const idx=chatMsgs.value.indexOf(tmp);if(idx>=0)chatMsgs.value.splice(idx,1,msg);loadList()}catch{ElMessage.error('Send failed');tmp.status='FAILED'}sending.value=false}
 
 onMounted(()=>{loadBots();loadList();timer=setInterval(loadList,15000)})
 onUnmounted(()=>{clearInterval(timer);wsClose()})
@@ -169,15 +189,17 @@ watch(selBot,loadList)
 .left-header .el-select { flex: 1; }
 .left-search { width: 140px; flex-shrink: 0; }
 .left-list { flex: 1; overflow-y: auto; }
-.conv-item { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background .12s; }
+.conv-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background .12s; }
 .conv-item:hover { background: #f8fafc; }
-.conv-item.active { background: #eff6ff; border-left: 3px solid var(--zs-accent); padding-left: 13px; }
+.conv-item.active { background: #eff6ff; border-left: 3px solid var(--zs-accent); padding-left: 11px; }
+.conv-item-body { flex: 1; min-width: 0; overflow: hidden; }
 .conv-item-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; }
 .conv-name { font-size: 14px; font-weight: 600; color: var(--zs-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
 .conv-time { font-size: 11px; color: var(--zs-muted); flex-shrink: 0; }
 .conv-item-sub { display: flex; gap: 6px; align-items: center; }
 .conv-jid { font-size: 12px; color: var(--zs-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conv-last { font-size: 12px; color: var(--zs-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.conv-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; flex-shrink: 0; margin-left: auto; }
 .conv-badge { font-size: 10px; background: #e2e8f0; color: #64748b; padding: 0 6px; border-radius: 8px; }
 .conv-empty { padding: 40px; text-align: center; color: var(--zs-muted); font-size: 13px; }
 
@@ -210,4 +232,10 @@ watch(selBot,loadList)
 .mnote { margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(0,0,0,.08); font-style: italic; font-size: 12px; color: var(--zs-muted); }
 .mc { font-size: 13px; margin-left: 4px; display: inline-block; width: 22px; letter-spacing: -4px; }
 .mc.sent { color: #999; } .mc.exec { color: #bbb; } .mc.delivered { color: #999; } .mc.read { color: #34b7f1; } .mc.failed { color: #ef4444; }
+
+/* ── Avatar ── */
+.avatar-circle { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; position: relative; }
+.avatar-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.avatar-group { font-size: 20px; filter: grayscale(0.3); }
+.avatar-initials { color: #fff; font-size: 15px; font-weight: 600; line-height: 1; user-select: none; text-transform: uppercase; }
 </style>

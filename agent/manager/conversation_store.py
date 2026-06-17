@@ -76,6 +76,8 @@ _MIGRATIONS = [
     "ALTER TABLE messages ADD COLUMN media_caption TEXT",
     # Add last_message for conversation list preview
     "ALTER TABLE conversations ADD COLUMN last_message TEXT",
+    # Add avatar_id for cached contact avatar pictureId
+    "ALTER TABLE conversations ADD COLUMN avatar_id TEXT",
 ]
 
 
@@ -205,6 +207,37 @@ class ConversationStore:
                 (name, conv_id, name),
             )
             conn.commit()
+
+    def set_avatar_id(self, conv_id: str, avatar_id: str | None) -> None:
+        """Update the cached avatar pictureId for a conversation.
+        
+        Set to None to invalidate the cache.
+        """
+        self._ensure_init()
+        with self._lock:
+            conn = self._get_conn()
+            conn.execute(
+                "UPDATE conversations SET avatar_id = ? WHERE id = ?",
+                (avatar_id, conv_id),
+            )
+            conn.commit()
+
+    def find_conv_ids_by_jid(self, bot_id: str, jid: str) -> list[str]:
+        """Find all conversation IDs that match a bot_id + jid (canonical or pn_jid).
+
+        Supports matching across domain suffixes — e.g. a notification with
+        ``248846345101511@lid`` will match a conversation stored as
+        ``248846345101511@s.whatsapp.net``.
+        """
+        self._ensure_init()
+        conn = self._get_conn()
+        user_part = jid.split("@")[0] if "@" in jid else jid
+        like_jid = f"{user_part}@%"
+        rows = conn.execute(
+            "SELECT id FROM conversations WHERE bot_id = ? AND (jid = ? OR pn_jid = ? OR jid LIKE ? OR pn_jid LIKE ?)",
+            (bot_id, jid, jid, like_jid, like_jid),
+        ).fetchall()
+        return [r[0] for r in rows]
 
     def close_conversation(self, conv_id: str) -> bool:
         """Mark a conversation as closed."""
