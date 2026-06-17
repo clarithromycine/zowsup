@@ -30,7 +30,7 @@
             <span class="sys-time">{{ fmt(m.created_at) }}</span>
           </template>
           <template v-else>
-          <img v-if="m.content_type==='IMAGE'&&m.media_url" :src="media(m)" style="max-width:240px;max-height:240px;border-radius:8px;cursor:pointer" @click="window.open(media(m))"/>
+          <img v-if="m.content_type==='IMAGE'&&m.media_url" :src="media(m)" style="max-width:240px;max-height:240px;border-radius:8px;cursor:pointer" @click="openImg(media(m))"/>
           <div v-else>{{m.content}}</div>
           <div v-if="m.media_caption" class="mcap">{{m.media_caption}}</div>
           <div v-if="m.note" class="mnote">{{m.note}}</div>
@@ -59,6 +59,7 @@ function stype(s){return {pending:'warning',claimed:'primary',resolved:'success'
 function cico(s){const v=String(s||'').toUpperCase();const m={READ:'✓✓',DELIVERED:'✓✓',RECEIVED:'✓✓',SENT:'✓',SERVER_ACK:'✓',EXECUTED:'⏳',FAILED:'✗',ERROR:'✗','3':'✓','4':'✓✓','5':'✓✓','6':'✗'};return m[v]||'✓'}
 function ccls(s){const v=String(s||'').toUpperCase();const m={READ:'read',DELIVERED:'delivered',RECEIVED:'delivered',SENT:'sent',SERVER_ACK:'sent',EXECUTED:'exec',FAILED:'failed',ERROR:'failed','3':'sent','4':'delivered','5':'read','6':'failed'};return m[v]||'sent'}
 function media(m){return m.conversation_id&&m.id?`/api/conversation/${encodeURIComponent(m.conversation_id)}/message/${m.id}/media`:''}
+function openImg(url){window.open(url)}
 async function load(){loading.value=true;try{items.value=await api('/api/escalation?status='+filter.value)}catch{items.value=[]}loading.value=false}
 async function open(id){detailId.value=id;try{detail.value=await api('/api/escalation/'+id);msgs.value=(detail.value.messages||[]).filter(m=>m.direction!=='note'||m.content_type==='SYSTEM');connectWs(id)}catch{detailId.value=null}}
 function back(){detailId.value=null;detail.value={};msgs.value=[];wsClose()}

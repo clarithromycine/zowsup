@@ -54,7 +54,7 @@
               <span class="sys-time">{{ fmt(m.created_at) }}</span>
             </template>
             <template v-else>
-            <img v-if="m.content_type==='IMAGE'&&m.media_url" :src="media(m)" @load="onImgLoad" class="msg-img" @click="window.open(media(m))"/>
+            <img v-if="m.content_type==='IMAGE'&&m.media_url" :src="media(m)" @load="onImgLoad" class="msg-img" @click="openImg(media(m))"/>
             <video v-else-if="m.content_type==='VIDEO'&&m.media_url" :src="media(m)" controls class="msg-video" preload="metadata"/>
             <audio v-else-if="m.content_type==='AUDIO'&&m.media_url" :src="media(m)" controls class="msg-audio" preload="metadata"/>
             <div v-else-if="m.content_type==='DOCUMENT'&&m.media_url">📄 <a :href="media(m)" :download="m.media_file_name||m.content" class="msg-link">{{ m.media_file_name||m.content }}</a><span class="sub"> · {{ fsize(m.media_file_length) }}</span></div>
@@ -103,6 +103,7 @@ function fsize(b){if(!b)return'';return b>1048576?(b/1048576).toFixed(1)+'MB':(b
 function cico(s){const v=String(s||'').toUpperCase();const m={READ:'✓✓',DELIVERED:'✓✓',RECEIVED:'✓✓',SENT:'✓',SERVER_ACK:'✓',EXECUTED:'⏳',FAILED:'✗',ERROR:'✗','3':'✓','4':'✓✓','5':'✓✓','6':'✗'};return m[v]||'✓'}
 function ccls(s){const v=String(s||'').toUpperCase();const m={READ:'read',DELIVERED:'delivered',RECEIVED:'delivered',SENT:'sent',SERVER_ACK:'sent',EXECUTED:'exec',FAILED:'failed',ERROR:'failed','3':'sent','4':'delivered','5':'read','6':'failed'};return m[v]||'sent'}
 function media(m){return m.conversation_id&&m.id?`/api/conversation/${encodeURIComponent(m.conversation_id)}/message/${m.id}/media`:''}
+function openImg(url){window.open(url)}
 function avatarUrl(c){return `/api/avatar/${encodeURIComponent(c.id)}?v=${c.avatar_id||0}`}
 function onAvatarErr(e){e.target.style.display='none'}
 function onAvatarLoad(e){e.target.style.display=''}
