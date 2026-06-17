@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS conversations (
     type            TEXT NOT NULL DEFAULT '1v1',
     status          TEXT NOT NULL DEFAULT 'active',
     last_message_at REAL,
+    last_message    TEXT,
     message_count   INTEGER NOT NULL DEFAULT 0,
     created_at      REAL NOT NULL DEFAULT (strftime('%s', 'now')),
     updated_at      REAL NOT NULL DEFAULT (strftime('%s', 'now'))
@@ -73,6 +74,8 @@ _MIGRATIONS = [
     "ALTER TABLE messages ADD COLUMN media_file_name TEXT",
     "ALTER TABLE messages ADD COLUMN media_file_length INTEGER",
     "ALTER TABLE messages ADD COLUMN media_caption TEXT",
+    # Add last_message for conversation list preview
+    "ALTER TABLE conversations ADD COLUMN last_message TEXT",
 ]
 
 
@@ -416,9 +419,10 @@ class ConversationStore:
                     """UPDATE conversations
                        SET message_count = message_count + 1,
                            last_message_at = ?,
+                           last_message = ?,
                            updated_at = ?
                        WHERE id = ?""",
-                    (sent_at, now, conv_id),
+                    (sent_at, content, now, conv_id),
                 )
             else:
                 conn.execute(

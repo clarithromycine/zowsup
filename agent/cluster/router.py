@@ -565,6 +565,23 @@ def create_cluster_app() -> FastAPI:
         elif action == "resolve":
             if not _get_esc().resolve(esc_id):
                 raise HTTPException(status_code=404, detail="Not found")
+            # Forward a system note to the agent that owns the conversation
+            esc = _get_esc().get(esc_id)
+            if esc:
+                conv_id = esc.get("conversation_id", "")
+                bot_id2 = conv_id.split(":")[0] if ":" in conv_id else ""
+                route = registry.resolve_bot(bot_id2) if bot_id2 else None
+                if route:
+                    try:
+                        from agent.cluster.proxy import _get_client
+                        client = _get_client()
+                        await client.post(
+                            f"{route['url']}/api/conversation/{conv_id}/note",
+                            json={"content": "✅ Escalation resolved"},
+                            timeout=5,
+                        )
+                    except Exception:
+                        pass
             return {"id": esc_id, "status": "resolved"}
 
         elif action == "reply":
