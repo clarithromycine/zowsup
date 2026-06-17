@@ -159,23 +159,6 @@ watch(selBot,loadList)
 </script>
 
 <style scoped>
-<<<<<<< HEAD
-.conv-view{display:flex;flex-direction:column;overflow:hidden}
-.card-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.sub{font-size:11px;color:var(--el-text-color-secondary)}
-.chat-card{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
-.chat-card :deep(.el-card__header){flex-shrink:0;padding:12px 12px 0}
-.chat-card :deep(.el-card__body){flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;padding:8px 12px 12px}
-.chat-top{flex-shrink:0;margin-bottom:4px}
-.chat-body{flex:1;overflow-y:auto;display:flex;flex-direction:column-reverse;gap:4px;min-height:0;padding:4px 0}
-.chat-foot{display:flex;gap:8px;align-items:center;padding-top:10px;border-top:1px solid var(--el-border-color-light);flex-shrink:0}
-.mb{max-width:75%;padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.4;white-space:pre-wrap;word-break:break-word}
-.mi{background:#e8f0fe;align-self:flex-start}.mo{background:#e8f5e9;align-self:flex-end;margin-left:auto}
-.mm{font-size:11px;color:var(--el-text-color-secondary);margin-top:2px}.mcap{margin-top:4px;font-size:13px}.mnote{margin-top:4px;padding-top:4px;border-top:1px solid rgba(0,0,0,.1);font-style:italic;font-size:12px;color:var(--el-text-color-secondary)}
-.mc{font-size:13px;margin-left:4px;display:inline-block;width:22px;letter-spacing:-4px}.mc.sent{color:#999}.mc.exec{color:#bbb}.mc.delivered{color:#999}.mc.read{color:#34b7f1}.mc.failed{color:#ef4444}
-.avatar-circle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin:0 auto}
-.avatar-initials{color:#fff;font-size:14px;font-weight:600;line-height:1;user-select:none;text-transform:uppercase}
-.avatar-icon{font-size:18px;line-height:1;filter:grayscale(0.4)}
-=======
 /* ── Layout ── */
 .conv-view { display: flex; height: 100%; overflow: hidden; background: var(--zs-card); border-radius: 12px; box-shadow: var(--zs-shadow); }
 .conv-left { width: 340px; flex-shrink: 0; border-right: 1px solid var(--zs-border); display: flex; flex-direction: column; }
@@ -227,5 +210,4 @@ watch(selBot,loadList)
 .mnote { margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(0,0,0,.08); font-style: italic; font-size: 12px; color: var(--zs-muted); }
 .mc { font-size: 13px; margin-left: 4px; display: inline-block; width: 22px; letter-spacing: -4px; }
 .mc.sent { color: #999; } .mc.exec { color: #bbb; } .mc.delivered { color: #999; } .mc.read { color: #34b7f1; } .mc.failed { color: #ef4444; }
->>>>>>> 8cf5abb5df22a7796f6bd84e20c441af7c487606
 </style>
