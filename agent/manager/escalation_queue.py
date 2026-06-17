@@ -83,14 +83,14 @@ class EscalationQueue:
         agent_id: str = "",
         escalation_id: str = "",
     ) -> dict:
-        """Add an escalation.  Idempotent by conversation_id + pending."""
+        """Add an escalation.  Idempotent by conversation_id + active status."""
         self._ensure_init()
         esc_id = escalation_id or str(uuid.uuid4())
         now = time.time()
         with self._lock:
             conn = self._get_conn()
             existing = conn.execute(
-                "SELECT id FROM escalation_queue WHERE conversation_id = ? AND status = 'pending'",
+                "SELECT id FROM escalation_queue WHERE conversation_id = ? AND status IN ('pending', 'claimed')",
                 (conversation_id,),
             ).fetchone()
             if existing:

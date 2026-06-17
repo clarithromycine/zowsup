@@ -227,6 +227,7 @@ class ConversationInfo(BaseModel):
     status: str = "active"
     message_count: int = 0
     last_message_at: Optional[float] = None
+    last_message: Optional[str] = None
     created_at: float = 0.0
     updated_at: float = 0.0
 

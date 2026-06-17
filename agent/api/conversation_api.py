@@ -256,6 +256,27 @@ async def send_message(conv_id: str, req: SendMessageRequest):
     return MessageInfo(**row)
 
 
+# ── System Note (no WhatsApp send) ───────────────────────────────────────────
+
+@router.post("/api/conversation/{conv_id:path}/note", response_model=MessageInfo)
+async def add_note(conv_id: str, req: SendMessageRequest):
+    """Record a system note/event in the conversation without sending to WhatsApp."""
+    resolved = _resolve_conv_id(conv_id)
+    if resolved is None:
+        raise HTTPException(status_code=404, detail=f"Conversation '{conv_id}' not found")
+
+    parts = resolved.split(":", 1)
+    bot_id = parts[0]
+    jid = parts[1] if len(parts) > 1 else ""
+
+    row = conv_store.record_message(
+        conv_id=resolved, bot_id=bot_id, jid=jid,
+        direction="note", content_type="SYSTEM",
+        content=req.content,
+    )
+    return MessageInfo(**row)
+
+
 # ── Revoke ───────────────────────────────────────────────────────────────────
 
 @router.post("/api/conversation/{conv_id:path}/message/{msg_id:int}/revoke", response_model=dict)
