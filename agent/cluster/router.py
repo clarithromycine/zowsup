@@ -773,15 +773,15 @@ def create_cluster_app() -> FastAPI:
                 raise HTTPException(status_code=403, detail="Invalid or missing console token")
             return FileResponse(_idx)
 
+    # ── Audit API (must be before catch-all) ────────────────────────────────
+    from agent.api.audit_api import router as audit_router
+    app.include_router(audit_router)
+
     # ── Catch-all proxy ─────────────────────────────────────────────────────
 
     @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
     async def catch_all(path: str, request: Request):
         return await proxy_with_body_fallback(request)
-
-    # ── Audit API ───────────────────────────────────────────────────────────
-    from agent.api.audit_api import router as audit_router
-    app.include_router(audit_router)
 
     return app
 

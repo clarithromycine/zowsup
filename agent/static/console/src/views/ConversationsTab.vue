@@ -16,10 +16,10 @@
         <el-table-column label="JID" width="220"><template #default="{row}"><span style="font-size:12px">{{row.jid}}</span></template></el-table-column>
         <el-table-column label="Name" min-width="140"><template #default="{row}"><b>{{row.notify_name||'—'}}</b></template></el-table-column>
         <el-table-column label="PN" width="150"><template #default="{row}"><span style="font-size:11px;color:var(--el-text-color-secondary)">{{row.pn_jid?row.pn_jid.replace('@s.whatsapp.net',''):'—'}}</span></template></el-table-column>
-        <el-table-column label="Type" width="80"><template #default="{row}"><el-tag size="small" :type="row.type==='group'?'warning':''">{{row.type}}</el-tag></template></el-table-column>
-        <el-table-column prop="message_count" label="Msgs" width="80" align="center"/>
+        <el-table-column label="Type" width="100"><template #default="{row}"><el-tag size="small" :type="row.type==='group'?'warning':''">{{row.type}}</el-tag></template></el-table-column>
+        <el-table-column prop="message_count" label="Msgs" width="100" align="center"/>
         <el-table-column label="Last" width="180"><template #default="{row}"><span style="white-space:nowrap;font-size:12px">{{row.last_message_at?new Date(row.last_message_at*1000).toLocaleString():''}}</span></template></el-table-column>
-        <el-table-column width="90"><template #default="{row}"><el-button type="primary" size="small" @click.stop="openChat(row)">Chat</el-button></template></el-table-column>
+        <el-table-column width="100"><template #default="{row}"><el-button type="primary" size="small" @click.stop="openChat(row)">Chat</el-button></template></el-table-column>
       </el-table>
     </el-card>
 

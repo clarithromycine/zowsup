@@ -37,7 +37,7 @@
         <el-table-column prop="bot_id" label="Bot ID" min-width="130">
           <template #default="{ row }"><b>{{ row.bot_id }}</b></template>
         </el-table-column>
-        <el-table-column v-if="isCluster" prop="agent_id" label="Agent" width="100" />
+        <el-table-column v-if="isCluster" prop="agent_id" label="Agent" width="120" />
         <el-table-column prop="status" label="Status" width="120">
           <template #default="{ row }">
             <el-tag :type="row.status === 'RUNNING' ? 'success' : 'warning'" size="small">

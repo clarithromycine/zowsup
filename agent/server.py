@@ -185,7 +185,7 @@ async def lifespan(app: FastAPI):
     if cluster_url:
         import asyncio, httpx
         agent_id = _agent_id
-        own_port = _agent_port or 8000
+        own_port = _agent_port or (8000 if not cluster_url.endswith(":8000") else 8001)
         own_url = f"http://{_agent_host}:{own_port}"
         cluster_secret = os.environ.get("CLUSTER_SECRET", "")
         _cluster_headers = {"X-Cluster-Secret": cluster_secret} if cluster_secret else {}

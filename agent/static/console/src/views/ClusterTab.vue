@@ -10,12 +10,12 @@
         </div>
       </template>
       <el-table :data="agents" stripe size="small" v-loading="loading" @row-click="openDetail">
-        <el-table-column prop="agent_id" label="Agent ID" width="120"/>
-        <el-table-column label="Status" width="80">
+        <el-table-column prop="agent_id" label="Agent ID" width="200"/>
+        <el-table-column label="Status" width="120">
           <template #default="{row}"><el-tag :type="row.status==='online'?'success':'danger'" size="small">{{row.status}}</el-tag></template>
         </el-table-column>
         <el-table-column prop="url" label="URL" min-width="200"/>
-        <el-table-column label="Bots" width="60"><template #default="{row}">{{row.bot_count||0}}</template></el-table-column>
+        <el-table-column label="Bots" width="100"><template #default="{row}">{{row.bot_count||0}}</template></el-table-column>
         <el-table-column label="" width="80"><template #default="{row}"><el-button type="primary" size="small">View</el-button></template></el-table-column>
       </el-table>
     </el-card>
@@ -26,12 +26,13 @@
       <div class="sub" style="margin:6px 0">URL: {{agent.url}} · Bots: {{(agent.bots||[]).length}}</div>
       <el-table :data="agentBots" stripe size="small" v-loading="dloading">
         <el-table-column prop="bot_id" label="Bot ID" min-width="130"><template #default="{row}"><b>{{row.bot_id}}</b></template></el-table-column>
-        <el-table-column label="Status" width="100"><template #default="{row}"><el-tag :type="row.status==='RUNNING'?'success':'warning'" size="small">{{row.status}}</el-tag></template></el-table-column>
-        <el-table-column prop="env" label="Env" width="80"/>
-        <el-table-column label="Uptime" width="60"><template #default="{row}">{{row.uptime_seconds?Math.floor(row.uptime_seconds/60)+'m':'—'}}</template></el-table-column>
-        <el-table-column label="Migrate" width="200">
+        <el-table-column prop="agent_id" label="Agent" width="120" />
+        <el-table-column label="Status" width="120"><template #default="{row}"><el-tag :type="row.status==='RUNNING'?'success':'warning'" size="small">{{row.status}}</el-tag></template></el-table-column>
+        <el-table-column prop="env" label="Env" width="120"/>
+        <el-table-column label="Uptime" width="120"><template #default="{row}">{{row.uptime_seconds?Math.floor(row.uptime_seconds/60)+'m':'—'}}</template></el-table-column>
+        <el-table-column label="Migrate" width="250">
           <template #default="{row}">
-            <el-select v-model="migTargets[row.bot_id]" size="small" style="width:130px" placeholder="Target">
+            <el-select v-model="migTargets[row.bot_id]" size="small" style="width:130px" placeholder="Target Agent">
               <el-option v-for="a in otherAgents" :key="a.agent_id" :value="a.agent_id" :label="`${a.agent_id} (${a.bot_count||0})`"/>
             </el-select>
             <el-button size="small" style="margin-left:4px" @click="migrateBot(row.bot_id)">→</el-button>
