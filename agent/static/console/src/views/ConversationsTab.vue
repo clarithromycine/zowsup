@@ -12,7 +12,15 @@
           <el-button size="small" @click="loadList">Refresh</el-button>
         </div>
       </template>
-      <el-table :data="filteredConvs" stripe size="small" v-loading="loading" @row-click="openChat">
+      <el-table :data="filteredConvs" stripe size="small" v-loading="loading" @row-click="openChat" :row-style="{cursor:'pointer'}">
+        <el-table-column label="" width="52" align="center">
+          <template #default="{row}">
+            <div class="avatar-circle" :style="{background:avatarProps(row).bg}" :title="row.type==='group'?'Group':''">
+              <span v-if="row.type==='group'" class="avatar-icon">👥</span>
+              <span v-else class="avatar-initials">{{avatarProps(row).initials}}</span>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column label="JID" width="220"><template #default="{row}"><span style="font-size:12px">{{row.jid}}</span></template></el-table-column>
         <el-table-column label="Name" min-width="140"><template #default="{row}"><b>{{row.notify_name||'—'}}</b></template></el-table-column>
         <el-table-column label="PN" width="150"><template #default="{row}"><span style="font-size:11px;color:var(--el-text-color-secondary)">{{row.pn_jid?row.pn_jid.replace('@s.whatsapp.net',''):'—'}}</span></template></el-table-column>
@@ -80,6 +88,23 @@ function cico(s){const v=String(s||'').toUpperCase();const m={READ:'✓✓',DELI
 function ccls(s){const v=String(s||'').toUpperCase();const m={READ:'read',DELIVERED:'delivered',RECEIVED:'delivered',SENT:'sent',SERVER_ACK:'sent',EXECUTED:'exec',FAILED:'failed',ERROR:'failed','3':'sent','4':'delivered','5':'read','6':'failed'};return m[v]||'sent'}
 function media(m){return m.conversation_id&&m.id?`/api/conversation/${encodeURIComponent(m.conversation_id)}/message/${m.id}/media`:''}
 
+const AVATAR_COLORS=['#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#14b8a6','#06b6d4','#0ea5e9','#3b82f6','#6366f1','#8b5cf6','#a855f7','#d946ef','#ec4899','#f43f5e']
+function avatarProps(row){
+  const seed=(row.jid||row.id||'')+'_'+((row.notify_name||'').charCodeAt(0)||0)
+  let h=0;for(let i=0;i<seed.length;i++)h=((h<<5)-h)+seed.charCodeAt(i)|0
+  const bg=AVATAR_COLORS[Math.abs(h)%AVATAR_COLORS.length]
+  let initials='?'
+  if(row.notify_name){
+    const parts=row.notify_name.trim().split(/\s+/)
+    initials=parts.length>=2?parts[0][0]+parts[1][0]:row.notify_name.trim().slice(0,2)
+  }else if(row.pn_jid){
+    initials=row.pn_jid.replace('@s.whatsapp.net','').replace(/[^0-9]/g,'').slice(-2)||'#'
+  }else if(row.jid){
+    initials=row.jid.split('@')[0].slice(-2)||'#'
+  }
+  return{initials:initials.toUpperCase(),bg}
+}
+
 async function loadBots(){try{bots.value=await api('/api/listbot')}catch{bots.value=[]};if(!selBot.value&&botIds.value.length)selBot.value=botIds.value[0]}
 async function loadList(){if(!selBot.value)return;loading.value=true;try{convs.value=await api('/api/conversation?bot_id='+selBot.value)}catch{convs.value=[]}loading.value=false}
 
@@ -108,4 +133,7 @@ watch(selBot,loadList)
 .mi{background:#e8f0fe;align-self:flex-start}.mo{background:#e8f5e9;align-self:flex-end;margin-left:auto}
 .mm{font-size:11px;color:var(--el-text-color-secondary);margin-top:2px}.mcap{margin-top:4px;font-size:13px}.mnote{margin-top:4px;padding-top:4px;border-top:1px solid rgba(0,0,0,.1);font-style:italic;font-size:12px;color:var(--el-text-color-secondary)}
 .mc{font-size:13px;margin-left:4px;display:inline-block;width:22px;letter-spacing:-4px}.mc.sent{color:#999}.mc.exec{color:#bbb}.mc.delivered{color:#999}.mc.read{color:#34b7f1}.mc.failed{color:#ef4444}
+.avatar-circle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin:0 auto}
+.avatar-initials{color:#fff;font-size:14px;font-weight:600;line-height:1;user-select:none;text-transform:uppercase}
+.avatar-icon{font-size:18px;line-height:1;filter:grayscale(0.4)}
 </style>
