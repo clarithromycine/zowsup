@@ -83,7 +83,7 @@ class BotManager:
             bot_type=ZowBotType.TYPE_RUN_IN_CLUSTER,
             auto=auto_login,
         )
-        bot.setUpperCallback(self._on_bot_event)
+        bot.setUpperCallback(lambda event=None,message=None,messageStatus=None,cmdResult=None,modeResult=None,cbId=None: self._on_bot_event(event=event,message=message,messageStatus=messageStatus,cmdResult=cmdResult,modeResult=modeResult,cbId=bot_id))
 
         with self._lock:
             self._bots[bot_id] = bot
@@ -225,6 +225,7 @@ class BotManager:
                     env=row.get("env", ""),
                     started_at=row.get("started_at"),
                     last_active=int(last_seen) if last_seen else None,
+                    fail_reason=row.get("auth_detail") if agent_status == BotStatus.AUTH_FAILED else None,
                 ))
         # Sort: RUNNING first, then by started_at descending (most recent on top)
         def _sort_key(info: BotInfo) -> tuple:
@@ -255,6 +256,7 @@ class BotManager:
                 env=row.get("env", ""),
                 started_at=row.get("started_at"),
                 last_active=int(last_seen) if last_seen else None,
+                fail_reason=row.get("auth_detail") if agent_status == BotStatus.AUTH_FAILED else None,
             )
         return None
 
@@ -430,6 +432,8 @@ class BotManager:
                 bot = self._bots.get(bot_id)
                 if bot:
                     bot._auth_fail_reason = reason
+            account_store.update_status(bot_id, "auth_failed", auth_detail=reason)
+            logger.warning(f"Bot '{bot_id}' auth failed: {reason}")
 
         if event:
             log_broadcaster.emit_event(bot_id, "event", event)

@@ -6,21 +6,21 @@
       @select="handleTabSelect"
     >
       <div class="nav-title">Zowsup Console</div>
-      <el-menu-item index="escalations">
-        <el-icon><WarningFilled /></el-icon>
-        <span>Escalations</span>
+      <el-menu-item index="bots">
+        <el-icon><Monitor /></el-icon>
+        <span>Bots</span>
       </el-menu-item>
       <el-menu-item index="conversations">
         <el-icon><ChatDotRound /></el-icon>
         <span>Conversations</span>
+      </el-menu-item>      
+      <el-menu-item index="escalations">
+        <el-icon><WarningFilled /></el-icon>
+        <span>Escalations</span>
       </el-menu-item>
       <el-menu-item index="plugins">
         <el-icon><SetUp /></el-icon>
         <span>Plugins</span>
-      </el-menu-item>
-      <el-menu-item index="bots">
-        <el-icon><Monitor /></el-icon>
-        <span>Bots</span>
       </el-menu-item>
       <el-menu-item index="audit">
         <el-icon><Document /></el-icon>
@@ -33,10 +33,10 @@
     </el-menu>
 
     <div class="app-main">
-      <EscalationsTab v-if="activeTab === 'escalations'" />
-      <ConversationsTab v-if="activeTab === 'conversations'" />
-      <PluginsTab v-if="activeTab === 'plugins'" />
       <BotsTab v-if="activeTab === 'bots'" />
+      <ConversationsTab v-if="activeTab === 'conversations'" />
+      <EscalationsTab v-if="activeTab === 'escalations'" />      
+      <PluginsTab v-if="activeTab === 'plugins'" />      
       <AuditTab v-if="activeTab === 'audit'" />
       <ClusterTab v-if="activeTab === 'cluster' && showCluster" />
     </div>
@@ -55,7 +55,7 @@ import BotsTab from './views/BotsTab.vue'
 import AuditTab from './views/AuditTab.vue'
 import ClusterTab from './views/ClusterTab.vue'
 
-const activeTab = ref('escalations')
+const activeTab = ref('bots')
 const showCluster = ref(false)
 
 function handleTabSelect(index) {

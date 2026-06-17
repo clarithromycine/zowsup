@@ -8,6 +8,7 @@
             <span v-if="health">Uptime: {{ uptime }} &middot; DB: {{ health.db_bot_count }} &middot; WS: {{ health.ws_connections }} &middot; Threads: {{ health.thread_count }}</span>
           </div>
           <div class="header-actions">
+            <el-button size="small" @click="purgeAll" :loading="purging" type="danger" plain>🗑 Purge</el-button>
             <el-button size="small" @click="scanAccounts" :loading="scanning">🔍 Scan</el-button>
             <el-button size="small" @click="showImport = !showImport">{{ showImport ? '−' : '+' }} Import</el-button>
           </div>
@@ -40,9 +41,15 @@
         <el-table-column v-if="isCluster" prop="agent_id" label="Agent" width="120" />
         <el-table-column prop="status" label="Status" width="120">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'RUNNING' ? 'success' : 'warning'" size="small">
+            <el-tag :type="row.status==='RUNNING'?'success':row.status==='AUTH_FAILED'?'danger':'warning'" size="small">
               {{ row.status }}
             </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="Details" min-width="100">
+          <template #default="{ row }">
+            <span v-if="row.fail_reason" style="color:#ef4444;font-size:12px">{{ row.fail_reason }}</span>
+            <span v-else style="color:var(--zs-muted);font-size:12px">—</span>
           </template>
         </el-table-column>
         <el-table-column prop="env" label="Env" width="120" />
@@ -62,6 +69,8 @@
             <el-button
               v-else
               type="primary" size="small"
+              :loading="startingBots.has(row.bot_id)"
+              :disabled="startingBots.has(row.bot_id)"
               @click="controlBot(row.bot_id, 'start')"
             >Start</el-button>
           </template>
@@ -87,6 +96,8 @@ const health = ref(null)
 const agents = ref([])
 const loading = ref(false)
 const scanning = ref(false)
+const purging = ref(false)
+const startingBots = ref(new Set())
 const filterId = ref('')
 const filterAgent = ref('')
 const showImport = ref(false)
@@ -130,6 +141,10 @@ async function refresh() {
 }
 
 async function controlBot(id, action) {
+  if (action === 'start') {
+    startingBots.value.add(id)
+    startingBots.value = new Set(startingBots.value)
+  }
   try {
     const endpoint = action === 'start' ? '/api/startbot' : '/api/stopbot'
     const body = action === 'start' ? { bot_ids: [id] } : { bot_ids: [id], mode: 'force' }
@@ -140,6 +155,32 @@ async function controlBot(id, action) {
     })
     ElMessage.success(`Bot ${id} ${action}ed`)
   } catch { /* handled by api() */ }
+  if (action === 'start') {
+    startingBots.value.delete(id)
+    startingBots.value = new Set(startingBots.value)
+  }
+  refresh()
+}
+
+async function purgeAll() {
+  try {
+    await ElMessageBox.confirm(
+      'This will permanently delete all auth-failed / orphaned accounts. This action cannot be undone.',
+      '⚠️ Confirm Purge',
+      { confirmButtonText: 'Purge', cancelButtonText: 'Cancel', type: 'warning' }
+    )
+  } catch { return }
+  purging.value = true
+  try {
+    const res = await api('/api/purgebot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'auto' }),
+    })
+    const count = res?.results ? Object.keys(res.results).length : 0
+    ElMessage.success(`Purged ${count} accounts`)
+  } catch {}
+  purging.value = false
   refresh()
 }
 

@@ -3,7 +3,7 @@
     <!-- Left Panel: Conversation List -->
     <div class="conv-left">
       <div class="left-header">
-        <el-select v-model="selBot" size="small" @change="loadList" placeholder="Bot">
+        <el-select v-model="selBot" size="small" placeholder="Bot">
           <el-option v-for="b in botIds" :key="b" :value="b" :label="b"/>
         </el-select>
         <el-input v-model="search" placeholder="Search..." size="small" clearable class="left-search"/>
