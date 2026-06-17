@@ -137,7 +137,7 @@ function updateConvPreview(convId, text, ts){
 async function loadBots(){try{bots.value=await api('/api/listbot')}catch{bots.value=[]};if(!selBot.value&&botIds.value.length)selBot.value=botIds.value[0]}
 async function loadList(){if(!selBot.value)return;loading.value=true;try{convs.value=await api('/api/conversation?bot_id='+selBot.value)}catch{convs.value=[]}loading.value=false;if(!_autoOpenDone&&convs.value.length>0&&!chatId.value){_autoOpenDone=true;openChat(convs.value[0])}}
 
-async function openChat(row){chatId.value=row.id;escalated.value=false;if(unread.value.has(row.id)){unread.value.delete(row.id);unread.value=new Set(unread.value)}try{const d=await api('/api/conversation/'+chatId.value+'?limit=50');chatMsgs.value=(d.messages||[]).filter(m=>m.direction!=='note'||m.content_type==='SYSTEM');msgCount.value=d.message_count||0;_autoScroll=true;connectWs();checkEscalated();_escTimer=setInterval(checkEscalated,10000);nextTick(scrollBottom)}catch{closeChat()}}
+async function openChat(row){chatId.value=row.id;escalated.value=false;if(unread.value.has(row.id)){unread.value.delete(row.id);unread.value=new Set(unread.value)}try{const d=await api('/api/conversation/'+chatId.value+'?limit=50');chatMsgs.value=(d.messages||[]).filter(m=>m.direction!=='note'||m.content_type==='SYSTEM');msgCount.value=d.message_count||0;_autoScroll=true;connectWs();clearInterval(_escTimer);checkEscalated();_escTimer=setInterval(checkEscalated,60000);nextTick(scrollBottom)}catch{closeChat()}}
 function closeChat(){chatId.value=null;chatMsgs.value=[];escalated.value=false;wsClose();clearInterval(_escTimer)}
 
 async function checkEscalated(){
@@ -174,7 +174,7 @@ function connectWs(){const url=`/api/bot/${encodeURIComponent(chatBotId.value)}/
 async function sendMsg(){const t=sendText.value.trim();if(!t)return;sending.value=true;const tmp={_key:'opt'+(_k++),direction:'outgoing',content:t,content_type:'TEXT',created_at:Date.now()/1000,conversation_id:chatId.value,status:'EXECUTED'};chatMsgs.value.unshift(tmp);sendText.value='';msgCount.value++;if(_autoScroll)nextTick(scrollBottom);updateConvPreview(chatId.value,t,Date.now()/1000);try{const msg=await api('/api/conversation/'+chatId.value+'/message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:t})});const idx=chatMsgs.value.indexOf(tmp);if(idx>=0)chatMsgs.value.splice(idx,1,msg);loadList()}catch{ElMessage.error('Send failed');tmp.status='FAILED'}sending.value=false}
 
 onMounted(()=>{loadBots();loadList();timer=setInterval(loadList,15000)})
-onUnmounted(()=>{clearInterval(timer);wsClose()})
+onUnmounted(()=>{clearInterval(timer);clearInterval(_escTimer);wsClose()})
 watch(selBot,loadList)
 </script>
 
