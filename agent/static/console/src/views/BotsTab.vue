@@ -8,21 +8,32 @@
             <span v-if="health">Uptime: {{ uptime }} &middot; DB: {{ health.db_bot_count }} &middot; WS: {{ health.ws_connections }} &middot; Threads: {{ health.thread_count }}</span>
           </div>
           <div class="header-actions">
-            <el-button size="small" @click="purgeAll" :loading="purging" type="danger" plain>🗑 Purge</el-button>
+            <el-button size="small" @click="purgeAll" :loading="purging" plain>🗑 Purge</el-button>
             <el-button size="small" @click="scanAccounts" :loading="scanning">🔍 Scan</el-button>
             <el-button size="small" @click="showImport = !showImport">{{ showImport ? '−' : '+' }} Import</el-button>
           </div>
         </div>
       </template>
 
-      <!-- Import form -->
-      <div v-if="showImport" class="import-form">
-        <el-input v-model="importCsv" placeholder="6-Segment CSV: phone,cc,..." style="width:300px" size="small" />
-        <el-select v-model="importEnv" size="small" style="width:130px">
-          <el-option v-for="e in envs" :key="e" :value="e" :label="e" />
-        </el-select>
-        <el-button type="primary" size="small" @click="importBot">Import</el-button>
-      </div>
+      <!-- Import Dialog -->
+      <el-dialog v-model="showImport" title="Import Bot Accounts" width="550px" destroy-on-close>
+        <div class="import-dialog">
+          <div class="field">
+            <label>Accounts (one per line, 6 fields comma-separated: phone,cc,method,code,password,expid)</label>
+            <el-input v-model="importText" type="textarea" :rows="10" placeholder="12345678901,86,sms,123456,abc123,exp001&#10;12345678902,86,sms,123457,abc124,exp002" />
+          </div>
+          <div class="field">
+            <label>Environment</label>
+            <el-select v-model="importEnv" size="small" style="width:200px">
+              <el-option v-for="e in envs" :key="e" :value="e" :label="e" />
+            </el-select>
+          </div>
+        </div>
+        <template #footer>
+          <el-button @click="showImport=false">Cancel</el-button>
+          <el-button type="primary" @click="importBot" :disabled="!importText.trim()">Import {{ importCount }} account(s)</el-button>
+        </template>
+      </el-dialog>
 
       <!-- Filters -->
       <div class="filters">
@@ -39,6 +50,7 @@
           <template #default="{ row }"><b>{{ row.bot_id }}</b></template>
         </el-table-column>
         <el-table-column v-if="isCluster" prop="agent_id" label="Agent" width="120" />
+        <el-table-column prop="env" label="Env" width="120" />
         <el-table-column prop="status" label="Status" width="120">
           <template #default="{ row }">
             <el-tag :type="row.status==='RUNNING'?'success':row.status==='AUTH_FAILED'?'danger':'warning'" size="small">
@@ -52,13 +64,19 @@
             <span v-else style="color:var(--zs-muted);font-size:12px">—</span>
           </template>
         </el-table-column>
-        <el-table-column prop="env" label="Env" width="120" />
+        
         <el-table-column label="Uptime" width="100">
           <template #default="{ row }">
             {{ row.uptime_seconds ? Math.floor(row.uptime_seconds / 60) + 'm' : '—' }}
           </template>
         </el-table-column>
-        <el-table-column label="Actions" width="180">
+        <el-table-column label="Last Active" width="170">
+          <template #default="{ row }">
+            <span v-if="row.last_active" style="font-size:12px;white-space:nowrap">{{ fmtTime(row.last_active) }}</span>
+            <span v-else style="color:var(--zs-muted);font-size:12px">—</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="Actions" width="200">
           <template #default="{ row }">
             <el-button size="small" @click="openLogs(row.bot_id)">📋</el-button>
             <el-button
@@ -101,11 +119,13 @@ const startingBots = ref(new Set())
 const filterId = ref('')
 const filterAgent = ref('')
 const showImport = ref(false)
-const importCsv = ref('')
+const importText = ref('')
 const importEnv = ref('android')
 const envs = ['android', 'smb_android', 'ios', 'smb_ios']
 const logViewer = ref(null)
 let refreshTimer = null
+
+const importCount = computed(() => importText.value.trim().split('\n').filter(l=>l.trim()).length)
 
 const isCluster = computed(() => bots.value.some(b => b.agent_id))
 const uptime = computed(() => {
@@ -195,15 +215,17 @@ async function scanAccounts() {
 }
 
 async function importBot() {
-  if (!importCsv.value.trim()) return
+  const lines = importText.value.trim().split('\n').filter(l => l.trim())
+  if (!lines.length) return
+  const accounts = lines.map(line => ({ data: line.trim(), env: importEnv.value }))
   try {
     await api('/api/importbot', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accounts: [{ data: importCsv.value, env: importEnv.value }] }),
+      body: JSON.stringify({ accounts }),
     })
-    ElMessage.success('Imported')
-    importCsv.value = ''
+    ElMessage.success(`Imported ${accounts.length} account(s)`)
+    importText.value = ''
     showImport.value = false
   } catch {}
   refresh()
@@ -211,6 +233,16 @@ async function importBot() {
 
 function openLogs(botId) {
   logViewer.value?.open(botId)
+}
+
+function fmtTime(ts) {
+  if (!ts) return '—'
+  const d = new Date(ts * 1000), now = new Date()
+  const diff = Math.floor((now - d) / 1000)
+  if (diff < 60) return 'just now'
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago'
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago'
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
 onMounted(() => {
@@ -226,6 +258,7 @@ onUnmounted(() => clearInterval(refreshTimer))
 .card-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .header-info { font-size: 12px; color: var(--el-text-color-secondary); flex: 1; }
 .header-actions { display: flex; gap: 6px; }
-.import-form { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+.import-dialog .field { margin-bottom: 14px; }
+.import-dialog label { display: block; font-size: 12px; color: var(--zs-muted); margin-bottom: 4px; }
 .filters { display: flex; gap: 8px; margin-bottom: 12px; }
 </style>
