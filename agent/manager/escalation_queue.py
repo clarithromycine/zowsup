@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS escalation_queue (
     claimed_by      TEXT,
     claimed_at      REAL,
     resolved_at     REAL,
+    escalation_note TEXT NOT NULL DEFAULT '',
+    resolution_note TEXT NOT NULL DEFAULT '',
     created_at      REAL NOT NULL DEFAULT (strftime('%s', 'now')),
     updated_at      REAL NOT NULL DEFAULT (strftime('%s', 'now'))
 );
@@ -37,6 +39,11 @@ CREATE INDEX IF NOT EXISTS idx_esc_bot ON escalation_queue(bot_id);
 CREATE INDEX IF NOT EXISTS idx_esc_conv ON escalation_queue(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_esc_agent ON escalation_queue(agent_id);
 """
+
+_MIGRATIONS = [
+    "ALTER TABLE escalation_queue ADD COLUMN escalation_note TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE escalation_queue ADD COLUMN resolution_note TEXT NOT NULL DEFAULT ''",
+]
 
 
 class EscalationQueue:
@@ -62,9 +69,19 @@ class EscalationQueue:
         conn = self._get_conn()
         conn.execute("PRAGMA journal_mode=WAL")
         conn.executescript(_SCHEMA)
+        self._run_migrations(conn)
         conn.commit()
         self._initialized = True
         logger.info("EscalationQueue started: %s", self._db_path)
+
+    def _run_migrations(self, conn: sqlite3.Connection) -> None:
+        for sql in _MIGRATIONS:
+            try:
+                conn.execute(sql)
+            except sqlite3.OperationalError:
+                pass  # column already exists
+            else:
+                logger.debug("EscalationQueue migration applied: %s...", sql[:60])
 
     def _get_conn(self) -> sqlite3.Connection:
         if self._conn is None:
@@ -82,6 +99,7 @@ class EscalationQueue:
         priority: str = "normal",
         agent_id: str = "",
         escalation_id: str = "",
+        escalation_note: str = "",
     ) -> dict:
         """Add an escalation.  Idempotent by conversation_id + active status."""
         self._ensure_init()
@@ -95,8 +113,8 @@ class EscalationQueue:
             ).fetchone()
             if existing:
                 conn.execute(
-                    "UPDATE escalation_queue SET reason = ?, updated_at = ? WHERE id = ?",
-                    (reason, now, existing[0]),
+                    "UPDATE escalation_queue SET reason = ?, escalation_note = ?, updated_at = ? WHERE id = ?",
+                    (reason, escalation_note, now, existing[0]),
                 )
                 conn.commit()
                 row = conn.execute("SELECT * FROM escalation_queue WHERE id = ?", (existing[0],)).fetchone()
@@ -104,9 +122,9 @@ class EscalationQueue:
 
             conn.execute(
                 """INSERT INTO escalation_queue
-                   (id, bot_id, agent_id, conversation_id, reason, priority, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (esc_id, bot_id, agent_id, conversation_id, reason, priority, now, now),
+                   (id, bot_id, agent_id, conversation_id, reason, priority, escalation_note, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (esc_id, bot_id, agent_id, conversation_id, reason, priority, escalation_note, now, now),
             )
             conn.commit()
             row = conn.execute("SELECT * FROM escalation_queue WHERE id = ?", (esc_id,)).fetchone()
@@ -155,15 +173,15 @@ class EscalationQueue:
             conn.commit()
             return cursor.rowcount > 0
 
-    def resolve(self, esc_id: str) -> bool:
+    def resolve(self, esc_id: str, resolution_note: str = "") -> bool:
         """Resolve (close) an escalation."""
         self._ensure_init()
         now = time.time()
         with self._lock:
             conn = self._get_conn()
             cursor = conn.execute(
-                "UPDATE escalation_queue SET status = 'resolved', resolved_at = ?, updated_at = ? WHERE id = ?",
-                (now, now, esc_id),
+                "UPDATE escalation_queue SET status = 'resolved', resolved_at = ?, resolution_note = ?, updated_at = ? WHERE id = ?",
+                (now, resolution_note, now, esc_id),
             )
             conn.commit()
             return cursor.rowcount > 0

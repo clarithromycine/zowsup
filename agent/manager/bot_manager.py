@@ -116,7 +116,8 @@ class BotManager:
                 logger.info(f"Bot '{bot_id}' logged in successfully")
                 raw_os = bot.env.deviceEnv.getOSName() if bot.env else ""
                 os_env = SysVar.ENV_NAME_MAPPING.get(raw_os, raw_os) if raw_os else ""
-                account_store.update_status(bot_id, "running", env=os_env or account_store.get(bot_id).get("env", ""))
+                account_store.update_status(bot_id, "running", env=os_env or account_store.get(bot_id).get("env", ""),
+                                            started_at=int(bot.startts) if bot.startts else None)
             elif auth_fail:
                 logger.warning(f"Bot '{bot_id}' login failed with auth error ({auth_fail})")
                 account_store.update_status(bot_id, "auth_failed", auth_detail=auth_fail)
@@ -519,7 +520,15 @@ class BotManager:
             notify = message.get("notify")
             if notify and "@" not in str(notify):
                 from agent.manager.conversation_store import conv_store
-                conv_store.update_notify_name(conv_id, str(notify))
+                name = str(notify)
+                # WhatsApp encodes push names as UTF-8 but the binary protocol
+                # decoder uses chr() per-byte (latin1).  Fix by re-encoding as
+                # latin1 and decoding as UTF-8.
+                try:
+                    name = name.encode('latin-1').decode('utf-8')
+                except (UnicodeDecodeError, UnicodeEncodeError):
+                    pass  # already clean ASCII/latin1
+                conv_store.update_notify_name(conv_id, name)
             if row: message["db_id"] = row["id"]; return row["id"]
             return None
         except Exception: pass

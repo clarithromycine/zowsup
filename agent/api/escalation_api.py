@@ -65,6 +65,7 @@ async def create_escalation(
     priority: str = Body("normal"),
     agent_id: str = Body(""),
     id: str = Body(""),
+    escalation_note: str = Body(""),
 ):
     """Create an escalation (standalone mode)."""
     import uuid
@@ -77,7 +78,21 @@ async def create_escalation(
         priority=priority,
         agent_id=agent_id,
         escalation_id=esc_id,
+        escalation_note=escalation_note,
     )
+
+    # Insert system note with escalation context
+    parts = conversation_id.split(":", 1)
+    bid = parts[0] if len(parts) > 1 else ""
+    jid = parts[1] if len(parts) > 1 else ""
+    conv_store.record_message(
+        conv_id=conversation_id, bot_id=bid, jid=jid,
+        direction="note", content_type="SYSTEM",
+        content="⬆ Escalation created",
+        note=escalation_note.strip() if escalation_note.strip() else None,
+        note_type="escalation_reason",
+    )
+
     return {**esc, "conversation": conv}
 
 
@@ -102,8 +117,8 @@ async def unclaim_escalation(esc_id: str):
 # ── Resolve ──────────────────────────────────────────────────────────────────
 
 @router.post("/{esc_id}/resolve")
-async def resolve_escalation(esc_id: str):
-    if not escalation_queue.resolve(esc_id):
+async def resolve_escalation(esc_id: str, resolution_note: str = Body("", embed=True)):
+    if not escalation_queue.resolve(esc_id, resolution_note=resolution_note):
         raise HTTPException(status_code=404, detail=f"Escalation {esc_id} not found")
 
     # Insert system note into the conversation
@@ -117,6 +132,8 @@ async def resolve_escalation(esc_id: str):
             conv_id=conv_id, bot_id=bot_id, jid=jid,
             direction="note", content_type="SYSTEM",
             content="✅ Escalation resolved",
+            note=resolution_note.strip() if resolution_note.strip() else None,
+            note_type="escalation_resolution",
         )
 
     return {"id": esc_id, "status": "resolved"}

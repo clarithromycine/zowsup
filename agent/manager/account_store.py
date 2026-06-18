@@ -255,7 +255,7 @@ class AccountStore:
                 )
             elif status == "running":
                 conn.execute(
-                    "UPDATE accounts SET started_at = ? WHERE bot_id = ? AND started_at IS NULL",
+                    "UPDATE accounts SET started_at = ? WHERE bot_id = ?",
                     (now, bot_id),
                 )
             conn.commit()

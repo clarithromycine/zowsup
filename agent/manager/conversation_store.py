@@ -408,6 +408,8 @@ class ConversationStore:
         media_file_length: int | None = None,
         media_caption: str | None = None,
         parent_id: int | None = None,
+        note: str | None = None,
+        note_type: str | None = None,
     ) -> dict:
         """Record a message and update conversation metadata.
 
@@ -439,12 +441,14 @@ class ConversationStore:
                    (conversation_id, msg_id, direction, content_type, content,
                     participant_jid, status, raw, sent_at, created_at,
                     parent_id,
-                    media_url, media_key, media_mimetype, media_file_name, media_file_length, media_caption)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    media_url, media_key, media_mimetype, media_file_name, media_file_length, media_caption,
+                    note, note_type)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (conv_id, msg_id, direction, content_type, content,
                  participant_jid, status, raw, sent_at, now,
                  parent_id,
-                 media_url, media_key, media_mimetype, media_file_name, media_file_length, media_caption),
+                 media_url, media_key, media_mimetype, media_file_name, media_file_length, media_caption,
+                 note, note_type),
             )
             # Update conversation metadata (skip notes for message_count)
             if direction != "note":
