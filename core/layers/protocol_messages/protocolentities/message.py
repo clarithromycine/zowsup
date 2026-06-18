@@ -65,9 +65,17 @@ class MessageProtocolEntity(ProtocolEntity):
     def getTimestamp(self) -> Any:
         return self.timestamp
 
-    def getFrom(self, full = True) -> Any:
-        return self._from if full else self._from.split('@')[0]
-
+    def getFrom(self, full = True, noDevice = False) -> Any:
+        if full:
+            #去掉jid中的deviceId部分，保持原有的格式不变，标准格式   number:deviceId@domain
+            if noDevice:
+                return self._from.split('@')[0].split(':')[0] + "@" + self._from.split('@')[1]            
+            else:
+                return self._from
+                        
+        # 清除掉@后面的部分，前面的部分如果有"."，把"."后面的部分也去掉，不指示deviceId
+        return self._from.split('@')[0].split(':')[0]
+    
     def isBroadcast(self) -> Any:
         return False
 

@@ -900,6 +900,7 @@ class AttributesConverter:
             
         if message_attributes.protocol:
             message.protocol_message.MergeFrom(self.protocol_to_proto(message_attributes.protocol))
+                
 
         
         

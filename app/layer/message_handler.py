@@ -60,7 +60,7 @@ class MessageHandler:
                 return
 
         # Normalize canonical JID: LID for 1v1 chats, group JID for groups
-        from_full = messageProtocolEntity.getFrom(True)
+        from_full = messageProtocolEntity.getFrom(True, noDevice=True)
         _pn_jid = messageProtocolEntity.getSenderPn()
         _sender_lid = messageProtocolEntity.getSenderLid()
 
