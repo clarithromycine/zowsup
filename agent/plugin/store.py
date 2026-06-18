@@ -189,6 +189,15 @@ class PluginStore:
         return [dict(r) for r in rows]
 
 
+def inner_config(cfg: dict) -> dict:
+    """Extract the inner config values from a plugin config dict.
+    Handles both wrapper format {"plugin":...,"config":{...}} and raw format.
+    """
+    if isinstance(cfg, dict) and isinstance(cfg.get("config"), dict):
+        return cfg["config"]
+    return cfg
+
+
 # Singleton
 plugin_store = PluginStore()
 

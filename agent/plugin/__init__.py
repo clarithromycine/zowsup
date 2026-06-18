@@ -29,6 +29,7 @@ class MessageContext:
     participant_jid: str | None = None  # group participant
     db_id: int | None = None        # DB id of the stored message
     raw: dict | None = None          # original message dict
+    stage: str = "normal"            # conversation stage (e.g. "surveying")
 
 
 

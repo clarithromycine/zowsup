@@ -47,14 +47,19 @@ async def get_plugin_config(
     if plugin_manager.get(plugin_name) is None:
         raise HTTPException(status_code=404, detail=f"Plugin '{plugin_name}' not found")
 
-    config = plugin_store.get_config(plugin_name, bot_id)
+    cfg = plugin_store.get_config(plugin_name, bot_id)
     enabled = plugin_store.is_enabled(plugin_name, bot_id)
-    return {
-        "plugin": plugin_name,
-        "bot_id": bot_id or "(global)",
-        "enabled": enabled,
-        "config": config,
-    }
+    # If stored as raw inner config, wrap; otherwise return wrapper as-is
+    if isinstance(cfg, dict) and "plugin" not in cfg:
+        return {
+            "plugin": plugin_name,
+            "bot_id": bot_id or "(global)",
+            "enabled": enabled,
+            "config": cfg,
+        }
+    # Wrapper format: sync enabled from DB (toggle updates column, not config_json)
+    cfg["enabled"] = enabled
+    return cfg
 
 
 # ── Update Config ────────────────────────────────────────────────────────────
@@ -69,12 +74,13 @@ async def update_plugin_config(
         raise HTTPException(status_code=404, detail=f"Plugin '{plugin_name}' not found")
 
     plugin_store.set_config(plugin_name, config, bot_id)
+    # Sync enabled toggle: if the config JSON has an "enabled" key, update the DB column too
+    if "enabled" in config:
+        plugin_store.set_enabled(plugin_name, bool(config["enabled"]), bot_id)
     updated = plugin_store.get_config(plugin_name, bot_id if bot_id else None)
-    return {
-        "plugin": plugin_name,
-        "bot_id": bot_id or "(global)",
-        "config": updated,
-    }
+    if isinstance(updated, dict):
+        updated["enabled"] = plugin_store.is_enabled(plugin_name, bot_id if bot_id else None)
+    return updated
 
 
 # ── Enable / Disable ─────────────────────────────────────────────────────────

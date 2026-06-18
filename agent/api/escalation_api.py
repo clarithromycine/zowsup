@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException, Body
 from agent.manager.bot_manager import bot_manager
 from agent.manager.conversation_store import conv_store
 from agent.manager.escalation_queue import escalation_queue
+from agent.plugin.manager import plugin_manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/escalation", tags=["escalation"])
@@ -92,6 +93,8 @@ async def create_escalation(
         note=escalation_note.strip() if escalation_note.strip() else None,
         note_type="escalation_reason",
     )
+    # Set conversation stage so AI backs off
+    plugin_manager.set_stage(conversation_id, "escalated")
 
     return {**esc, "conversation": conv}
 
@@ -135,6 +138,8 @@ async def resolve_escalation(esc_id: str, resolution_note: str = Body("", embed=
             note=resolution_note.strip() if resolution_note.strip() else None,
             note_type="escalation_resolution",
         )
+        # Restore conversation stage so AI can resume
+        plugin_manager.set_stage(conv_id, "normal")
 
     return {"id": esc_id, "status": "resolved"}
 

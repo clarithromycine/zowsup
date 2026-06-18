@@ -22,7 +22,7 @@ import asyncio
 import logging
 
 from agent.plugin import Plugin, MessageContext, Action, NoAction, ReplyAction, EscalateAction
-from agent.plugin.store import plugin_store
+from agent.plugin.store import plugin_store, inner_config
 
 logger = logging.getLogger(__name__)
 
@@ -60,9 +60,20 @@ class AIPlugin(Plugin):
             return [NoAction()]
 
         cfg = plugin_store.get_config(self.name, ctx.bot_id)
+        icfg = inner_config(cfg)   # unwrap wrapper format
         text = (ctx.content or "").strip()
-        logger.debug("AI on_message: bot=%s text=%s dir=%s enabled=%s", ctx.bot_id, text[:40], ctx.direction, plugin_store.is_enabled(self.name, ctx.bot_id))
+        logger.debug("AI on_message: bot=%s text=%s dir=%s stage=%s enabled=%s",
+                     ctx.bot_id, text[:40], ctx.direction, ctx.stage,
+                     plugin_store.is_enabled(self.name, ctx.bot_id))
         if not text:
+            return [NoAction()]
+
+        # ── Stage gating: back off when conversation is in certain stages ──
+        skip_stages = icfg.get("skip_stages", None)
+        if skip_stages is None:
+            skip_stages = ["surveying", "escalated"]
+        if isinstance(skip_stages, list) and ctx.stage in skip_stages:
+            logger.debug("AI skipped: stage '%s' in skip_stages", ctx.stage)
             return [NoAction()]
 
         # ── Human takeover: skip AI when operator has claimed this conversation ──
@@ -89,7 +100,7 @@ class AIPlugin(Plugin):
                 return [NoAction()]
 
         # ── Fast path: keyword-based escalation (no API key needed) ──
-        escalate_keywords = cfg.get("escalate_keywords", [])
+        escalate_keywords = icfg.get("escalate_keywords", [])
         if isinstance(escalate_keywords, list):
             lower_text = text.lower()
             for kw in escalate_keywords:
@@ -100,15 +111,15 @@ class AIPlugin(Plugin):
                         reason=f"Keyword match: {kw}",
                     )]
 
-        api_key = cfg.get("api_key", "")
+        api_key = icfg.get("api_key", "")
         if not api_key:
             return [NoAction()]
 
         # ── LLM classification ──
-        provider = cfg.get("provider", "openai")
-        model = cfg.get("model", "gpt-4o-mini")
-        api_url = cfg.get("api_url", "https://api.openai.com/v1")
-        system_prompt = cfg.get("system_prompt", "") or DEFAULT_SYSTEM_PROMPT
+        provider = icfg.get("provider", "openai")
+        model = icfg.get("model", "gpt-4o-mini")
+        api_url = icfg.get("api_url", "https://api.openai.com/v1")
+        system_prompt = icfg.get("system_prompt", "") or DEFAULT_SYSTEM_PROMPT
 
         from agent.plugin.llm_client import llm_chat
 

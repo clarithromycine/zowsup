@@ -11,7 +11,7 @@ import logging
 from typing import Type
 
 from agent.plugin import Plugin, MessageContext, Action, NoAction, ReplyAction, EscalateAction, ConfigAction
-from agent.plugin.store import plugin_store
+from agent.plugin.store import plugin_store, inner_config
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,7 @@ class PluginManager:
 
     def __init__(self):
         self._plugins: dict[str, Plugin] = {}
+        self._conv_stages: dict[str, str] = {}   # conversation_id → stage
 
     # ── Registration ─────────────────────────────────────────────────────────
 
@@ -41,6 +42,21 @@ class PluginManager:
     def get(self, name: str) -> Plugin | None:
         return self._plugins.get(name)
 
+    # ── Conversation Stage ────────────────────────────────────────────────────
+
+    def get_stage(self, conv_id: str) -> str:
+        """Get the current conversation stage.  Default: 'normal'."""
+        return self._conv_stages.get(conv_id, "normal")
+
+    def set_stage(self, conv_id: str, stage: str) -> None:
+        """Set the conversation stage.  Stage controls plugin dispatch behaviour."""
+        self._conv_stages[conv_id] = stage
+        logger.info("Conversation stage: %s → %s", conv_id, stage)
+
+    def clear_stage(self, conv_id: str) -> None:
+        """Remove stage tracking for a closed conversation."""
+        self._conv_stages.pop(conv_id, None)
+
     # ── Dispatch ─────────────────────────────────────────────────────────────
 
     def _sorted_plugins(self):
@@ -48,13 +64,26 @@ class PluginManager:
         return sorted(self._plugins.items(), key=lambda item: item[1].priority)
 
     async def dispatch_on_message(self, ctx: MessageContext) -> list[Action]:
-        """Dispatch incoming message to all enabled plugins.  Skips disabled."""
+        """Dispatch incoming message to all enabled plugins.  Skips disabled
+        and plugins whose skip_stages config includes the current stage."""
         actions: list[Action] = []
+
+        # Inject current conversation stage into context
+        ctx.stage = self.get_stage(ctx.conversation_id)
+
         for name, plugin in self._sorted_plugins():
             enabled = plugin_store.is_enabled(name, ctx.bot_id)
             logger.debug("Plugin '%s' enabled=%s for bot '%s'", name, enabled, ctx.bot_id)
             if not enabled:
                 continue
+
+            # Check skip_stages: if current stage is in the plugin's skip list, skip
+            cfg = inner_config(plugin_store.get_config(name, ctx.bot_id))
+            skip_stages = cfg.get("skip_stages", [])
+            if isinstance(skip_stages, list) and ctx.stage in skip_stages:
+                logger.debug("Plugin '%s' skipped: stage '%s' in skip_stages", name, ctx.stage)
+                continue
+
             try:
                 result = await plugin.on_message(ctx)
                 logger.debug("Plugin '%s' returned %d actions", name, len(result))
@@ -128,11 +157,25 @@ class PluginManager:
                     continue
 
                 try:
+                    # Let plugins see the outgoing message before sending
+                    # (e.g. satisfaction plugin resets inactivity timer, translation overrides text)
+                    from agent.plugin import MessageContext as _MC
+                    before_ctx = _MC(
+                        bot_id=bot_id, jid=jid, direction="outgoing",
+                        content=action.text, conversation_id=conv_id,
+                    )
+                    before_actions = await self.dispatch_on_before_send(before_ctx)
+                    final_text = action.text
+                    for ba in before_actions:
+                        if hasattr(ba, "text"):
+                            final_text = ba.text
+                            break
+
                     result, _ = await asyncio.to_thread(
                         bot_manager.execute_cmd,
                         bot_id=bot_id,
                         cmd_name="msg.send",
-                        args=[jid, action.text],
+                        args=[jid, final_text],
                         options={"waitid": 15},
                         timeout=30,
                     )
@@ -142,7 +185,7 @@ class PluginManager:
                     row = conv_store.record_message(
                         conv_id=conv_id, bot_id=bot_id, jid=jid,
                         direction="outgoing", content_type="TEXT",
-                        content=action.text, msg_id=msg_id, status="EXECUTED",
+                        content=final_text, msg_id=msg_id, status="EXECUTED",
                     )
                     # Push to WebSocket so conversation view updates in real-time
                     from agent.manager.log_broadcaster import log_broadcaster

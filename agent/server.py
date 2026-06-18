@@ -146,17 +146,70 @@ async def lifespan(app: FastAPI):
     from agent.plugin.store import plugin_store as _plugin_store
     from agent.plugin.manager import plugin_manager as _plugin_manager
     from agent.manager.escalation_queue import escalation_queue as _escalation_queue
+    from agent.plugin.satisfaction.store import survey_store as _survey_store
     _plugin_store.start()
     _escalation_queue.start()
+    _survey_store.start()
 
     from agent.plugin.ai import AIPlugin
     from agent.plugin.translation import TranslationPlugin
+    from agent.plugin.satisfaction import SatisfactionPlugin
     _plugin_manager.register(TranslationPlugin())
     _plugin_manager.register(AIPlugin())
+    _plugin_manager.register(SatisfactionPlugin())
     # Set defaults only on first run — never overwrite saved config
-    if not _plugin_store.get_config("translation").get("work_lang"):
-        _plugin_store.set_config("translation", {"work_lang":"zh","target_lang":"en","provider":"google"})
+    if not _plugin_store.get_config("translation"):
+        _plugin_store.set_config("translation", {
+            "plugin": "translation", "bot_id": "(global)", "enabled": True,
+            "config": {"work_lang": "zh", "target_lang": "en", "provider": "google"},
+        })
         _plugin_store.set_enabled("translation", True)
+    if not _plugin_store.get_config("satisfaction"):
+        _plugin_store.set_config("satisfaction", {
+            "plugin": "satisfaction", "bot_id": "(global)", "enabled": True,
+            "config": {
+                "inactivity_minutes": 5,
+                "session_gap_hours": 24,
+                "survey_message": "Please rate our service (1-5, 5 being excellent)",
+                "thank_you_message": "Thank you for your feedback! Feel free to reach out anytime.",
+            },
+        })
+    else:
+        # Ensure new config keys exist in existing config (non-destructive merge)
+        sat_cfg = _plugin_store.get_config("satisfaction")
+        inner = sat_cfg.get("config", sat_cfg)  # handle both wrapper and raw formats
+        defaults = {"session_gap_hours": 24}
+        patched = False
+        for k, v in defaults.items():
+            if k not in inner:
+                inner[k] = v
+                patched = True
+        if patched:
+            _plugin_store.set_config("satisfaction", {
+                "plugin": "satisfaction", "bot_id": "(global)", "enabled": True,
+                "config": inner,
+            })
+            logger.info("Patched satisfaction config with new defaults")
+    _plugin_store.set_enabled("satisfaction", True)   # ensure enabled regardless of existing config
+    # Ensure AI plugin defaults to skip "surveying" stage (don't overwrite user config)
+    ai_cfg = _plugin_store.get_config("ai")
+    if not ai_cfg:
+        _plugin_store.set_config("ai", {
+            "plugin": "ai", "bot_id": "(global)", "enabled": False,
+            "config": {"skip_stages": ["surveying", "escalated"]},
+        })
+    else:
+        import json as _json
+        inner = ai_cfg.get("config", ai_cfg)
+        defaults = {"surveying", "escalated"}
+        existing = set(inner.get("skip_stages") or [])
+        missing = defaults - existing
+        if missing:
+            inner["skip_stages"] = sorted(existing | defaults)
+            _plugin_store.set_config("ai", {
+                "plugin": "ai", "bot_id": "(global)", "enabled": _plugin_store.is_enabled("ai"),
+                "config": inner,
+            })
 
     from agent.api.bot_api import router as bot_router
     from agent.api.cmd_api import router as cmd_router
@@ -168,6 +221,7 @@ async def lifespan(app: FastAPI):
     from agent.api.migrate_api import router as migrate_router
     from agent.api.audit_api import router as audit_router
     from agent.api.avatar_api import router as avatar_router
+    from agent.api.survey_api import router as survey_router
     app.include_router(bot_router)
     app.include_router(cmd_router)
     app.include_router(msg_router)
@@ -178,6 +232,7 @@ async def lifespan(app: FastAPI):
     app.include_router(migrate_router)
     app.include_router(audit_router)
     app.include_router(avatar_router)
+    app.include_router(survey_router)
 
     import logging
     logging.getLogger('transitions').setLevel(logging.WARNING)

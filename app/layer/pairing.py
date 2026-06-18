@@ -417,7 +417,7 @@ class PairingManager:
             # Generate and share app state sync keys
             sync_keys = layer.generateAppStateSyncKeys(10)
             if layer.db:
-                layer.db._store.addAppStateSyncKeys(sync_keys)
+                layer.db._store.addAppStateKeys(sync_keys)
 
             key_share_entity = ProtocolMessageProtocolEntity(
                 protocol_attr=ProtocolAttributes(

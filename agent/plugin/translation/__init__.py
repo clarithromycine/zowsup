@@ -18,7 +18,7 @@ import logging
 import threading
 
 from agent.plugin import Plugin, MessageContext, Action, NoAction, ReplyAction, ConfigAction
-from agent.plugin.store import plugin_store
+from agent.plugin.store import plugin_store, inner_config
 from agent.plugin.translation.translators import google_translate, llm_translate, anthropic_translate
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ class TranslationPlugin(Plugin):
         if ctx.direction != "incoming":
             return [NoAction()]
 
-        cfg = plugin_store.get_config(self.name, ctx.bot_id)
+        cfg = inner_config(plugin_store.get_config(self.name, ctx.bot_id))
         work_lang = cfg.get("work_lang", "")
         target_lang = cfg.get("target_lang", "")
         if not work_lang or not target_lang or work_lang == target_lang:
@@ -82,7 +82,7 @@ class TranslationPlugin(Plugin):
         if ctx.direction != "outgoing":
             return [NoAction()]
 
-        cfg = plugin_store.get_config(self.name, ctx.bot_id)
+        cfg = inner_config(plugin_store.get_config(self.name, ctx.bot_id))
         work_lang = cfg.get("work_lang", "")
         target_lang = cfg.get("target_lang", "")
         if not work_lang or not target_lang or work_lang == target_lang:
@@ -136,7 +136,7 @@ class TranslationPlugin(Plugin):
 
     async def on_start(self, bot_id: str) -> list[Action]:
         """Auto-enable if work_lang != target_lang."""
-        cfg = plugin_store.get_config(self.name, bot_id)
+        cfg = inner_config(plugin_store.get_config(self.name, bot_id))
         wl = cfg.get("work_lang", "")
         tl = cfg.get("target_lang", "")
         if wl and tl and wl != tl:

@@ -5,7 +5,7 @@
     <el-table :data="plugins" stripe size="small" v-loading="loading">
       <el-table-column prop="name" label="Name" width="140"/>
       <el-table-column prop="version" label="Version" width="100"/>
-      <el-table-column label="Status" width="100">
+      <el-table-column label="Status" width="120">
         <template #default="{row}">
           <el-tag :type="row.enabled?'success':'info'" size="small">{{row.enabled?'Enabled':'Disabled'}}</el-tag>
         </template>
