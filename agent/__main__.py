@@ -114,10 +114,7 @@ def main(argv: list[str] | None = None) -> None:
         bot_manager.stop_periodic_flush()
         log_broadcaster._shutting_down = True
         log_broadcaster.stop()
-
-        bot_manager.stop_periodic_flush()
-        log_broadcaster._shutting_down = True
-        log_broadcaster.stop()
+        
         server.should_exit = True
     _shutting_down = False
 
