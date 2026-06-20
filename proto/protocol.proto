@@ -12,6 +12,10 @@ extend google.protobuf.FieldOptions {
     optional bool jid = 50000;
 }
 
+
+
+
+
 message MessageKey {
     optional string remote_jid = 1 [(jid) = true];
     optional bool from_me = 2;

@@ -307,3 +307,5 @@ message ADVSignedDeviceIdentityHMAC {
   optional bytes details = 1;  // encoded ADVSignedDeviceIdentity
   optional bytes hmac = 2;
 }
+
+
