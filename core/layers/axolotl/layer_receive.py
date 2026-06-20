@@ -73,7 +73,12 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
 
         except exceptions.InvalidKeyIdException:
             logger.warning("Invalid KeyId for {}, going to send the receipt to ignore subsequence push".format(encMessageProtocolEntity.getAuthor(False)))
-            await self.toLower(OutgoingReceiptProtocolEntity(node["id"], node["from"], participant=node["participant"]).toProtocolTreeNode())
+            if node["id"] in self._retries and self._retries[node["id"]] >=3:
+                #重复三次，如果都是invalid可能是对方的异常，放弃,也有可能是本地的prekey变更，导致对方用的key无法解密
+                await self.toLower(OutgoingReceiptProtocolEntity(node["id"], node["from"], participant=node["participant"]).toProtocolTreeNode())   
+            else:            
+                #time.sleep(1) 
+                await self.send_retry(node, self.manager.registration_id)     
                    
             
         except exceptions.InvalidMessageException:

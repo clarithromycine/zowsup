@@ -332,9 +332,6 @@ class MessageHandler:
             mime = attrs.mimetype 
             key = attrs.media_key
 
-            print(url)
-            print(mime)
-            print(key)
             fname = getattr(entity, 'file_name', '') or ''
             flen = getattr(entity, 'file_length', None) or 0
             caption = getattr(entity, 'caption', '') or ''
