@@ -8,7 +8,8 @@
         </el-select>
         <el-input v-model="search" placeholder="Search..." size="small" clearable class="left-search"/>
       </div>
-      <div class="left-list" v-loading="loading">
+      <div class="left-list" :class="{ 'left-refreshing': refreshing }">
+        <div class="left-refresh-bar" v-if="refreshing"><span class="ref-dot"></span> Syncing...</div>
         <div
           v-for="c in filteredConvs" :key="c.id"
           class="conv-item"
@@ -90,9 +91,10 @@ import { useWebSocket } from '../composables/useWebSocket'
 const { api } = useApi()
 const { connect: wsConnect, close: wsClose, connected: wsLive } = useWebSocket()
 
-const selBot=ref(''),search=ref(''),bots=ref([]),convs=ref([]),loading=ref(false),chatId=ref(null),chatMsgs=ref([]),sendText=ref(''),sending=ref(false),escalating=ref(false),escalated=ref(false)
+const selBot=ref(''),search=ref(''),bots=ref([]),convs=ref([]),refreshing=ref(false),chatId=ref(null),chatMsgs=ref([]),sendText=ref(''),sending=ref(false),escalating=ref(false),escalated=ref(false)
 const chatBody=ref(null),msgCount=ref(0),unread=ref(new Set())
 let timer=null,_k=0,_autoScroll=true,_escTimer=null,_autoOpenDone=false
+let _loadPending=null
 
 function scrollBottom(){if(!chatBody.value)return;chatBody.value.scrollTop=0}
 function onChatScroll(){if(!chatBody.value)return;_autoScroll=chatBody.value.scrollTop===0}
@@ -143,8 +145,70 @@ function updateConvPreview(convId, text, ts){
   convs.value=arr
 }
 
+// Smart merge: diff old vs new list, mutate in-place to keep VNode identity stable
+function mergeConvs(oldList, newList) {
+  const oldMap = new Map(oldList.map(c => [c.id, c]))
+  const result = []
+  for (const newItem of newList) {
+    const oldItem = oldMap.get(newItem.id)
+    if (oldItem) {
+      if (oldItem.last_message !== newItem.last_message ||
+          oldItem.last_message_at !== newItem.last_message_at ||
+          oldItem.message_count !== newItem.message_count ||
+          oldItem.avatar_id !== newItem.avatar_id ||
+          oldItem.notify_name !== newItem.notify_name ||
+          oldItem.updated_at !== newItem.updated_at) {
+        Object.assign(oldItem, newItem)
+      }
+      result.push(oldItem)
+    } else {
+      result.push(newItem)
+    }
+  }
+  return result
+}
+
+// Lightweight deferred sync — used by WS/send paths to avoid hammering the API.
+// updateConvPreview already handles immediate visual feedback; this just keeps
+// the full list eventually consistent without blocking the UI.
+function scheduleRefresh() {
+  if (_loadPending) clearTimeout(_loadPending)
+  _loadPending = setTimeout(() => {
+    _loadPending = null
+    loadListImmediate()
+  }, 2000)
+}
+
+// Do the actual network fetch + merge (no debounce — callers manage timing)
+async function loadListImmediate() {
+  if (!selBot.value) return
+  refreshing.value = true
+  try {
+    const newList = await api('/api/conversation?bot_id=' + selBot.value)
+    if (convs.value.length === 0) {
+      convs.value = newList
+    } else {
+      convs.value = mergeConvs(convs.value, newList)
+    }
+  } catch { /* keep old data on error */ }
+  refreshing.value = false
+  if (!_autoOpenDone && convs.value.length > 0 && !chatId.value) {
+    _autoOpenDone = true
+    openChat(convs.value[0])
+  }
+}
+
+async function loadList() {
+  if (!selBot.value) return
+  // Coalesce rapid successive calls (poll interval, watcher, etc.)
+  if (_loadPending) clearTimeout(_loadPending)
+  _loadPending = setTimeout(() => {
+    _loadPending = null
+    loadListImmediate()
+  }, 80)
+}
+
 async function loadBots(){try{bots.value=await api('/api/listbot')}catch{bots.value=[]};if(!selBot.value&&botIds.value.length)selBot.value=botIds.value[0]}
-async function loadList(){if(!selBot.value)return;loading.value=true;try{convs.value=await api('/api/conversation?bot_id='+selBot.value)}catch{convs.value=[]}loading.value=false;if(!_autoOpenDone&&convs.value.length>0&&!chatId.value){_autoOpenDone=true;openChat(convs.value[0])}}
 
 async function openChat(row){chatId.value=row.id;escalated.value=false;if(unread.value.has(row.id)){unread.value.delete(row.id);unread.value=new Set(unread.value)}try{const d=await api('/api/conversation/'+chatId.value+'?limit=50');chatMsgs.value=(d.messages||[]).filter(m=>m.direction!=='note'||m.content_type==='SYSTEM');msgCount.value=d.message_count||0;_autoScroll=true;connectWs();clearInterval(_escTimer);checkEscalated();_escTimer=setInterval(checkEscalated,60000);nextTick(scrollBottom)}catch{closeChat()}}
 function closeChat(){chatId.value=null;chatMsgs.value=[];escalated.value=false;wsClose();clearInterval(_escTimer)}
@@ -183,9 +247,9 @@ function insertSysMsg(text){
   chatMsgs.value.unshift({_key:'sys'+(_k++),direction:'system',content:text,created_at:Date.now()/1000})
 }
 
-function connectWs(){const url=`/api/bot/${encodeURIComponent(chatBotId.value)}/events?tail=0`;wsConnect(url,{onmessage(e){try{const evt=JSON.parse(e.data);if(evt.type==='message'){const msg=evt.data||{};const mc=chatBotId.value+':'+(msg.lid||msg.from_full||'');const wsText=msg.text||'['+({1:'TEXT',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT'}[msg.type]||'?')+']';updateConvPreview(mc,wsText);if(mc!==chatId.value){if(!unread.value.has(mc)){unread.value.add(mc);unread.value=new Set(unread.value)}loadList();return}const m={_key:'ws'+(_k++),direction:msg.from_full?'incoming':'outgoing',content:wsText,content_type:{1:'TEXT',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT'}[msg.type]||'TEXT',created_at:Date.now()/1000,msg_id:msg.msgId||null,id:msg.db_id||null,conversation_id:chatId.value,media_url:msg.media_url||null,media_key:msg.media_key||null,media_file_name:msg.media_file_name||null,media_file_length:msg.media_file_length||null,media_caption:msg.media_caption||null,status:'EXECUTED'};chatMsgs.value.unshift(m);msgCount.value++;if(_autoScroll)nextTick(scrollBottom);loadList()}else if(evt.type==='message_status'){const st=evt.data||{};if(!st.msgId)return;const bub=chatMsgs.value.find(m=>m.msg_id===st.msgId);if(bub)bub.status=st.status}else if(evt.type==='event'){const ed=evt.data||{};const ev=String(ed.event||'');if(ev==='8'||ev==='CONTACT_UPDATE'){const d=ed.detail||{};if(d.key==='AVATAR'){loadList()}}}}catch{}}})}
+function connectWs(){const url=`/api/bot/${encodeURIComponent(chatBotId.value)}/events?tail=0`;wsConnect(url,{onmessage(e){try{const evt=JSON.parse(e.data);if(evt.type==='message'){const msg=evt.data||{};const mc=chatBotId.value+':'+(msg.lid||msg.from_full||'');const wsText=msg.text||'['+({1:'TEXT',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT'}[msg.type]||'?')+']';updateConvPreview(mc,wsText);if(mc!==chatId.value){if(!unread.value.has(mc)){unread.value.add(mc);unread.value=new Set(unread.value)}scheduleRefresh();return}const m={_key:'ws'+(_k++),direction:msg.from_full?'incoming':'outgoing',content:wsText,content_type:{1:'TEXT',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT'}[msg.type]||'TEXT',created_at:Date.now()/1000,msg_id:msg.msgId||null,id:msg.db_id||null,conversation_id:chatId.value,media_url:msg.media_url||null,media_key:msg.media_key||null,media_file_name:msg.media_file_name||null,media_file_length:msg.media_file_length||null,media_caption:msg.media_caption||null,status:'EXECUTED'};chatMsgs.value.unshift(m);msgCount.value++;if(_autoScroll)nextTick(scrollBottom);scheduleRefresh()}else if(evt.type==='message_status'){const st=evt.data||{};if(!st.msgId)return;const bub=chatMsgs.value.find(m=>m.msg_id===st.msgId);if(bub)bub.status=st.status}else if(evt.type==='event'){const ed=evt.data||{};const ev=String(ed.event||'');if(ev==='8'||ev==='CONTACT_UPDATE'){const d=ed.detail||{};if(d.key==='AVATAR'){scheduleRefresh()}}}}catch{}}})}
 
-async function sendMsg(){const t=sendText.value.trim();if(!t)return;sending.value=true;const tmp={_key:'opt'+(_k++),direction:'outgoing',content:t,content_type:'TEXT',created_at:Date.now()/1000,conversation_id:chatId.value,status:'EXECUTED'};chatMsgs.value.unshift(tmp);sendText.value='';msgCount.value++;if(_autoScroll)nextTick(scrollBottom);updateConvPreview(chatId.value,t,Date.now()/1000);try{const msg=await api('/api/conversation/'+chatId.value+'/message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:t})});const idx=chatMsgs.value.indexOf(tmp);if(idx>=0)chatMsgs.value.splice(idx,1,msg);loadList()}catch{ElMessage.error('Send failed');tmp.status='FAILED'}sending.value=false}
+async function sendMsg(){const t=sendText.value.trim();if(!t)return;sending.value=true;const tmp={_key:'opt'+(_k++),direction:'outgoing',content:t,content_type:'TEXT',created_at:Date.now()/1000,conversation_id:chatId.value,status:'EXECUTED'};chatMsgs.value.unshift(tmp);sendText.value='';msgCount.value++;if(_autoScroll)nextTick(scrollBottom);updateConvPreview(chatId.value,t,Date.now()/1000);try{const msg=await api('/api/conversation/'+chatId.value+'/message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:t})});const idx=chatMsgs.value.indexOf(tmp);if(idx>=0)chatMsgs.value.splice(idx,1,msg);scheduleRefresh()}catch{ElMessage.error('Send failed');tmp.status='FAILED'}sending.value=false}
 
 onMounted(()=>{loadBots();loadList();timer=setInterval(loadList,15000)})
 onUnmounted(()=>{clearInterval(timer);clearInterval(_escTimer);wsClose()})
@@ -203,6 +267,9 @@ watch(selBot,loadList)
 .left-header .el-select { flex: 1; }
 .left-search { width: 140px; flex-shrink: 0; }
 .left-list { flex: 1; overflow-y: auto; }
+.left-refresh-bar { display: flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 11px; color: var(--zs-muted); background: #f0f9ff; border-bottom: 1px solid #e0f2fe; }
+.ref-dot { width: 6px; height: 6px; border-radius: 50%; background: #0ea5e9; animation: ref-pulse 1.2s ease-in-out infinite; }
+@keyframes ref-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 .conv-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background .12s; }
 .conv-item:hover { background: #f8fafc; }
 .conv-item.active { background: #eff6ff; border-left: 3px solid var(--zs-accent); padding-left: 11px; }
