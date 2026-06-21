@@ -9,7 +9,6 @@
         <el-input v-model="search" placeholder="Search..." size="small" clearable class="left-search"/>
       </div>
       <div class="left-list" :class="{ 'left-refreshing': refreshing }">
-        <div class="left-refresh-bar" v-if="refreshing"><span class="ref-dot"></span> Syncing...</div>
         <div
           v-for="c in filteredConvs" :key="c.id"
           class="conv-item"
