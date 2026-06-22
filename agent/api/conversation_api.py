@@ -1,6 +1,7 @@
 """Conversation CRUD API.
 
 GET    /api/conversation?bot_id=...           — list conversations
+POST   /api/conversation                       — add conversation by phone
 GET    /api/conversation/{conv_id:path}        — detail + messages
 DELETE /api/conversation/{conv_id:path}        — delete or close
 POST   /api/conversation/{conv_id:path}/message       — send message
@@ -20,6 +21,7 @@ from agent.manager.bot_manager import bot_manager
 from agent.manager.conversation_store import conv_store
 from agent.schemas import (
     ConversationInfo, ConversationDetail, MessageInfo, SendMessageRequest,
+    AddConversationRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -319,3 +321,73 @@ async def revoke_message(conv_id: str, msg_id: int):
 
     conv_store.update_message_status(wa_msg_id, "REVOKE")
     return {"revoked": True, "msg_id": wa_msg_id}
+
+
+# ── Add Conversation ─────────────────────────────────────────────────────────
+
+@router.post("/api/conversation", response_model=ConversationInfo)
+async def add_conversation(req: AddConversationRequest):
+    """Create a conversation by phone number.
+
+    Calls contact.sync on the bot to resolve the phone → WhatsApp LID,
+    then upserts the conversation record.
+    """
+    bot_id = req.bot_id
+    phone = req.phone_number.strip()
+
+    if not phone:
+        raise HTTPException(status_code=400, detail="phone_number is required")
+
+    # Verify bot is running
+    bot = bot_manager.get_bot_instance(bot_id)
+    if bot is None:
+        raise HTTPException(status_code=404, detail=f"Bot '{bot_id}' not found or not running")
+
+    # Call contact.sync to resolve phone → lid
+    try:
+        result, error = await asyncio.to_thread(
+            bot_manager.execute_cmd,
+            bot_id=bot_id,
+            cmd_name="contact.sync",
+            args=[phone],
+            options={"mode": "delta"},
+            timeout=20,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    if error:
+        raise HTTPException(status_code=500, detail=error.get("msg", "contact.sync failed"))
+
+    # result is {"retcode": 0, "result": { phone: {"type":"in", "jid":"...", "lid":"..."} } }
+    if not result or not isinstance(result, dict):
+        raise HTTPException(status_code=500, detail="contact.sync returned unexpected result")
+
+    sync_data = result.get("result", {})
+    if not sync_data or not isinstance(sync_data, dict):
+        raise HTTPException(status_code=500, detail="contact.sync returned empty result")
+
+    contact = sync_data.get(phone)
+    if not contact or contact.get("type") != "in":
+        raise HTTPException(
+            status_code=404,
+            detail=f"Phone '{phone}' not found on WhatsApp (not an existing user)",
+        )
+
+    lid = contact.get("lid")
+    jid = contact.get("jid")
+    if not lid:
+        raise HTTPException(status_code=500, detail="contact.sync did not return a lid")
+
+    # Upsert conversation — use lid as canonical JID, pn_jid for the phone
+    # notify_name: prefer push_name from sync; fall back to phone number;
+    #               only use lid as last resort (frontend shows notify_name || jid)
+    display_name = contact.get("name") or contact.get("notify") or phone
+    row = conv_store.upsert_conversation(
+        bot_id=bot_id,
+        jid=lid,
+        conv_type="1v1",
+        pn_jid=jid if jid and jid.endswith("@s.whatsapp.net") else f"{phone}@s.whatsapp.net",
+        notify_name=display_name,
+    )
+    return ConversationInfo(**row)

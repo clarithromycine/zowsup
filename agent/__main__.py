@@ -94,13 +94,24 @@ def main(argv: list[str] | None = None) -> None:
     from conf.logging_config import get_uvicorn_log_config
 
     config = uvicorn.Config(app, host=args.host, port=args.port, log_level="info",
-                            log_config=get_uvicorn_log_config())
+                            log_config=get_uvicorn_log_config(),
+                            timeout_graceful_shutdown=5)
     server = uvicorn.Server(config)
     server.install_signal_handlers = lambda: None
+
+    async def _force_exit_after(delay: float = 8.0):
+        """Fallback: force exit if graceful shutdown hangs."""
+        await asyncio.sleep(delay)
+        print("[Agent] Force exit — graceful shutdown timed out")
+        os._exit(0)
 
     async def _async_shutdown():
         from agent.manager.bot_manager import bot_manager
         from agent.manager.log_broadcaster import log_broadcaster
+
+        # Close all WebSocket connections first (prevents hanging)
+        log_broadcaster._shutting_down = True
+        log_broadcaster.stop()
 
         for info in bot_manager.list_bots():
             bot = bot_manager.get_bot_instance(info.bot_id)
@@ -109,20 +120,22 @@ def main(argv: list[str] | None = None) -> None:
                 except Exception: pass
 
         print("[Agent] Waiting for bots to shut down...")
-        await asyncio.sleep(3)
+        await asyncio.sleep(2)
 
         bot_manager.stop_periodic_flush()
-        log_broadcaster._shutting_down = True
-        log_broadcaster.stop()
-        
+
         server.should_exit = True
+
     _shutting_down = False
 
     def _on_signal(signum, frame):
         nonlocal _shutting_down
         if _shutting_down:
-            return
+            # Second Ctrl+C: force exit immediately
+            print("[Agent] Force exit")
+            os._exit(1)
         _shutting_down = True
+        asyncio.ensure_future(_force_exit_after())
         asyncio.get_event_loop().create_task(_async_shutdown())
 
     signal.signal(signal.SIGINT, _on_signal)

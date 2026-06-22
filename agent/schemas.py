@@ -266,3 +266,9 @@ class SendMessageRequest(BaseModel):
     """Request to send a message into a conversation."""
     content: str = Field(..., description="Message text or media description")
     content_type: str = Field("TEXT", description="MessageType enum value")
+
+
+class AddConversationRequest(BaseModel):
+    """Request to create a conversation by phone number."""
+    bot_id: str = Field(..., description="Bot identifier")
+    phone_number: str = Field(..., description="Phone number (e.g. 8613800138000)")

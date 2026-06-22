@@ -7,6 +7,7 @@
           <el-option v-for="b in botIds" :key="b" :value="b" :label="b"/>
         </el-select>
         <el-input v-model="search" placeholder="Search..." size="small" clearable class="left-search"/>
+        <el-button size="small" @click="showAddConv=true" :disabled="!selBot" title="New conversation">＋</el-button>
       </div>
       <div class="left-list" :class="{ 'left-refreshing': refreshing }">
         <div
@@ -80,6 +81,22 @@
       </template>
     </div>
   </div>
+
+  <!-- New Conversation Dialog -->
+  <el-dialog v-model="showAddConv" title="New Conversation" width="360px" :close-on-click-modal="false">
+    <el-form @submit.prevent="addConversation">
+      <el-form-item label="Phone Number">
+        <el-input v-model="addPhone" placeholder="e.g. 8613800138000" :disabled="adding" @keyup.enter="addConversation"/>
+      </el-form-item>
+      <div style="font-size:11px;color:var(--zs-muted);margin-top:-8px;margin-bottom:8px">
+        The phone number will be synced via contact.sync to resolve its WhatsApp ID.
+      </div>
+    </el-form>
+    <template #footer>
+      <el-button size="small" @click="showAddConv=false" :disabled="adding">Cancel</el-button>
+      <el-button size="small" type="primary" @click="addConversation" :loading="adding">Add</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
@@ -91,6 +108,7 @@ const { api } = useApi()
 const { connect: wsConnect, close: wsClose, connected: wsLive } = useWebSocket()
 
 const selBot=ref(''),search=ref(''),bots=ref([]),convs=ref([]),refreshing=ref(false),chatId=ref(null),chatMsgs=ref([]),sendText=ref(''),sending=ref(false),escalating=ref(false),escalated=ref(false)
+const showAddConv=ref(false),addPhone=ref(''),adding=ref(false)
 const chatBody=ref(null),msgCount=ref(0),unread=ref(new Set())
 let timer=null,_k=0,_autoScroll=true,_escTimer=null,_autoOpenDone=false
 let _loadPending=null
@@ -249,6 +267,24 @@ function insertSysMsg(text){
 function connectWs(){const url=`/api/bot/${encodeURIComponent(chatBotId.value)}/events?tail=0`;wsConnect(url,{onmessage(e){try{const evt=JSON.parse(e.data);if(evt.type==='message'){const msg=evt.data||{};const mc=chatBotId.value+':'+(msg.lid||msg.from_full||'');const wsText=msg.text||'['+({1:'TEXT',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT'}[msg.type]||'?')+']';updateConvPreview(mc,wsText);if(mc!==chatId.value){if(!unread.value.has(mc)){unread.value.add(mc);unread.value=new Set(unread.value)}scheduleRefresh();return}const m={_key:'ws'+(_k++),direction:msg.from_full?'incoming':'outgoing',content:wsText,content_type:{1:'TEXT',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT'}[msg.type]||'TEXT',created_at:Date.now()/1000,msg_id:msg.msgId||null,id:msg.db_id||null,conversation_id:chatId.value,media_url:msg.media_url||null,media_key:msg.media_key||null,media_file_name:msg.media_file_name||null,media_file_length:msg.media_file_length||null,media_caption:msg.media_caption||null,status:'EXECUTED'};chatMsgs.value.unshift(m);msgCount.value++;if(_autoScroll)nextTick(scrollBottom);scheduleRefresh()}else if(evt.type==='message_status'){const st=evt.data||{};if(!st.msgId)return;const bub=chatMsgs.value.find(m=>m.msg_id===st.msgId);if(bub)bub.status=st.status}else if(evt.type==='event'){const ed=evt.data||{};const ev=String(ed.event||'');if(ev==='8'||ev==='CONTACT_UPDATE'){const d=ed.detail||{};if(d.key==='AVATAR'){scheduleRefresh()}}}}catch{}}})}
 
 async function sendMsg(){const t=sendText.value.trim();if(!t)return;sending.value=true;const tmp={_key:'opt'+(_k++),direction:'outgoing',content:t,content_type:'TEXT',created_at:Date.now()/1000,conversation_id:chatId.value,status:'EXECUTED'};chatMsgs.value.unshift(tmp);sendText.value='';msgCount.value++;if(_autoScroll)nextTick(scrollBottom);updateConvPreview(chatId.value,t,Date.now()/1000);try{const msg=await api('/api/conversation/'+chatId.value+'/message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:t})});const idx=chatMsgs.value.indexOf(tmp);if(idx>=0)chatMsgs.value.splice(idx,1,msg);scheduleRefresh()}catch{ElMessage.error('Send failed');tmp.status='FAILED'}sending.value=false}
+
+async function addConversation(){
+  const phone=addPhone.value.trim()
+  if(!phone)return
+  if(!selBot.value){ElMessage.warning('Select a bot first');return}
+  adding.value=true
+  try{
+    const conv=await api('/api/conversation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bot_id:selBot.value,phone_number:phone})})
+    ElMessage.success(`Conversation created: ${conv.notify_name||conv.pn_jid||conv.jid}`)
+    showAddConv.value=false
+    addPhone.value=''
+    await loadListImmediate()
+    // Auto-open the new conversation
+    if(conv.id)openChat(conv)
+  }catch(e){
+    ElMessage.error(e?.detail||e?.message||'Failed to add conversation')
+  }finally{adding.value=false}
+}
 
 onMounted(()=>{loadBots();loadList();timer=setInterval(loadList,15000)})
 onUnmounted(()=>{clearInterval(timer);clearInterval(_escTimer);wsClose()})
