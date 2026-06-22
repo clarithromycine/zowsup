@@ -34,11 +34,14 @@ Since the original yowsup project has not been maintained for a long time, we fo
  * **Plugin system** — pluggable translation (Google / LLM / Anthropic) and AI auto-reply (OpenAI / Anthropic / GLM / DeepSeek / Qwen) with keyword escalation
  * **Web Console** — single-page management UI with: Escalations, Conversations (real-time WebSocket, message status ticks, optimistic send, multi-line input), Plugins (inline JSON editor), Bots (filter, import, scan), Cluster dashboard
  * **Media messages** — IMAGE/VIDEO/AUDIO/DOCUMENT display in chat with download + decrypt + local caching; caption rendering & translation
- * **Conversation CRUD** — SQLite-backed E2E conversation & message persistence with LID/PN resolution, contact notify_name, note/parent_id linkage
+ * **Conversation CRUD** — SQLite-backed E2E conversation & message persistence with LID/PN resolution, contact notify_name, note/parent_id linkage; create conversations by phone number via `contact.sync`
  * **Bot management** — BotID/Agent filter, CSV import from UI, directory scan-to-DB, sort by status + started_at, `DELETE /api/bot/{id}` cleanup
  * **Escalation queue** — claim / reply / resolve workflow for human takeover of AI-escalated conversations
  * **Automated bot migration** — stop → tar+base64 export → import → start → cleanup across agents, with per-step rollback and status tracking
  * **Stability improvements** — Agent address auto-detection, startbot/stopbot routing fix, heartbeat auto-re-register, log format with millisecond timestamps
+ * **CONFLICTED bot status** — When WhatsApp sends a CONFLICT stream error (another device logged in), the bot is marked `CONFLICTED`: auto-reconnect is blocked, the account is excluded from auto-purge, but manual `start_bot` is still allowed so you can retry after resolving the conflict on the other device
+ * **Graceful shutdown hardening** — Ctrl+C now reliably shuts down the agent: uvicorn `timeout_graceful_shutdown` capped at 5s, WebSocket connections closed before bot teardown, second Ctrl+C triggers immediate `os._exit(1)`, and a parallel 8s timer force-exits if graceful shutdown hangs
+ * **Add conversation by phone number** — new `POST /api/conversation` endpoint + `＋` button in the Web Console to create a conversation for any phone number; calls `contact.sync` under the hood to resolve the phone → WhatsApp LID, then inserts the conversation via `upsert_conversation` with the phone number as `notify_name` fallback
 
 ## What's New 0.9.0
 IMPORTANT NOTICE:  0.9.0 architecture is not compatible with 0.6.5, so if you have already work in 0.6.5, don't update,  you can track on old code from the branch "legacy"
