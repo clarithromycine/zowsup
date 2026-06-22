@@ -218,7 +218,12 @@ class BotManager:
                 result.append(running[bid])
             else:
                 db_status = row.get("status", "")
-                agent_status = BotStatus.AUTH_FAILED if db_status == "auth_failed" else BotStatus.STOPPED
+                if db_status == "auth_failed":
+                    agent_status = BotStatus.AUTH_FAILED
+                elif db_status == "conflicted":
+                    agent_status = BotStatus.CONFLICTED
+                else:
+                    agent_status = BotStatus.STOPPED
                 last_seen = row.get("last_seen")
                 result.append(BotInfo(
                     bot_id=bid,
@@ -249,7 +254,12 @@ class BotManager:
         row = account_store.get(bot_id)
         if row:
             db_status = row.get("status", "")
-            agent_status = BotStatus.AUTH_FAILED if db_status == "auth_failed" else BotStatus.STOPPED
+            if db_status == "auth_failed":
+                agent_status = BotStatus.AUTH_FAILED
+            elif db_status == "conflicted":
+                agent_status = BotStatus.CONFLICTED
+            else:
+                agent_status = BotStatus.STOPPED
             last_seen = row.get("last_seen")
             return BotInfo(
                 bot_id=bot_id,
@@ -435,6 +445,11 @@ class BotManager:
                     bot._auth_fail_reason = reason
             account_store.update_status(bot_id, "auth_failed", auth_detail=reason)
             logger.warning(f"Bot '{bot_id}' auth failed: {reason}")
+
+        # Track conflict — don't retry, don't purge
+        if event and isinstance(event, dict) and event.get("event") == zowsup_pb2.BotEvent.Event.CONFLICT:
+            account_store.update_status(bot_id, "conflicted")
+            logger.warning(f"Bot '{bot_id}' conflicted (another device logged in)")
 
         if event:
             log_broadcaster.emit_event(bot_id, "event", event)
@@ -635,7 +650,7 @@ class BotManager:
             for row in rows:
                 bid = row["bot_id"]
                 acct_dir = Path(SysVar.ACCOUNT_PATH) / bid
-                if row.get("status") == "auth_failed" or not acct_dir.exists():
+                if row.get("status") == "auth_failed" or (not acct_dir.exists() and row.get("status") != "conflicted"):
                     target_ids.append(bid)
             if not target_ids:
                 logger.info("purge_accounts(auto): nothing to purge")
@@ -643,10 +658,12 @@ class BotManager:
         else:
             if not bot_ids:
                 return {}
-            # Only purge bots that have status=auth_failed in the DB
+            # Only purge bots that have status=auth_failed in the DB (skip conflicted)
             target_ids = [
                 bid for bid in bot_ids
-                if account_store.get(bid) and account_store.get(bid).get("status") == "auth_failed"
+                if account_store.get(bid)
+                and account_store.get(bid).get("status") == "auth_failed"
+                and account_store.get(bid).get("status") != "conflicted"
             ]
             skipped = set(bot_ids) - set(target_ids)
             if skipped:

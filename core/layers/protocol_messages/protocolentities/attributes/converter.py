@@ -902,7 +902,7 @@ class AttributesConverter:
             message.protocol_message.MergeFrom(self.protocol_to_proto(message_attributes.protocol))
                 
 
-        
+        print(message)
         
         return message
 

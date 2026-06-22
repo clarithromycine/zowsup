@@ -1,5 +1,6 @@
 """MessageHandler — incoming message parsing, callback, and ack delivery."""
 
+from asyncio import Protocol
 import base64
 import logging
 import random
@@ -49,15 +50,17 @@ class MessageHandler:
             if protocol_attrs is not None and protocol_attrs.type in (
                 ProtocolAttributes.TYPE_HISTORY_SYNC_NOTIFICATION,
                 ProtocolAttributes.TYPE_APP_STATE_SYNC_KEY_SHARE,
+                ProtocolAttributes.TYPE_PEER_DATA_OPERATION_REQUEST_MESSAGE
             ):
                 # History sync — send hist_sync ack and return (no callback, no READ)
                 await self.layer.toLower(messageProtocolEntity.ack(histSync=True))
-                return
+                
 
-            elif messageProtocolEntity.category == "peer":
+            if messageProtocolEntity.category == "peer":
                 # App state sync key share — ack and return
                 await self.layer.toLower(messageProtocolEntity.ack(peerMsg=True))
-                return
+            
+            return 
 
         # Normalize canonical JID: LID for 1v1 chats, group JID for groups
         from_full = messageProtocolEntity.getFrom(True, noDevice=True)

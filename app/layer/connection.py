@@ -85,7 +85,9 @@ class ConnectionManager:
             )
         else:
             if not self.layer.getProp("HC_MODE"):
-                self.layer.bot.status = ZowBotStatus.STATUS_STOPPED
+                # Preserve CONFLICTED status — don't overwrite with STOPPED
+                if self.layer.bot.status != ZowBotStatus.STATUS_CONFLICTED:
+                    self.layer.bot.status = ZowBotStatus.STATUS_STOPPED
                 self.layer.callback(event={"event": zowsup_pb2.BotEvent.Event.QUIT})
                 if self.layer.db:
                     self.layer.db._store.dbConn.close()
@@ -105,6 +107,8 @@ class ConnectionManager:
 
         if entity.getErrorType() == "conflict":
             self.layer.bot.conflict = True
+            self.layer.bot.status = ZowBotStatus.STATUS_CONFLICTED
+            self.layer.bot.quitIfConflict = True
             self.layer.callback(
                 event={"event": zowsup_pb2.BotEvent.Event.CONFLICT}
             )

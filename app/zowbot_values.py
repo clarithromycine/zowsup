@@ -12,3 +12,4 @@ class ZowBotStatus():
     STATUS_STOPPING        = "STOPPING"        
     STATUS_STOPPED         = "STOPPED"      
     STATUS_ERROR           = "ERROR"
+    STATUS_CONFLICTED      = "CONFLICTED"

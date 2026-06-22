@@ -475,7 +475,20 @@ class ZowBot:
 
     def disconnect(self):        
         """Disconnect the bot. Use quit() instead for external thread calls."""
-        asyncio.run_coroutine_threadsafe(self._async_disconnect(), self.botLayer.getStack().getLoop())
+        loop = self.botLayer.getStack().getLoop()
+        if loop is None or loop.is_closed():
+            # Event loop unavailable — set stop flags directly
+            self.status = ZowBotStatus.STATUS_STOPPING
+            self.botLayer.setProp("USER_REQUEST_QUIT", True)
+            return
+        try:
+            future = asyncio.run_coroutine_threadsafe(self._async_disconnect(), loop)
+            # Suppress "coroutine was never awaited" warning if the loop shuts down
+            # before the coroutine runs (e.g. during process teardown).
+            future.add_done_callback(lambda f: None)
+        except RuntimeError:
+            # Loop closed between check and schedule — benign during shutdown
+            pass
 
     async def _async_disconnect(self):
         """Async version for use within the event loop."""

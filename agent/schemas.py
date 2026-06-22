@@ -20,6 +20,7 @@ class BotStatus(str, Enum):
     STOPPED = "STOPPED"
     ERROR = "ERROR"
     AUTH_FAILED = "AUTH_FAILED"
+    CONFLICTED = "CONFLICTED"
 
 
 class BotEnv(str, Enum):
