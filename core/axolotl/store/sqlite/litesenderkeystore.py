@@ -9,8 +9,7 @@ class LiteSenderKeyStore(SenderKeyStore):
         """
         :type dbConn: Connection
         """
-        self.dbConn = dbConn
-        dbConn.execute("DROP TABLE IF EXISTS sender_keys")
+        self.dbConn = dbConn        
 
         dbConn.execute("CREATE TABLE IF NOT EXISTS sender_keys (_id INTEGER PRIMARY KEY AUTOINCREMENT,"
                        "group_id TEXT NOT NULL,"
@@ -20,16 +19,17 @@ class LiteSenderKeyStore(SenderKeyStore):
                        "sender_account_type INTEGER,"
                        "record BLOB);")
 
-        dbConn.execute("CREATE UNIQUE INDEX IF NOT EXISTS sender_keys_idx ON sender_keys (group_id, sender_account_id,sender_account_type,device_id);")
+        dbConn.execute("CREATE UNIQUE INDEX IF NOT EXISTS sender_keys_idx ON sender_keys (group_id, sender_account_id);")
 
     def storeSenderKey(self, senderKeyName, senderKeyRecord) -> Any:
         """
         :type senderKeyName: SenderKeName
         :type senderKeyRecord: SenderKeyRecord
         """
-        q = "INSERT OR REPLACE INTO sender_keys (group_id, sender_account_id, record) VALUES(?,?, ?)"
+        q = "INSERT OR REPLACE INTO sender_keys (group_id, sender_account_id, record) VALUES(?,?,?)"
         cursor = self.dbConn.cursor()
         serialized = senderKeyRecord.serialize()
+        
         if sys.version_info < (2,7):
             serialized = buffer(serialized)
         try:

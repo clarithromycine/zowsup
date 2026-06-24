@@ -141,7 +141,8 @@ class AxolotlManager:
 
     def _get_group_cipher(self, groupid, username):
         logger.debug("get_group_cipher(groupid={}, username={})".format(groupid, username)  )
-        senderkeyname = SenderKeyName(groupid, AxolotlAddress(username, 0))
+        senderkeyname = SenderKeyName(groupid, AxolotlAddress(username))
+        print(username)
         if senderkeyname in self._group_ciphers:
             group_cipher = self._group_ciphers[senderkeyname]
         else:
@@ -185,7 +186,7 @@ class AxolotlManager:
         
 
         recipientId,recipientType,deviceId = WATools.jidDecode(senderid)        
-        try:
+        try:            
             plaintext = self._get_session_cipher(recipientId,recipientType,deviceId).decryptPkmsg(pkmsg)
             return self._unpad(plaintext) if unpad else plaintext
         except NoSessionException:
@@ -248,7 +249,7 @@ class AxolotlManager:
 
     def group_create_skmsg(self, groupid):
         logger.debug("group_create_skmsg(groupid={})".format(groupid))
-        senderKeyName = SenderKeyName(groupid, AxolotlAddress(self._username, 0))
+        senderKeyName = SenderKeyName(groupid, AxolotlAddress(self._username))
         return self._group_session_builder.create(senderKeyName)
 
     def group_create_session(self, groupid, participantid, skmsgdata) -> None:
@@ -264,7 +265,7 @@ class AxolotlManager:
         """
         logger.debug("group_create_session(groupid={}, participantid={}, skmsgdata=[omitted])"
                      .format(groupid, participantid))
-        senderKeyName = SenderKeyName(groupid, AxolotlAddress(participantid, 0))
+        senderKeyName = SenderKeyName(groupid, AxolotlAddress(participantid))
         senderkeydistributionmessage = SenderKeyDistributionMessage(serialized=skmsgdata)
         self._group_session_builder.process(senderKeyName, senderkeydistributionmessage)
 
@@ -308,7 +309,7 @@ class AxolotlManager:
 
     def load_senderkey(self, groupid) -> Any:
         logger.debug("load_senderkey(groupid={})".format(groupid))
-        senderkeyname = SenderKeyName(groupid, AxolotlAddress(self._username, 0))
+        senderkeyname = SenderKeyName(groupid, AxolotlAddress(self._username))
         return self._store.loadSenderKey(senderkeyname)
 
     def trust_identity(self, account ,identitykey) -> None:
