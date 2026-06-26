@@ -47,6 +47,30 @@ class LiteContactStore(TaskMsgStore):
                 self.updateName(jid, lid, name)
 
         return None
+    
+
+    def getContact(self, jid=None, lid=None):
+        if jid is None and lid is None:
+            return None
+
+        c = self.dbConn.cursor()
+        if lid is not None and jid is not None:
+            c.execute("SELECT name,jid,lid,tctoken,tctoken_ts FROM contact WHERE lid = ? OR jid = ? LIMIT 1", (lid, jid))
+        elif lid is not None:
+            c.execute("SELECT name,jid,lid,tctoken,tctoken_ts FROM contact WHERE lid = ? LIMIT 1", (lid,))
+        else:
+            c.execute("SELECT name,jid,lid,tctoken,tctoken_ts FROM contact WHERE jid = ? LIMIT 1", (jid,))
+
+        result = c.fetchone()
+        if result:
+            return {
+                "name": result[0],
+                "jid": str(result[1],"utf-8"),
+                "lid": str(result[2],"utf-8"),
+                "tctoken": result[3],
+                "tctoken_ts": result[4]
+            }
+        return None
 
 
     def findContact(self, jid=None, lid=None):
@@ -69,6 +93,7 @@ class LiteContactStore(TaskMsgStore):
         ret = c.fetchone() is not None
 
         return ret
+        
                                                     
     def removeContact(self, jid=None, lid=None):
         if jid is None and lid is None:

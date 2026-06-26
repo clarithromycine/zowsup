@@ -15,16 +15,21 @@ class YowCallsProtocolLayer(YowProtocolLayer):
         return "call Layer"
 
     async def sendCall(self, entity) -> Any:
-        if entity.getTag() == "call":
+        if entity.getTag() == "call":            
             await self.toLower(entity.toProtocolTreeNode())
 
-    async def recvCall(self, node) -> Any:
-        entity = CallProtocolEntity.fromProtocolTreeNode(node)
+    async def recvCall(self, node,) -> Any:
+        entity = CallProtocolEntity.fromProtocolTreeNode(node)                
         if entity.getType() == "offer":
+            entity = OfferCallProtocolEntity.fromProtocolTreeNode(node, db=self.getStack().getProp("profile").axolotl_manager)
+            await self.toUpper(entity)
             receipt = OutgoingReceiptProtocolEntity(node["id"], node["from"], callId = entity.getCallId())
             await self.toLower(receipt.toProtocolTreeNode())
         else:
             ack = OutgoingAckProtocolEntity(node["id"], "call", None, node["from"])
             await self.toLower(ack.toProtocolTreeNode())
-        await self.toUpper(entity)
+            await self.toUpper(entity)
+
+
+        
 
