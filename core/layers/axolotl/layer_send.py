@@ -197,13 +197,13 @@ class AxolotlSendLayer(AxolotlBaseLayer):
             nodeSend.addChild(biz)
 
 
-        pk = False
+        includePkMsg = False
         for item in encEntities:
             if item.getType() == EncProtocolEntity.TYPE_PKMSG:
-                pk = True
+                includePkMsg = True
 
         profile = self.getProp("profile")
-        if profile.config.device_identity is not None and pk:                
+        if profile.config.device_identity is not None and includePkMsg:                
             diddata = base64.b64decode(profile.config.device_identity)
             did = ProtocolTreeNode("device-identity", {},None,diddata)
             nodeSend.addChild(did)
