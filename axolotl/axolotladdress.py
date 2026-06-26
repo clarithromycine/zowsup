@@ -1,16 +1,12 @@
 class AxolotlAddress:
-    def __init__(self, name, deviceId):
-        self.name = name
-        self.deviceId = deviceId
+    def __init__(self, name):
+        self.name = name        
 
     def getName(self):
         return self.name
 
-    def getDeviceId(self):
-        return self.deviceId
-
     def __str__(self):
-        return f"{self.name};{self.deviceId}"
+        return f"{self.name}"
 
     def __eq__(self, other):
         if other is None:
@@ -19,7 +15,7 @@ class AxolotlAddress:
         if other.__class__ != AxolotlAddress:
             return False
 
-        return self.name == other.getName() and self.deviceId == other.getDeviceId()
+        return self.name == other.getName() 
 
     def __hash__(self):
-        return hash(self.name) ^ self.deviceId
+        return hash(self.name)

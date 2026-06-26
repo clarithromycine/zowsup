@@ -11,7 +11,7 @@ class SenderKeyName:
         return self.sender
 
     def serialize(self) -> Any:
-        return f"{self.groupId}::{self.sender.getName()}::{self.sender.getDeviceId()}"
+        return f"{self.groupId}::{self.sender.getName()}"
 
     def __eq__(self, other):
         if other is None: return False

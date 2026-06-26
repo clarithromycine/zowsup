@@ -96,7 +96,7 @@ class MessageProtocolEntity(ProtocolEntity):
     def getAuthor(self, full = True) -> Any:        
 
         if self.isGroupMessage(): 
-            return self.getParticipantPn(full)  or self.getParticipant(full)
+            return   self.getParticipant(full) or self.getParticipantPn(full)
         
         _from = self.getFrom(full)
         

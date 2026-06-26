@@ -81,7 +81,7 @@ class SessionCipher:
 
         return plaintext
 
-    def decryptPkmsg(self, ciphertext, textMsg=True):
+    def decryptPkmsg(self, ciphertext, storeSession=True):
         """
         :type ciphertext: PreKeyWhisperMessage
         """        
@@ -98,7 +98,8 @@ class SessionCipher:
         
 
         # callback.handlePlaintext(plaintext)
-        self.sessionStore.storeSession(self.recipientId, self.recipientType,self.deviceId, sessionRecord)
+        if storeSession:
+            self.sessionStore.storeSession(self.recipientId, self.recipientType,self.deviceId, sessionRecord)
 
         if unsignedPreKeyId is not None:
             self.preKeyStore.removePreKey(unsignedPreKeyId)

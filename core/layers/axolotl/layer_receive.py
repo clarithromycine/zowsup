@@ -168,9 +168,9 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
         enc = encMessageProtocolEntity.getEnc(EncProtocolEntity.TYPE_SKMSG)
 
         try:
-            plaintext = self.manager.group_decrypt (
+            plaintext = self.manager.group_decrypt(
                 groupid=encMessageProtocolEntity.getFrom(True),
-                participantid=encMessageProtocolEntity.getParticipantPn(False) or encMessageProtocolEntity.getParticipant(False),
+                participantid=encMessageProtocolEntity.getAuthor(True),
                 data=enc.getData()
             )
             self.parseAndHandleMessageProto(encMessageProtocolEntity, plaintext)
@@ -201,7 +201,7 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
         if m.HasField("sender_key_distribution_message"):
             self.handleSenderKeyDistributionMessage(
                 m.sender_key_distribution_message,
-                encMessageProtocolEntity.getParticipant(False)
+                encMessageProtocolEntity.getAuthor(True)
             )
 
     def handleSenderKeyDistributionMessage(self, senderKeyDistributionMessage, participantId) -> Any:
