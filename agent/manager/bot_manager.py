@@ -245,6 +245,7 @@ class BotManager:
         """Return info for a single bot.
 
         Returns running info if active, stored metadata if known, None if unknown.
+        
         """
         with self._lock:
             bot = self._bots.get(bot_id)

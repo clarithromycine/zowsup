@@ -196,14 +196,19 @@ class AxolotlSendLayer(AxolotlBaseLayer):
         if biz is not None:
             nodeSend.addChild(biz)
 
+
+        pk = False
+        for item in encEntities:
+            if item.getType() == EncProtocolEntity.TYPE_PKMSG:
+                pk = True
+
         profile = self.getProp("profile")
-        if profile.config.device_identity is not None:                
+        if profile.config.device_identity is not None and pk:                
             diddata = base64.b64decode(profile.config.device_identity)
             did = ProtocolTreeNode("device-identity", {},None,diddata)
             nodeSend.addChild(did)
-        
-        await self.toLower(nodeSend)
 
+        await self.toLower(nodeSend)
 
     async def sendToContact(self, node) -> Any:
         
