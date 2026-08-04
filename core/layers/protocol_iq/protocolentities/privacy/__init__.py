@@ -1,0 +1,2 @@
+from .iq_get_privacy import GetPrivacyIqProtocolEntity, ResultPrivacyIqProtocolEntity
+from .iq_set_privacy import SetPrivacyIqProtocolEntity

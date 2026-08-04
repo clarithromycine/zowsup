@@ -39,8 +39,7 @@ class Cmd_Msg_Sendmedia(BotSendCommand):
             await self.assureContactsAndSend(
                 params,
                 options,
-                send_func=self.sendMediaMsgDirect,
-                redo_func=self.execute
+                send_func=self.sendMediaMsgDirect
             )
             return "JUSTWAIT"
         else:
@@ -51,8 +50,7 @@ class Cmd_Msg_Sendmedia(BotSendCommand):
             await self.assureContactsAndSend(
                 params,
                 options,
-                send_func=self.sendMediaMsgDirect,
-                redo_func=self.execute
+                send_func=self.sendMediaMsgDirect
             )
             
             # Wait for message ID callback

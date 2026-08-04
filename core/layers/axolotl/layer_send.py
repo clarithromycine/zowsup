@@ -20,6 +20,8 @@ import base64,os
 
 import logging
 
+from  core.common.tools import WATools
+
 logger = logging.getLogger(__name__)
 
 
@@ -76,10 +78,10 @@ class AxolotlSendLayer(AxolotlBaseLayer):
                     await self.toLower(retryReceiptEntity.ack().toProtocolTreeNode()) #对重试那个包的ack，遵循协议    
                     if messageNode :
                         logger.info("Got retry to from {} for message {}, and Axolotl layer has the message".format(protocolTreeNode["from"],protocolTreeNode["id"]))
-                        await self.getKeysFor(
-                            [protocolTreeNode["participant"] or protocolTreeNode["from"]],
-                            lambda successJids, errors: on_get_keys_success(messageNode, retryReceiptEntity, successJids, errors)
-                        )         
+                        successJids, errors = await self.getKeysFor(
+                            [protocolTreeNode["participant"] or protocolTreeNode["from"]]
+                        )
+                        await on_get_keys_success(messageNode, retryReceiptEntity, successJids, errors)         
                     else:
                         logger.debug("ignore retry receipt, because message not found in Axolotl")               
 
@@ -100,44 +102,47 @@ class AxolotlSendLayer(AxolotlBaseLayer):
                 logger.error("Failed to process keys for {}, is that a valid user? Exception: {}".format(jid, error))
 
     async def processPlaintextNodeAndSend(self, node, retryReceiptEntity = None) -> Any:
-            
         account,server = node["to"].split('@')        
 
-        isGroup = YowConstants.WHATSAPP_GROUP_SERVER in node["to"] or  "broadcast" in node["to"]
+        isGroup = YowConstants.WHATSAPP_GROUP_SERVER in node["to"] or "broadcast" in node["to"]
 
-        #isGroup= False
-
-        async def on_iq_success(result, original_iq_entity): 
-            entity =  DevicesResultSyncIqProtocolEntity.fromProtocolTreeNode(result)
-            targets = entity.collectAllResultTargets()  # pylint: disable=no-member
-            
-            if len(targets)>0:
-                node["to"] = targets[0]                         
-                peer_recipient_pn = entity.getPnJid(targets[0])  # pylint: disable=no-member
-                if peer_recipient_pn is not None:       
-                    node["peer_recipient_pn"] = peer_recipient_pn
-                
-                await self.ensureSessionsAndSendToContacts(node, targets)
-            else:
-                logger.error("no target to send")
-
-        def on_iq_error(entity, original_iq_entity): 
-            logger.error("Failed to sync user devices")
-                    
-        
         if isGroup:                
             await self.sendToGroup(node, retryReceiptEntity)
-        else:                                                       
-            if ":" in account:
-                #指定设备    
-                accounts = [account]                    
-                targets = [f"{r}@{server}" for r in accounts]
+            return
 
-                await self.ensureSessionsAndSendToContacts(node, targets)                    
-            else :                    
-                #不指定设备，需要查客户所有的终端                                        
-                entity = DevicesGetSyncIqProtocolEntity([node["to"]])
-                await self._sendIq(entity, on_iq_success, on_iq_error)                                
+        if ":" in account:
+            #指定设备    
+            accounts = [account]                    
+            targets = [f"{r}@{server}" for r in accounts]
+            await self.ensureSessionsAndSendToContacts(node, targets)                    
+            return
+
+        #不指定设备，需要查客户所有的终端和自己的所有设备                                   
+        own_lid = self.getProp("profile").config.lid
+        a,_,_ = WATools.jidDecode(own_lid)
+        entity = DevicesGetSyncIqProtocolEntity([node["to"],a+"@lid"])
+
+        try:
+            result_dict = await self.sendIqAsync(entity)
+        except Exception as e:
+            logger.error("Failed to sync user devices: %s", e)
+            return
+
+        devicesResult = DevicesResultSyncIqProtocolEntity.fromProtocolTreeNode(result_dict["result"])
+        targets = devicesResult.collectAllResultTargets()  # pylint: disable=no-member
+
+        own_lid = self.getProp("profile").config.lid
+        if own_lid is not None:
+            targets = list(filter(lambda t: t != own_lid, targets))                        
+
+        if len(targets)>0:
+            node["to"] = targets[0]                         
+            peer_recipient_pn = devicesResult.getPnJid(targets[0])  # pylint: disable=no-member
+            if peer_recipient_pn is not None:       
+                node["peer_recipient_pn"] = peer_recipient_pn
+            await self.ensureSessionsAndSendToContacts(node, targets)
+        else:
+            logger.error("no target to send")
 
     def enqueueSent(self, node) -> Any:
         logger.debug("enqueueSent(node=[omitted])")
@@ -257,7 +262,8 @@ class AxolotlSendLayer(AxolotlBaseLayer):
                     await self.sendToContactsWithSessions(node, targetToSend)
 
         if len(targetsWithoutSession):
-            await self.getKeysFor(targetsWithoutSession, lambda successJids, errors: on_get_keys_success(node, successJids, errors))
+            successJids, errors = await self.getKeysFor(targetsWithoutSession)
+            await on_get_keys_success(node, successJids, errors)
 
         else:
             if node.getAttributeValue("category")=="peer":                    
@@ -371,7 +377,8 @@ class AxolotlSendLayer(AxolotlBaseLayer):
             await self.sendToGroupWithSessions(node, allJids)
                         
         if len(jidsNoSession):
-            await self.getKeysFor(jidsNoSession, lambda successJids, errors: on_get_keys_success(node, successJids, errors))
+            successJids, errors = await self.getKeysFor(jidsNoSession)
+            await on_get_keys_success(node, successJids, errors)
         else:
             await self.sendToGroupWithSessions(node, standardJids)
 
@@ -399,14 +406,6 @@ class AxolotlSendLayer(AxolotlBaseLayer):
         ownJid = self.getLayerInterface(YowAuthenticationProtocolLayer).getUsername(True)
         senderKeyRecord = self.manager.load_senderkey(node["to"])
 
-        async def sendToGroup(resultNode, requestEntity):
-            groupInfo = InfoGroupsResultIqProtocolEntity.fromProtocolTreeNode(resultNode)
-            jids = list(groupInfo.getParticipants().keys()) #keys in py3 returns dict_keys            
-            if ownJid in jids:
-                jids.remove(ownJid)            
-
-            return await self.ensureSessionsAndSendToGroup(node, jids)
-
         if groupJid=="status@broadcast":            
             q = "SELECT recipient_id from identities WHERE recipient_id <> -1"        
             c = self._manager._store.identityKeyStore.dbConn.cursor()        
@@ -424,8 +423,17 @@ class AxolotlSendLayer(AxolotlBaseLayer):
 
         elif senderKeyRecord.isEmpty():
             logger.debug("senderKeyRecord is empty, requesting group info")
-            groupInfoIq = InfoGroupsIqProtocolEntity(groupJid)            
-            await self._sendIq(groupInfoIq, sendToGroup)            
+            groupInfoIq = InfoGroupsIqProtocolEntity(groupJid)
+            try:
+                result_dict = await self.sendIqAsync(groupInfoIq)
+            except Exception as e:
+                logger.error("Failed to get group info: %s", e)
+                return
+            groupInfo = InfoGroupsResultIqProtocolEntity.fromProtocolTreeNode(result_dict["result"])
+            jids = list(groupInfo.getParticipants().keys())  # keys in py3 returns dict_keys
+            if ownJid in jids:
+                jids.remove(ownJid)
+            await self.ensureSessionsAndSendToGroup(node, jids)
         else:
             logger.debug("We have a senderKeyRecord")
             retryCount = 0

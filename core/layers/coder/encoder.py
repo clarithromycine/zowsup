@@ -9,8 +9,8 @@ class WriteEncoder:
         self.tokenDictionary = tokenDictionary
 
     def protocolTreeNodeToBytes(self, node) -> Any:
-        outBytes = [0] # flags
-        self.writeInternal(node, outBytes)                                
+        outBytes = bytearray(1)  # flags
+        self.writeInternal(node, outBytes)
         return outBytes
 
     def writeInternal(self, node, data) -> Any:
@@ -41,13 +41,11 @@ class WriteEncoder:
 
 
     def writeBytes(self, bytes_, data, packed = False) -> Any:
-        bytes__ = []
-        for b in bytes_:
-            if type(b) is int:
-                bytes__.append(b)
-            else:
-                bytes__.append(ord(b))
-
+        if isinstance(bytes_, (bytes, bytearray)):
+            bytes__ = bytes_
+        else:
+            # 兼容 list[int] / list[str] 输入
+            bytes__ = bytes(c if isinstance(c, int) else ord(c) for c in bytes_)
 
         size = len(bytes__)
         toWrite = bytes__
@@ -160,15 +158,9 @@ class WriteEncoder:
     
 
     def encodeString(self, string) -> Any:
-        res = []
-
         if type(string) == bytes:
-            for char in string:
-                res.append(char)
-        else:
-            for char in string:
-                res.append(ord(char))
-        return res
+            return string
+        return string.encode('latin-1')
 
     def writeJid(self, user, server, data) -> Any:
         if user.find(":") != -1:
@@ -206,11 +198,11 @@ class WriteEncoder:
         size = len(headerData)
         if size >= 128:
             return None
-        arr = [0] * int((size + 1) / 2)
+        arr = bytearray(int((size + 1) / 2))
         for i in range(0, size):
             packByte = self.packByte(v, headerData[i])
             if packByte == -1:
-                arr = []
+                arr = bytearray()
                 break
             n2 = int(i / 2)
             arr[n2] |= (packByte << 4 * (1 - i % 2))

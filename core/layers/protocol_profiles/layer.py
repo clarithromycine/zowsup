@@ -19,9 +19,9 @@ class YowProfilesProtocolLayer(YowProtocolLayer):
         #elif entity.getXmlns() == "privacy":
         #    self._sendIq(entity, self.onPrivacyResult, self.onPrivacyError)
         elif isinstance(entity, GetStatusesIqProtocolEntity):
-            await self._sendIq(entity)
+            await self.sendIqFireAndForget(entity)
         elif isinstance(entity, SetStatusIqProtocolEntity):
-            await self._sendIq(entity)
+            await self.sendIqFireAndForget(entity)
 
     def recvIq(self, node) -> Any:        
         pass

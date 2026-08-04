@@ -283,6 +283,7 @@ message ADVKeyIndexList {
   optional uint64 timestamp = 2;
   optional uint32 current_index = 3;
   repeated uint32 valid_indexes = 4 [packed=true];
+  optional ADVEncryptionType accountType = 5;
 }
 
 message ADVSignedKeyIndexList {
@@ -290,10 +291,17 @@ message ADVSignedKeyIndexList {
   optional bytes account_signature = 2;
 }
 
+enum ADVEncryptionType {
+	E2EE = 0;
+	HOSTED = 1;
+}
+
 message ADVDeviceIdentity {
   optional uint32 raw_id = 1;
   optional uint64 timestamp = 2;
   optional uint32 key_index = 3;
+  optional ADVEncryptionType account_type = 4;
+  optional ADVEncryptionType device_type = 5;
 }
 
 message ADVSignedDeviceIdentity {
@@ -306,6 +314,16 @@ message ADVSignedDeviceIdentity {
 message ADVSignedDeviceIdentityHMAC {
   optional bytes details = 1;  // encoded ADVSignedDeviceIdentity
   optional bytes hmac = 2;
+  optional ADVEncryptionType account_type = 3;
+}
+
+// GTH: ClientProps (no equivalent ADV structure, keep separate)
+message PairingClientProps {
+  optional bool is_chat_db_lid_migrated = 1;
+  optional bool is_syncd_pure_lid_session = 2;
+  optional bool is_syncd_snapshot_recovery_enabled = 3;
+  optional bool is_hs_thumbnail_sync_enabled = 4;
+  optional bytes subscription_sync_payload = 5;
 }
 
 

@@ -11,6 +11,8 @@ from .....layers.protocol_messages.protocolentities.attributes.attributes_messag
 
 from .....layers.protocol_historysync.protocolentities.attributes.attributes_initial_security_notification_setting_sync import InitialSecurityNotificationSettingSyncAttribute
 from .....layers.protocol_historysync.protocolentities.attributes.attributes_history_sync_notification import HistorySyncNotificationAttribute
+from .....layers.protocol_historysync.protocolentities.attributes.attributes_peer_data_operation_request_response_message import PeerDataOperationRequestResponseMessageAttribute
+from .....layers.protocol_historysync.protocolentities.attributes.attributes_peer_data_operation_request_message import PeerDataOperationRequestMessageAttribute
 
 class AttributesConverter:
 
@@ -50,6 +52,20 @@ class AttributesConverter:
         return MessageKeyAttributes(
             proto.remote_jid, proto.from_me, proto.id, proto.participant 
         )
+    
+    def peer_data_operation_request_response_message_to_proto(self,pdorrm_attributes) -> Any:
+        msg = e2e_pb2.Message.PeerDataOperationRequestResponseMessage()        
+        result = e2e_pb2.Message.PeerDataOperationRequestResponseMessage.PeerDataOperationResult()
+        inside = result.companionCanonicalUserNonceFetchRequestResponse        
+        inside.nonce = pdorrm_attributes.nonce
+        inside.waFbid = pdorrm_attributes.waFbid
+        inside.forceRefresh = pdorrm_attributes.forceRefresh
+        msg.peerDataOperationResult.extend([result])
+        return msg
+    
+    def peer_data_operation_request_message_to_proto(self,pdorm_attributes) -> Any:
+        msg = e2e_pb2.Message.PeerDataOperationMessage()
+        return msg
 
     def protocol_to_proto(self, protocol) -> Any:
         # type: (ProtocolAttributes) -> Message.ProtocolMessage
@@ -67,6 +83,12 @@ class AttributesConverter:
 
         if protocol.history_sync_notification is not None:
             message.history_sync_notification.MergeFrom(protocol.history_sync_notification.encode())
+        
+        if protocol.peer_data_operation_request_response_message is not None:
+            message.peer_data_operation_request_response_message.MergeFrom(self.peer_data_operation_request_response_message_to_proto(protocol.peer_data_operation_request_response_message))
+
+        if protocol.peer_data_operation_request_message is not None:
+            message.peer_data_operation_request_message.MergeFrom(self.peer_data_operation_request_message_to_proto(protocol.peer_data_operation_request_message))
 
         if protocol.edited_message is not None:
             message.edited_message.MergeFrom(self.message_to_proto(protocol.edited_message))
@@ -146,6 +168,8 @@ class AttributesConverter:
             edited_message=self.proto_to_message(proto.edited_message) if proto.HasField("edited_message") else None,
             ephemeral_expiration=proto.ephemeral_expiration if proto.HasField("ephemeral_expiration") else None,
             disappearing_mode=self.proto_to_disappearing_mode(proto.disappearing_mode) if proto.HasField("disappearing_mode") else None,
+            peer_data_operation_request_response_message=self.proto_to_peer_data_operation_request_response_message(proto.peer_data_operation_request_response_message) if proto.HasField("peer_data_operation_request_response_message") else None,
+            peer_data_operation_request_message = self.proto_to_peer_data_operation_request_message(proto.peer_data_operation_request_message) if proto.HasField("peer_data_operation_request_message") else None
         )
     
     def proto_to_disappearing_mode(self,proto) -> Any:
@@ -160,6 +184,20 @@ class AttributesConverter:
         return InitialSecurityNotificationSettingSyncAttribute(
             security_notification_enabled=proto.security_notification_enabled              
         )        
+    
+    def proto_to_peer_data_operation_request_response_message(self,proto) -> Any:
+        results = proto.peerDataOperationResult
+        if len(results) == 0:
+            return PeerDataOperationRequestResponseMessageAttribute()
+        resp = results[0].companionCanonicalUserNonceFetchRequestResponse
+        return PeerDataOperationRequestResponseMessageAttribute(
+            nonce = resp.nonce,
+            waFbid= resp.waFbid,
+            forceRefresh = resp.forceRefresh
+        )
+    
+    def proto_to_peer_data_operation_request_message(self,proto) -> Any:
+        return PeerDataOperationRequestMessageAttribute()
 
     def contact_to_proto(self, contact_attributes) -> Any:
         # type: (ContactAttributes) -> Message.ContactMessage
@@ -745,7 +783,10 @@ class AttributesConverter:
             eara.render_larger_thumbnail =  attributes.render_larger_thumbnail  
 
         if attributes.show_ad_attribution is not None:
-            eara.show_ad_attribution =  attributes.show_ad_attribution                                           
+            eara.show_ad_attribution =  attributes.show_ad_attribution              
+
+        if attributes.ad_type is not None:
+            eara.ad_type =  attributes.ad_type                             
 
         return eara
 
@@ -832,7 +873,8 @@ class AttributesConverter:
                     source_url = proto.source_url if proto.HasField("source_url") else None,
                     contains_auto_reply= proto.contains_auto_reply if proto.HasField("contains_auto_reply") else None,
                     render_larger_thumbnail= proto.render_larger_thumbnail if proto.HasField("render_larger_thumbnail") else None,
-                    show_ad_attribution=  proto.show_ad_attribution if proto.HasField("show_ad_attribution") else None
+                    show_ad_attribution=  proto.show_ad_attribution if proto.HasField("show_ad_attribution") else None,
+                    ad_type= proto.ad_type if proto.HasField("ad_type") else None
         )       
     
 

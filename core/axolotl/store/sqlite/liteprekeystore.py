@@ -21,7 +21,10 @@ class LitePreKeyStore(PreKeyStore):
         cursor = self.dbConn.cursor()
         cursor.execute(q, (preKeyId,))
 
+        print(preKeyId)
+
         result = cursor.fetchone()
+        print(result)
         if not result:
             raise InvalidKeyIdException("No such prekeyrecord!")
 

@@ -22,43 +22,51 @@ class ContactManager:
         """
         self.layer = layer
 
-    async def assure_contacts_and_send(self, cmdParams, options, send_func, redo_func):
-        """Ensure target is in contacts before sending, then send."""
+    async def assure_contacts_and_send(self, cmdParams, options, send_func):
+        """Ensure target is in contacts before sending, then send.
+
+        Async-native flow: no redo callback — after a needed contact sync, the
+        resolved jids are written back into cmdParams and send_func is called
+        directly with them.
+        """
         to, *other = cmdParams
         isCompanion = "_" in self.layer.bot.botId
         jid = Jid.normalize(to)
+
         if jid.endswith("@g.us"):
             # Group JIDs need no contact-sync — send directly
-            await send_func(cmdParams, options)
-        elif not jid.endswith("@lid"):
-            foundContact = self.layer.db._store.findContact(jid)
-            if not foundContact and not isCompanion:
-                entity = ContactGetSyncIqProtocolEntity([to], mode="delta")
-                result_dict = await self.layer._sendIqAsync(entity)
-                if isinstance(result_dict["result"], ContactResultSyncIqProtocolEntity):
-                    logger.info("add target to contacts")
+            return await send_func(cmdParams, options)
 
-                    jid_list = []
-                    for key, value in result_dict["result"].result.items():
-                        if value["type"] == "in":
-                            self.layer.db._store.updateContact(value["jid"], value["lid"], key)
-                            jid_list.append(value["jid"])
-                        else:
-                            logger.info("{} not found".format(key))
-                    if len(jid_list) > 0:
-                        cmdParams[0] = ",".join(jid_list)
-                        await redo_func(cmdParams, options)
-                    else:
-                        logger.error("target not found in contacts")
-                else:
-                    logger.error("ERROR on _sendIq")
-
-            else:
-                logger.info("target in contacts")
-                await send_func(cmdParams, options)
-        else:
+        if jid.endswith("@lid"):
             logger.info("lid-target, direct send")
-            await send_func(cmdParams, options)
+            return await send_func(cmdParams, options)
+
+        if self.layer.db._store.findContact(jid) or isCompanion:
+            logger.info("target in contacts")
+            return await send_func(cmdParams, options)
+
+        # Not in contacts → sync once, then send to the resolved jids
+        entity = ContactGetSyncIqProtocolEntity([to], mode="delta")
+        result_dict = await self.layer._sendIqAsync(entity)
+        if not isinstance(result_dict["result"], ContactResultSyncIqProtocolEntity):
+            logger.error("ERROR on _sendIq")
+            return None
+
+        logger.info("add target to contacts")
+        jid_list = []
+        for key, value in result_dict["result"].result.items():
+            if value["type"] == "in":
+                self.layer.db._store.updateContact(value["jid"], value["lid"], key)
+                jid_list.append(value["jid"])
+            else:
+                logger.info("{} not found".format(key))
+
+        if not jid_list:
+            logger.error("target not found in contacts")
+            return None
+
+        cmdParams[0] = ",".join(jid_list)
+        return await send_func(cmdParams, options)
 
     async def get_contact_list(self, cmdParams, options):
         """Query the full contact list via WmexQuery."""

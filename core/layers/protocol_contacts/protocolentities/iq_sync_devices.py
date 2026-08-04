@@ -106,8 +106,7 @@ class DevicesResultSyncIqProtocolEntity(SyncIqProtocolEntity):
     def collectAllResultTargets(self) -> Any:
         targets = []
         for key in self.devicesDict:                        
-            listIds = self.devicesDict[key]            
-            targets=[]
+            listIds = self.devicesDict[key]                        
             for deviceId in listIds:
                 if deviceId!="0":
                     targets.append(f"{key}:{deviceId}@lid")
@@ -170,6 +169,7 @@ class DevicesResultSyncIqProtocolEntity(SyncIqProtocolEntity):
 
         entity           = SyncIqProtocolEntity.fromProtocolTreeNode(node)
         entity.__class__ = DevicesResultSyncIqProtocolEntity
+        
 
         entity.setDevicesResultSyncProps(devicesDict,pnJidMap)
 

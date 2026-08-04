@@ -153,7 +153,7 @@ class AsyncioConnectionDispatcher(YowConnectionDispatcher):
         """Continuously read from the stream and deliver to the layer above."""
         assert self._reader is not None
         try:
-            while True:
+            while self._reader is not None:
                 try:
                     data = await asyncio.wait_for(
                         self._reader.read(_DEFAULT_READ_SIZE),
@@ -170,6 +170,8 @@ class AsyncioConnectionDispatcher(YowConnectionDispatcher):
             logger.debug("Read loop cancelled")
             return
         except Exception as exc:
+            import traceback
+            traceback.print_exc()
             logger.error("Read loop error: {}".format(exc))
         # Connection lost — clean up
         self._connected = False

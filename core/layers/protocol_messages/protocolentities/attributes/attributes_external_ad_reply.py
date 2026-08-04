@@ -12,7 +12,8 @@ class ExternalAdReplyAttributes:
                  source_url=None,
                  contains_auto_reply=None,
                  render_larger_thumbnail=None,
-                 show_ad_attribution=None
+                 show_ad_attribution=None,
+                 ad_type = None
                 ) -> None:
         
         self._title = title
@@ -27,6 +28,7 @@ class ExternalAdReplyAttributes:
         self._contains_auto_reply = contains_auto_reply
         self._render_larger_thumbnail = render_larger_thumbnail
         self._show_ad_attribution = show_ad_attribution
+        self._ad_type = ad_type
 
 
     def __str__(self):
@@ -61,6 +63,14 @@ class ExternalAdReplyAttributes:
 
         return "[{}]".format(" ".join(map(lambda item: "{}={}".format(*item), attribs)))        
 
+
+    @property
+    def ad_type(self) -> Any:
+        return self._ad_type
+
+    @ad_type.setter
+    def ad_type(self, value: Any) -> None:
+        self._ad_type = value
 
     @property
     def title(self) -> Any:

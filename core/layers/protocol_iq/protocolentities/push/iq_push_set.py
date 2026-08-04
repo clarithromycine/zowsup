@@ -1,7 +1,7 @@
 from ..iq import IqProtocolEntity
 from typing import Optional, Any, List, Dict, Union
 from .....structs import ProtocolTreeNode
-
+import os
 import base64
 class PushSetIqProtocolEntity(IqProtocolEntity):
 
@@ -29,7 +29,9 @@ class PushSetIqProtocolEntity(IqProtocolEntity):
         }
 
         if self.pkey is not None:
-            config["pkey"]=self.pkey
+            config["pkey"]= self.pkey
+        else:
+            config["pkey"]=base64.urlsafe_b64encode(os.urandom(32)).decode()
 
         node.addChild(ProtocolTreeNode("config",config))
         return node

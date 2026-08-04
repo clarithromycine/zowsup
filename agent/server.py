@@ -157,6 +157,13 @@ async def lifespan(app: FastAPI):
     _plugin_manager.register(TranslationPlugin())
     _plugin_manager.register(AIPlugin())
     _plugin_manager.register(SatisfactionPlugin())
+
+    # ── Initialize VoIP adapter ──
+    from voip.voip_adapter import get_voip_adapter
+    voip = get_voip_adapter()
+    voip.start()
+    logger.info("VoIP adapter initialized")
+
     # Set defaults only on first run — never overwrite saved config
     if not _plugin_store.get_config("translation"):
         _plugin_store.set_config("translation", {
@@ -222,6 +229,7 @@ async def lifespan(app: FastAPI):
     from agent.api.audit_api import router as audit_router
     from agent.api.avatar_api import router as avatar_router
     from agent.api.survey_api import router as survey_router
+    from agent.api.voip_api import router as voip_router
     app.include_router(bot_router)
     app.include_router(cmd_router)
     app.include_router(msg_router)
@@ -233,6 +241,7 @@ async def lifespan(app: FastAPI):
     app.include_router(audit_router)
     app.include_router(avatar_router)
     app.include_router(survey_router)
+    app.include_router(voip_router)
 
     import logging
     logging.getLogger('transitions').setLevel(logging.WARNING)

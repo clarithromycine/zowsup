@@ -35,6 +35,7 @@ from app.layer.notification_handler import NotificationHandler
 from app.layer.media import MediaManager
 from app.layer.contacts import ContactManager
 from app.layer.sync import SyncManager
+from app.layer.call_handler import CallHandler
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ class ZowBotLayer(YowInterfaceLayer):
         self.media = MediaManager(self)
         self.contacts = ContactManager(self)
         self.sync = SyncManager(self)
+        self.calls = CallHandler(self)
 
     @property
     def detect40x(self):
@@ -163,10 +165,21 @@ class ZowBotLayer(YowInterfaceLayer):
 
     @ProtocolEntityCallback("receipt")
     async def onReceipt(self, entity):
+        # ── VoIP: delegate call receipts to CallHandler ──
+        receipt_type = entity.getType()
+        if receipt_type and "call" in str(getattr(entity, '_class', '')):
+            await self.calls.on_receipt(entity)
+            return
         await self.messages.on_receipt(entity)
 
     @ProtocolEntityCallback("ack")
-    def onAck(self, entity):
+    async def onAck(self, entity):
+        # ── VoIP: delegate call acks to CallHandler ──
+        ack_class = entity.getClass()
+        if ack_class == "call":
+            await self.calls.on_ack(entity)
+            return
+
         self.messages.on_ack(entity)
 
     @ProtocolEntityCallback("notification")
@@ -180,6 +193,31 @@ class ZowBotLayer(YowInterfaceLayer):
     @ProtocolEntityCallback("presence")
     def onPresence(self, entity):
         self.notifications.on_presence(entity)
+
+    @ProtocolEntityCallback("call")
+    async def onCall(self, entity):
+        """Forward call protocol entities to the VoIP adapter."""
+        self.logger.info("Call entity received: type=%s, call_id=%s", entity.getType(), entity.getCallId())
+        try:
+            from voip.voip_adapter import get_voip_adapter
+            voip = get_voip_adapter()
+
+            # Always register bot hooks (not just first time) to ensure
+            # _send_node/_send_query are wired even if call.offer failed
+            bot_id = self.bot.botId
+            voip.register_bot(bot_id, self.bot)
+
+            voip.on_call_entity(bot_id, entity)
+        except Exception as e:
+            self.logger.error("VoIP call handler error: %s", e)
+
+    async def _send_call_query(self, entity):
+        """Send a call stanza and wait for ack — delegates to CallHandler."""
+        return await self.calls.send_call_query(entity)
+
+    async def _send_call_node(self, entity):
+        """Send a fire-and-forget call stanza — delegates to CallHandler."""
+        await self.calls.send_call_node(entity)
 
     async def _sendIqAsync(self, entity):
         return await self.iq_mgr.send_iq_async(entity)
@@ -233,8 +271,8 @@ class ZowBotLayer(YowInterfaceLayer):
     def parseMediaCommonAttributes(self, msg, media_specific_attributes):
         return self.media.parse_media_common_attributes(msg, media_specific_attributes)
 
-    async def assureContactsAndSend(self, cmdParams, options, send_func, redo_func):
-        return await self.contacts.assure_contacts_and_send(cmdParams, options, send_func, redo_func)
+    async def assureContactsAndSend(self, cmdParams, options, send_func):
+        return await self.contacts.assure_contacts_and_send(cmdParams, options, send_func)
 
     async def getContactList(self, cmdParams, options):
         return await self.contacts.get_contact_list(cmdParams, options)

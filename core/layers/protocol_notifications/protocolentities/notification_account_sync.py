@@ -18,9 +18,25 @@ class AccountSyncNotificationProtocolEntity(NotificationProtocolEntity):
     def __init__(self, _id,  _from, timestamp, notify, offline) -> None:
         super().__init__(_id, _from, timestamp, notify, offline)
         self.devices = []
+        self.companion_jid = None
 
     @staticmethod
     def fromProtocolTreeNode(node):
         entity = NotificationProtocolEntity.fromProtocolTreeNode(node)
         entity.__class__ = AccountSyncNotificationProtocolEntity
+        entity.devices = []
+        entity.companion_jid = None
+
+        devices_node = node.getChild("devices")
+        if devices_node:
+            for device_node in devices_node.getAllChildren():
+                if device_node.tag == "device":
+                    jid = device_node.getAttributeValue("jid")
+                    if jid:
+                        entity.devices.append(jid)
+                        # Companion device has a device index (contains ':')
+                        # and is NOT the primary (which has no ':' or has ':0')
+                        if ":" in jid.split("@")[0]:
+                            entity.companion_jid = jid
+
         return entity

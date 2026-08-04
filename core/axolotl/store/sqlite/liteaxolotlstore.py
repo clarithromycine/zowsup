@@ -133,6 +133,13 @@ class LiteAxolotlStore(AxolotlStore):
             return self.contactStore.findContact(jid=None,lid = jid)
         else:
             return self.contactStore.findContact(jid = jid,lid=None)
+        
+    
+    def getContact(self,jid) -> Any:
+        if jid.endswith("lid"):
+            return self.contactStore.getContact(jid=None,lid = jid)
+        else:
+            return self.contactStore.getContact(jid = jid,lid=None)
 
     
     def addBroadcast(self,jids,senderJid,name=None) -> Any:
@@ -144,7 +151,7 @@ class LiteAxolotlStore(AxolotlStore):
     def updateTctoken(self,jid, lid, tctoken, tctoken_ts) -> Any:
         return self.contactStore.updateTctoken(jid=jid, lid=lid, tctoken=tctoken, tctoken_ts=tctoken_ts)
     
-    def getTctoken(self,jid=None) -> Any:
+    def getTctoken(self,jid=None) -> Any:        
 
         if jid.endswith("lid"):
             return self.contactStore.getTctoken(lid=jid)    

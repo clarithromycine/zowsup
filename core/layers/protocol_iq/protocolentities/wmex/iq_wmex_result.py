@@ -2,8 +2,10 @@ from ..iq import IqProtocolEntity
 from typing import Optional, Any, List, Dict, Union
 from .....common import YowConstants
 from zargo.argo_message_decoder import ArgoMessageDecoder
-import base64,json
+import base64,json,logging
 from zargo.utils.jid import Jid
+
+logger = logging.getLogger(__name__)
 
 class BytesEncoder(json.JSONEncoder):
     def default(self, obj) -> Any:
@@ -11,6 +13,10 @@ class BytesEncoder(json.JSONEncoder):
             if obj[0]==250 or obj[0]==247:
                 return Jid.readJid(obj)
             else:
+                # Debug: log first few bytes of any bytes field that looks like
+                # it could be encrypted_metadata (starts with 0x0a = protobuf field 1)
+                if len(obj) > 10 and obj[0] == 0x0a:
+                    logger.debug(f"BytesEncoder: bytes field len={len(obj)} first20={obj[:20].hex()}")
                 return base64.b64encode(obj).decode('utf-8') 
         return json.JSONEncoder.default(self, obj)
     
@@ -58,6 +64,7 @@ class WmexResultIqProtocolEntity(IqProtocolEntity):
                     data= data.replace(b"\x01\x02\x02",b"\x01\x00\x02") #little temp patch to ignore some weird fields in integrity_tags formats
                 if query_name is not None:
                     ArgoMessageDecoder.setSchemaFile("data/whatsapp-android-mex_argo_wire_types.argo")
+                    
                     obj = ArgoMessageDecoder.decodeMessage(query_name,data)                    
                     res = json.dumps(obj,cls=BytesEncoder)                   
                                     
@@ -65,7 +72,7 @@ class WmexResultIqProtocolEntity(IqProtocolEntity):
                 else:
                     entity.setResultObj(data,"argo") 
             else:
-                jsonstr = str(result.getData(),"utf-8")
+                jsonstr = str(result.getData(),"utf-8")                
                 entity.setResultObj(json.loads(jsonstr),"json")
             return entity
         else:            

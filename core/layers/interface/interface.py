@@ -1,4 +1,4 @@
-from ...layers import YowLayer, YowLayerEvent
+from ...layers import YowLayer, YowLayerEvent, IqErrorException
 from typing import Optional, Any, List, Dict, Union
 from ...layers.protocol_iq.protocolentities import IqProtocolEntity
 from ...layers.auth import YowAuthenticationProtocolLayer
@@ -40,9 +40,42 @@ class YowInterfaceLayer(YowLayer):
                 fn = m[1]
                 self.entity_callbacks[fn.entity_callback] = getattr(self, fname)
 
-    async def _sendIq(self, iqEntity, onSuccess=None, onError=None) -> Any:
-        assert iqEntity.getTag() == "iq", "Expected *IqProtocolEntity in _sendIq, got {}".format(iqEntity.getTag())
-        self.iqRegistry[iqEntity.getId()] = (iqEntity, onSuccess, onError)
+    async def sendIqAsync(self, iqEntity, timeout: int = 30) -> dict:
+        """Send an IQ entity and await its response (Future-based, no callbacks).
+
+        Returns:
+            dict: {"result": entity_result, "original_iq": original_iq}
+        Raises:
+            asyncio.TimeoutError: if no response within ``timeout`` seconds.
+            IqErrorException: if the peer responds with an IQ error stanza.
+        """
+        assert iqEntity.getTag() == "iq", \
+            "Expected *IqProtocolEntity in sendIqAsync, got {}".format(iqEntity.getTag())
+        stack = self.getStack()
+        loop = stack.getLoop() if stack is not None else None
+        future = loop.create_future() if loop else asyncio.Future()
+
+        async def on_success(entity_result, original_iq):
+            if not future.done():
+                future.set_result({"result": entity_result, "original_iq": original_iq})
+
+        async def on_error(entity_error, original_iq):
+            if not future.done():
+                future.set_exception(IqErrorException(entity_error))
+
+        self.iqRegistry[iqEntity.getId()] = (iqEntity, on_success, on_error)
+        await self.toLower(iqEntity)
+        return await asyncio.wait_for(future, timeout=timeout)
+
+    async def sendIqFireAndForget(self, iqEntity) -> None:
+        """Send an IQ without waiting for / acting on its response.
+
+        The entity is still registered so the eventual response is consumed by the
+        registry instead of being re-dispatched elsewhere.
+        """
+        assert iqEntity.getTag() == "iq", \
+            "Expected *IqProtocolEntity in sendIqFireAndForget, got {}".format(iqEntity.getTag())
+        self.iqRegistry[iqEntity.getId()] = (iqEntity, None, None)
         await self.toLower(iqEntity)
 
     async def processIqRegistry(self, entity) -> Any:
@@ -123,20 +156,16 @@ class YowInterfaceLayer(YowLayer):
             # the isawaitable bridge in onEvent will handle this
             asyncio.ensure_future(self.connect())
 
-    def _sendMediaMessage(self, builder, success, error=None, progress=None) -> Any:
-        # axolotlIface = self.getLayerInterface(YowAxolotlLayer)
-        # if axolotlIface:
-        #     axolotlIface.encryptMedia(builder)
-
+    async def _sendMediaMessage(self, builder, success, error=None, progress=None) -> Any:
         iq = RequestUploadIqProtocolEntity(
             builder.mediaType, filePath=builder.getFilepath(), encrypted=builder.isEncrypted())
 
-        def successFn(resultEntity, requestUploadEntity): return self.__onRequestUploadSuccess(
-            resultEntity, requestUploadEntity, builder, success, error, progress)
-
-        def errorFn(errorEntity, requestUploadEntity): return self.__onRequestUploadError(
-            errorEntity, requestUploadEntity, error)
-        self._sendIq(iq, successFn, errorFn)
+        try:
+            result_dict = await self.sendIqAsync(iq)
+        except IqErrorException as e:
+            return self.__onRequestUploadError(e.error_node, iq, builder, error)
+        return self.__onRequestUploadSuccess(
+            result_dict["result"], iq, builder, success, error, progress)
 
     def __onRequestUploadSuccess(self, resultRequestUploadIqProtocolEntity, requestUploadEntity, builder, success, error=None, progress=None) -> Any:
         if(resultRequestUploadIqProtocolEntity.isDuplicate()):

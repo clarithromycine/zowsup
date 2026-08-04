@@ -50,11 +50,78 @@ class MessageHandler:
             if protocol_attrs is not None and protocol_attrs.type in (
                 ProtocolAttributes.TYPE_HISTORY_SYNC_NOTIFICATION,
                 ProtocolAttributes.TYPE_APP_STATE_SYNC_KEY_SHARE,
-                ProtocolAttributes.TYPE_PEER_DATA_OPERATION_REQUEST_MESSAGE
             ):
                 # History sync — send hist_sync ack and return (no callback, no READ)
                 await self.layer.toLower(messageProtocolEntity.ack(histSync=True))
-                
+
+            # ── PeerDataOperation REQUEST: companion asks primary for waFbid ──
+            if protocol_attrs is not None and protocol_attrs.type == \
+                    ProtocolAttributes.TYPE_PEER_DATA_OPERATION_REQUEST_MESSAGE:
+                raw = messageProtocolEntity.raw
+                sender = messageProtocolEntity.getFrom(True)
+                self.layer.logger.info(
+                    f"PeerDataOp REQUEST from {sender}, raw_len={len(raw) if raw else 0}"
+                )
+                if raw:
+                    from proto.e2e_pb2 import Message
+                    m = Message()
+                    m.ParseFromString(raw)
+                    req = m.protocol_message.peer_data_operation_request_message
+                    # Log which fields ARE set (skip repeated fields)
+                    fields = []
+                    for field_desc in req.DESCRIPTOR.fields:
+                        try:
+                            if req.HasField(field_desc.name):
+                                fields.append(field_desc.name)
+                        except (AttributeError, ValueError):
+                            # upb protobuf: repeated fields or missing label attr
+                            pass
+                    self.layer.logger.info(f"PeerDataOp REQUEST fields: {fields}")
+                    if req.HasField("companionCanonicalUserNonceFetchRequest"):
+                        # Companion device is requesting waFbid — respond with our fbid
+                        fbid = getattr(self.layer, '_fbid', None) or ""
+                        if hasattr(self.layer, 'pairing') and self.layer.pairing.wa_fbid:
+                            fbid = self.layer.pairing.wa_fbid
+                        self.layer.logger.info(
+                            f"PeerDataOp REQUEST: companion requests waFbid, "
+                            f"responding with fbid={fbid}"
+                        )
+                        await self._respond_peer_data_op(
+                            messageProtocolEntity, fbid,
+                        )
+                        return
+                    else:
+                        # Empty/minimal request — companion is signaling readiness.
+                        # The PEER_DATA_OPERATION_REQUEST_RESPONSE_MESSAGE with
+                        # nonce + waFbid is sent proactively by md.link right after
+                        # WWWGetNonceForCompanionDevice succeeds (NOT in response to
+                        # this REQUEST). Here we only ACK the companion's request.
+                        self.layer.logger.info(
+                            f"PeerDataOp REQUEST: minimal/empty, ACKing only "
+                            f"(nonce response sent proactively by md.link)"
+                        )
+                        await self.layer.toLower(messageProtocolEntity.ack(peerMsg=True))
+                        return
+                await self.layer.toLower(messageProtocolEntity.ack(peerMsg=True))
+                return
+
+            # ── PeerDataOperation response: extract waFbid (legacy, may still be useful) ──
+            if protocol_attrs is not None and protocol_attrs.type == \
+                    ProtocolAttributes.TYPE_PEER_DATA_OPERATION_REQUEST_RESPONSE_MESSAGE:
+                raw = messageProtocolEntity.raw
+                if raw:
+                    from proto.e2e_pb2 import Message
+                    m = Message()
+                    m.ParseFromString(raw)
+                    if m.protocol_message.peer_data_operation_request_response_message.peerDataOperationResult:
+                        result = m.protocol_message.peer_data_operation_request_response_message.peerDataOperationResult[0]
+                        if result.HasField("companionCanonicalUserNonceFetchRequestResponse"):
+                            resp = result.companionCanonicalUserNonceFetchRequestResponse
+                            if resp.waFbid:
+                                self.layer.logger.info(f"Got waFbid from CompanionCanonicalUserNonceFetch: {resp.waFbid}")
+                                self.layer.pairing.wa_fbid = str(resp.waFbid)
+                                self.layer._fbid = self.layer.pairing.wa_fbid
+                await self.layer.toLower(messageProtocolEntity.ack(peerMsg=True))
 
             if messageProtocolEntity.category == "peer":
                 # App state sync key share — ack and return
@@ -191,6 +258,55 @@ class MessageHandler:
 
         # Always send read ack
         await self.layer.toLower(messageProtocolEntity.ack(read=True))
+
+    async def _respond_peer_data_op(self, request_entity, fbid: str, nonce: str = ""):
+        """Respond to PeerDataOperationRequest (companion requests waFbid + nonce).
+
+        Sends TYPE_PEER_DATA_OPERATION_REQUEST_RESPONSE_MESSAGE with
+        CompanionCanonicalUserNonceFetchResponse containing waFbid and nonce.
+        """
+        from proto.e2e_pb2 import Message as ProtoMessage
+        from core.layers.protocol_messages.protocolentities import (
+            ProtocolMessageProtocolEntity,
+        )
+        from core.layers.protocol_messages.protocolentities.attributes import (
+            ProtocolAttributes, MessageMetaAttributes,
+        )
+
+        companion_jid = request_entity.getFrom(True)
+        # Also check layer for stored companion_nonce
+        if not nonce:
+            nonce = getattr(self.layer, '_companion_nonce', None) or ""
+        self.layer.logger.info(
+            f"_respond_peer_data_op: sending fbid={fbid}, nonce={nonce[:20] if nonce else ''}... to {companion_jid}"
+        )
+
+        # Build the response proto
+        resp_msg = ProtoMessage()
+        resp_msg.protocol_message.type = ProtoMessage.ProtocolMessage.PEER_DATA_OPERATION_REQUEST_RESPONSE_MESSAGE
+        pr = resp_msg.protocol_message.peer_data_operation_request_response_message
+
+        result = pr.peerDataOperationResult.add()
+        resp = result.companionCanonicalUserNonceFetchRequestResponse
+        if fbid:
+            resp.waFbid = fbid
+        if nonce:
+            resp.nonce = nonce
+
+
+        # Wrap in ProtocolMessageProtocolEntity and send
+        resp_entity = ProtocolMessageProtocolEntity(
+            protocol_attr=ProtocolAttributes(
+                type=ProtocolAttributes.TYPE_PEER_DATA_OPERATION_REQUEST_RESPONSE_MESSAGE,
+                peer_data_operation_request_response_message=pr,
+            ),
+            message_meta_attributes=MessageMetaAttributes(
+                recipient=companion_jid, category="peer"
+            ),
+        )
+        # Set raw protobuf bytes
+        resp_entity.raw = resp_msg.SerializeToString()
+        await self.layer.toLower(resp_entity)
 
     def _parse_jid_and_lid(self, messageProtocolEntity):
         """Parse and extract JID and LID from messageProtocolEntity.

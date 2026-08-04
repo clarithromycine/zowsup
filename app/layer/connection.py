@@ -109,6 +109,13 @@ class ConnectionManager:
             self.layer.bot.conflict = True
             self.layer.bot.status = ZowBotStatus.STATUS_CONFLICTED
             self.layer.bot.quitIfConflict = True
+            # Clear botId on conflict — the session is replaced by another device,
+            # so the botId is no longer valid for this instance.
+            old_botId = self.layer.bot.botId
+            self.layer.bot.botId = None
+            self.layer.logger.debug(
+                f"Cleared botId due to conflict: {old_botId}"
+            )
             self.layer.callback(
                 event={"event": zowsup_pb2.BotEvent.Event.CONFLICT}
             )

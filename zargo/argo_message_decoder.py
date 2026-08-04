@@ -106,6 +106,8 @@ class ArgoMessageDecoder(metaclass=NoInstance):
             raise DataException(-1,"SCHEMA NAME ERROR")
 
         entryWireType = ArgoMessageDecoder._schemaStore[schemaEntry]
+        #for key,value in ArgoMessageDecoder._schemaStore.items():
+        #    print("%s:%s" % (key,value))
         dataDecoder = ArgoMessageDecoder.getArgoDataDecoder(msgBytes)
         
 

@@ -60,8 +60,7 @@ class WATools:
         username = jid.split("@")[0]
         nps = re.split(':|\\.',username)
         recipientId = nps[0]
-
-        if len(recipientId) < 15:
+        if len(recipientId) < 14:
             recipientType = int(nps[1]) if len(nps)>=2 else 0
             deviceId = int(nps[2]) if len(nps)>=3 else 0
         else:

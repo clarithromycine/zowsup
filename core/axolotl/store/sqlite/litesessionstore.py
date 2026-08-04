@@ -40,7 +40,8 @@ class LiteSessionStore(SessionStore):
 
     def storeSession(self, recipientId, recipientType, deviceId, sessionRecord) -> Any:
                         
-        self.deleteSession(recipientId, recipientType, deviceId)
+
+        self.deleteSession(recipientId, recipientType, deviceId)        
 
         q = "INSERT INTO sessions(recipient_id, recipient_type, device_id, record) VALUES(?,?,?,?)"
         c = self.dbConn.cursor()

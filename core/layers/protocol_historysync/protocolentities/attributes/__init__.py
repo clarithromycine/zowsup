@@ -12,6 +12,7 @@ from .attributes_app_state_sync_key_data import AppStateSyncKeyDataAttribute
 from .attributes_app_state_sync_key_fingerprint import AppStateSyncKeyFingerprintAttribute
 from .attributes_app_state_sync_key_id import AppStateSyncKeyIdAttribute
 from .attributes_app_state_sync_key_share import AppStateSyncKeyShareAttribute
+from .attributes_peer_data_operation_request_response_message import PeerDataOperationRequestResponseMessageAttribute
 
 
 

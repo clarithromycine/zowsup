@@ -178,6 +178,14 @@ class ProtocolAttributes:
         self._peer_data_operation_request_message = value  
 
     @property
+    def peer_data_operation_request_response_message(self) -> Any:
+        return self._peer_data_operation_request_response_message
+
+    @peer_data_operation_request_response_message.setter
+    def peer_data_operation_request_response_message(self, value: Any) -> None:
+        self._peer_data_operation_request_response_message = value
+
+    @property
     def bot_feedback_message(self) -> Any:
         return self._bot_feedback_message
 

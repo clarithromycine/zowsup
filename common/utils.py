@@ -80,7 +80,7 @@ class Utils:
     def outputResult(obj) -> Any:
         #被特殊字符包裹的结果
         Utils._OUTPUT.append(obj)  
-        logger.info("@@@@@{\"result\":}@@@@@" % json.dumps(obj))
+        logger.info("@@@@@{\"result\":%s}@@@@@" % json.dumps(obj))
 
     @staticmethod
     def normalize_jid(jid_str: str) -> str:
@@ -117,51 +117,54 @@ class Utils:
             phone_part = phone_part.split('.')[0]
         
         return f"{phone_part}@{domain_part}"
-
+    
     @staticmethod
-    def generateMultiDeviceParams(ref,companion_auth_pub,companion_identity_pub,adv_secret,profile) -> Any:
+    def generateMultiDeviceParams(ref, companion_noise_pub, companion_identity_pub,
+                                               adv_secret, account_type, profile) -> dict:
+        account_type = 0
+        device_type = 0
+        is_hosted = (account_type == 1)
 
-        p1 = wa_struct_pb2.ADVDeviceIdentity()
-        p1.raw_id = random.randint(1500000000,1700000000)
-        p1.key_index = profile.config.get_new_device_index()      #自动按照最大的index+1
-        p1.timestamp = int(time.time())
+        di = wa_struct_pb2.ADVDeviceIdentity()
+        di.raw_id = random.randint(1500000000, 1700000000)
+        di.key_index = profile.config.get_new_device_index()
+        di.timestamp = int(time.time())
+        di.account_type =account_type
+        di.device_type = device_type
 
         db = profile.axolotl_manager
+        sdi = wa_struct_pb2.ADVSignedDeviceIdentity()
+        sdi.details = di.SerializeToString()
+        sdi.account_signature_key = db.identity.publicKey.serialize()[1:]        
+        acct_sig_prefix = b"\x06\x05" if is_hosted else b"\x06\x00"
+        sdi.account_signature = Curve.calculateSignature(db.identity.privateKey,acct_sig_prefix+sdi.details+companion_identity_pub)        
+                          
 
-        p2 = wa_struct_pb2.ADVSignedDeviceIdentity()
-        p2.details = p1.SerializeToString()
-        p2.account_signature_key = db.identity.publicKey.serialize()[1:]
-        p2.account_signature = Curve.calculateSignature(db.identity.privateKey,b"\x06\x00"+p2.details+companion_identity_pub)
+        sdim = wa_struct_pb2.ADVSignedDeviceIdentityHMAC()
+        sdim.details = sdi.SerializeToString()
+        hmac_input = b"\x06\x05" + sdim.details if is_hosted else sdim.details
+        sdim.account_type = account_type
+        sdim.hmac = hmac.new(key=adv_secret, msg=hmac_input, digestmod=hashlib.sha256).digest()
 
-        p3 = wa_struct_pb2.ADVSignedDeviceIdentityHMAC()
-        p3.details = p2.SerializeToString()
-        p3.hmac = hmac.new(key=adv_secret, msg=p3.details, digestmod=hashlib.sha256).digest()
-
-        q1 = wa_struct_pb2.ADVKeyIndexList()
-        q1.raw_id = p1.raw_id
-        q1.timestamp = p1.timestamp
+        kil = wa_struct_pb2.ADVKeyIndexList()
+        kil.raw_id = di.raw_id
+        kil.timestamp = di.timestamp
         if profile.config.device_list:
-            q1.valid_indexes.extend(profile.config.device_list)
+            kil.valid_indexes.extend(profile.config.device_list)        
+                
+        skil = wa_struct_pb2.ADVSignedKeyIndexList()
+        skil.details = kil.SerializeToString()
+        skil.account_signature = Curve.calculateSignature(db.identity.privateKey,b"\x06\x02"+skil.details)
 
-        q2 = wa_struct_pb2.ADVSignedKeyIndexList()
-        q2.details = q1.SerializeToString()
-        q2.account_signature = Curve.calculateSignature(db.identity.privateKey,b"\x06\x02"+p2.details)
-
-        return ref,companion_auth_pub,p3.SerializeToString(),q2.SerializeToString()    
+        return {
+            "ref": ref,
+            "noise_pub": companion_noise_pub,
+            "device_identity": sdim.SerializeToString(),
+            "key_index_list": skil.SerializeToString(),
+            "key_index_ts": di.timestamp,
+        }    
+        
     
-    
-    @staticmethod
-    def generateMultiDeviceParamsFromQrCode(qr_str,profile) -> Any:
-
-        qr_parts = qr_str.split(",")  #四个部份
-        ref = qr_parts[0].encode()
-        companion_auth_pub = base64.b64decode(qr_parts[1])
-        companion_identity_pub = base64.b64decode(qr_parts[2])
-        adv_secret = base64.b64decode(qr_parts[3])
-        logger.debug(len(adv_secret))
-
-        return Utils.generateMultiDeviceParams(ref,companion_auth_pub,companion_identity_pub,adv_secret,profile)    
-
     @staticmethod
     def link_code_encrypt(link_code_key,data) -> Any:
         try:

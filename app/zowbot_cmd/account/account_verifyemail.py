@@ -3,7 +3,7 @@
 from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 import logging
 from app.zowbot_cmd.base import BotCommand
-from core.layers.protocol_iq.protocolentities import VerifyEmailIqProtocolEntity, EmailResultIqProtocolEntity
+from core.layers.protocol_iq.protocolentities import VerifyEmailIqProtocolEntity
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class Cmd_Account_VerifyEmail(BotCommand):
 
         try:
             entity = VerifyEmailIqProtocolEntity()
-            result = await self.send_iq_expect(entity, EmailResultIqProtocolEntity)
+            result = await self.send_iq_expect(entity, VerifyEmailIqProtocolEntity)
 
             logger.info("verifyEmail success")
             return self.success()

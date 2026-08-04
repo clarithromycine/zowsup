@@ -404,8 +404,8 @@ class ZowBot:
                 # Event loop is closed, can't cancel tasks
                 pass
             
-            # Return exit code if callback requested exit, otherwise 0
-            return self._exit_code if self._exit_code is not None else 0
+        # Return exit code if callback requested exit, otherwise 0
+        return self._exit_code if self._exit_code is not None else 0
 
 
                                                

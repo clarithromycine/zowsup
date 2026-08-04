@@ -20,6 +20,7 @@ class NotificationHandler:
             layer: ZowBotLayer instance
         """
         self.layer = layer
+        self._acked_notif_ids = set()  # track ACKed notification IDs to avoid duplicates
 
     # ── Notification dispatch ───────────────────────────────────────────────
 
@@ -53,6 +54,16 @@ class NotificationHandler:
                 self.layer.logger.warning("syncData failed, continuing: {}".format(e))
 
         if isinstance(entity, AccountSyncNotificationProtocolEntity):
+            # Send ACK immediately (matching real device behavior)
+            # But avoid duplicate ACKs for the same notification ID
+            notif_id = entity.getId()
+            if notif_id not in self._acked_notif_ids:
+                self._acked_notif_ids.add(notif_id)
+                from core.layers.protocol_acks.protocolentities import OutgoingAckProtocolEntity
+                ack = OutgoingAckProtocolEntity(
+                    notif_id, "notification", "account_sync", entity.getFrom()
+                )
+                await self.layer.toLower(ack)
             await self.layer.pairing.handle_account_sync_notification(entity)
 
         if isinstance(entity, LinkCodeCompanionRegNotificationProtocolEntity):

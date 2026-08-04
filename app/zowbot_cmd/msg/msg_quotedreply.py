@@ -28,8 +28,7 @@ class Cmd_Msg_Quotedreply(BotSendCommand):
             await self.assureContactsAndSend(
                 params,
                 options,
-                send_func=self.sendQuotedReplyDirect,
-                redo_func=self.execute
+                send_func=self.sendQuotedReplyDirect
             )
             return "JUSTWAIT"
         else:
@@ -40,8 +39,7 @@ class Cmd_Msg_Quotedreply(BotSendCommand):
             await self.assureContactsAndSend(
                 params,
                 options,
-                send_func=bot.botLayer.sendQuotedReplyDirect,
-                redo_func=self.execute
+                send_func=bot.botLayer.sendQuotedReplyDirect
             )
             
             # Wait for message ID callback

@@ -29,29 +29,16 @@ class IqManager:
         self.layer = layer
 
     async def send_iq_async(self, entity):
-        """Send an IQ entity and return a Future-wrapped result dict.
+        """Send an IQ entity and await its response (delegates to layer.sendIqAsync).
 
         Returns:
             dict: {"result": entity_result, "original_iq": original_iq}
         Raises:
             asyncio.TimeoutError: if no response within 30s.
+            IqErrorException: if the peer responds with an IQ error stanza.
         """
-        loop = self.layer.getStack().getLoop()
-        future = loop.create_future() if loop else asyncio.Future()
-
-        async def on_success(entity_result, original_iq):
-            if not future.done():
-                future.set_result({"result": entity_result, "original_iq": original_iq})
-
-        async def on_error(entity_error, original_iq):
-            if not future.done():
-                future.set_exception(Exception(f"IQ Error: {entity_error}"))
-
-        await self.layer._sendIq(entity, on_success, on_error)
-
         try:
-            result = await asyncio.wait_for(future, timeout=30)
-            return result
+            return await self.layer.sendIqAsync(entity)
         except asyncio.TimeoutError:
             raise asyncio.TimeoutError(
                 f"IQ response timeout for entity {entity.getId()}"

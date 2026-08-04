@@ -23,11 +23,11 @@ class DataReader() :
     
     def readBytes(self,length):
 
-        if length<0 :
+        if length<0 :            
             raise DataException(-1,"LENGTH IS OUT OF BOUND")
 
         endIndex = self.currentIndex+length        
-        if endIndex > len(self.data):
+        if endIndex > len(self.data):                       
             raise DataException(-1,"NOT ENOUGH DATA")
         
         ba = self.data[self.currentIndex:endIndex]

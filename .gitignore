@@ -30,3 +30,4 @@ data/bot.pid
 data/avatar*.json
 data/send*.json
 data/translation_config.json
+*.pkl

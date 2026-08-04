@@ -38,13 +38,13 @@ class Cmd_Msg_Sendad(BotSendCommand):
                 options["phash"] = phash        
                 
         if "waitid" not in options:
-            await self.assureContactsAndSend(params, options, send_func=self.sendAdDirect, redo_func=self.execute)            
+            await self.assureContactsAndSend(params, options, send_func=self.sendAdDirect)            
             return "JUSTWAIT"
         else:
             ctxId = str(uuid.uuid4())            
             bot.botLayer.ctxMap[ctxId] = {"event": asyncio.Event()}
             options["ctxId"] = ctxId                        
-            await self.assureContactsAndSend(params, options, send_func=self.sendAdDirect, redo_func=self.execute)
+            await self.assureContactsAndSend(params, options, send_func=self.sendAdDirect)
 
             try:
                 await asyncio.wait_for(
@@ -117,7 +117,8 @@ class Cmd_Msg_Sendad(BotSendCommand):
                     source_url=url,
                     contains_auto_reply=False,
                     render_larger_thumbnail=False,
-                    show_ad_attribution=False
+                    show_ad_attribution=False,  
+                    ad_type = 0          
                 )
             ),
             #doNotPlayInline=False

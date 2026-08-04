@@ -1,0 +1,10 @@
+build/
+build-*/
+*.o
+*.obj
+*.dll
+*.dylib
+*.so
+*.a
+*.lib
+.DS_Store

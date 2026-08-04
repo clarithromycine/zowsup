@@ -47,6 +47,12 @@ class YowIbProtocolLayer(YowProtocolLayer):
         elif node.getChild("safetynet"):
             logger.info("recevice a safetynet request")    
             await self.toUpper(SafetynetRequestIbProtocolEntity.fromProtocolTreeNode(node))           
+        elif node.getChild("recovery_nonce"):
+            rn = node.getChild("recovery_nonce")
+            code = rn.getAttributeValue("code")
+            if code:
+                import app.layer.canonical_credentials as cc
+                cc._pending_nonce = code
         elif node.getChild("gpia"):
             logger.info("receive a gpia request")
             await self.toUpper(GpiaRequestIbProtocolEntity.fromProtocolTreeNode(node))            

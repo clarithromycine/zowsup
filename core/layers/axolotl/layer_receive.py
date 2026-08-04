@@ -7,6 +7,7 @@ from ...layers.axolotl.protocolentities import *
 from ...layers.protocol_messages.protocolentities.proto import ProtoProtocolEntity
 from ...layers.axolotl.props import PROP_IDENTITY_AUTOTRUST
 from ...axolotl import exceptions
+from core.common.tools import WATools
 
 from axolotl.untrustedidentityexception import UntrustedIdentityException
 
@@ -74,15 +75,15 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
         except exceptions.InvalidKeyIdException:
             logger.warning("Invalid KeyId for {}, going to send the receipt to ignore subsequence push".format(encMessageProtocolEntity.getAuthor(False)))
             await self.toLower(OutgoingReceiptProtocolEntity(node["id"], node["from"], participant=node["participant"]).toProtocolTreeNode())
-                   
-            
+                               
         except exceptions.InvalidMessageException:
             logger.warning("InvalidMessage for {}".format(encMessageProtocolEntity.getAuthor(False)))     
             if node["id"] in self._retries and self._retries[node["id"]] >=3:
                 #重复三次，如果都是invalid可能是对方的异常，放弃,也有可能是本地的prekey变更，导致对方用的key无法解密
                 await self.toLower(OutgoingReceiptProtocolEntity(node["id"], node["from"], participant=node["participant"]).toProtocolTreeNode())   
             else:            
-                #time.sleep(1) 
+                import asyncio
+                await asyncio.sleep(1)
                 await self.send_retry(node, self.manager.registration_id)                
 
         except exceptions.NoSessionException:            
@@ -95,11 +96,14 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
                 self.pendingIncomingMessages[conversationIdentifier] = []
             self.pendingIncomingMessages[conversationIdentifier].append(node)
 
-            successFn = lambda successJids, b: self.processPendingIncomingMessages(*conversationIdentifier) if len(successJids) else None
-
-            errorFn = lambda err,b: self.toLower(OutgoingReceiptProtocolEntity(node["id"], node["from"], participant=node["participant"]).toProtocolTreeNode())   
-
-            await self.getKeysFor([encMessageProtocolEntity.getAuthor(True)], successFn,errorFn)
+            successJids, errorJids = await self.getKeysFor(
+                [encMessageProtocolEntity.getAuthor(True)],
+                errorClbk=lambda err, b: self.toLower(
+                    OutgoingReceiptProtocolEntity(node["id"], node["from"], participant=node["participant"]).toProtocolTreeNode()
+                )
+            )
+            if len(successJids):
+                await self.processPendingIncomingMessages(*conversationIdentifier)
         except exceptions.DuplicateMessageException:
             logger.warning("Received a message that we've previously decrypted, "
                            "going to send the delivery receipt myself")        
@@ -136,7 +140,15 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
     async def handlePreKeyWhisperMessage(self, node) -> Any:
         pkMessageProtocolEntity = EncryptedMessageProtocolEntity.fromProtocolTreeNode(node)
         enc = pkMessageProtocolEntity.getEnc(EncProtocolEntity.TYPE_PKMSG)
-        plaintext = self.manager.decrypt_pkmsg(pkMessageProtocolEntity.getAuthor(True), enc.getData(),
+
+        if pkMessageProtocolEntity.getCategory()=="peer":
+            _,_, deviceId = WATools.jidDecode(pkMessageProtocolEntity.getAuthor(True))
+            lid,_,_ =  WATools.jidDecode(self.getProp("profile").config.lid)            
+            sender_id = lid+":"+str(deviceId)+"@lid"            
+        else:
+            sender_id = pkMessageProtocolEntity.getAuthor(True)
+
+        plaintext = self.manager.decrypt_pkmsg(sender_id, enc.getData(),
                                                enc.getVersion() == 2)
 
         if enc.getVersion() == 2:

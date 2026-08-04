@@ -276,7 +276,7 @@ class AxolotlManager:
         :param prekeybundle:
         :type prekeybundle: PreKeyBundle
         :return:
-        :rtype:
+        :rtype:        
         """
         logger.debug("create_session(username={}, prekeybundle=[omitted], autotrust={})".format(username, autotrust))
         

@@ -1,4 +1,4 @@
-from ...layers import YowLayer, YowLayerEvent, YowProtocolLayer
+from ...layers import YowLayer, YowLayerEvent, YowProtocolLayer, IqErrorException
 from typing import Optional, Any, List, Dict, Union
 from .protocolentities import *
 from ...layers.protocol_iq.protocolentities import ErrorIqProtocolEntity
@@ -21,10 +21,9 @@ class YowPresenceProtocolLayer(YowProtocolLayer):
 
     async def sendIq(self, entity) -> Any:
         if entity.getXmlns() == LastseenIqProtocolEntity.XMLNS:
-            await self._sendIq(entity, self.onLastSeenSuccess, self.onLastSeenError)
-
-    async def onLastSeenSuccess(self, protocolTreeNode, lastSeenEntity) -> Any:
-        await self.toUpper(ResultLastseenIqProtocolEntity.fromProtocolTreeNode(protocolTreeNode))
-
-    async def onLastSeenError(self, protocolTreeNode, lastSeenEntity) -> Any:
-        await self.toUpper(ErrorIqProtocolEntity.fromProtocolTreeNode(protocolTreeNode))
+            try:
+                result_dict = await self.sendIqAsync(entity)
+            except IqErrorException as e:
+                await self.toUpper(ErrorIqProtocolEntity.fromProtocolTreeNode(e.error_node))
+                return
+            await self.toUpper(ResultLastseenIqProtocolEntity.fromProtocolTreeNode(result_dict["result"]))

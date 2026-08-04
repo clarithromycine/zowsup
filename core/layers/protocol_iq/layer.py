@@ -1,6 +1,8 @@
 import asyncio
 from typing import Optional, Any, List, Dict, Union
 import logging
+
+from core.layers.protocol_iq.protocolentities.fb.fb_graphql_fetch_pem import ResultFbGraphqlFetchPemIqProtocolEntity
 from ...layers import YowProtocolLayer, YowLayerEvent, EventCallback
 from ...common import YowConstants
 from ...layers.axolotl.protocolentities.iq_keys_get_result import ResultGetKeysIqProtocolEntity
@@ -32,14 +34,16 @@ class YowIqProtocolLayer(YowProtocolLayer):
     def __str__(self):
         return "Iq Layer"
 
-    async def onPong(self, protocolTreeNode, pingEntity) -> Any:
-        self.gotPong(pingEntity.getId())
-        await self.toUpper(ResultIqProtocolEntity.fromProtocolTreeNode(protocolTreeNode))
-
     async def sendIq(self, entity) -> Any:
         if entity.getXmlns() == "w:p":
-            await self._sendIq(entity, self.onPong)
-        elif entity.getXmlns() in ("optoutlist","abt","w:auth:key","w:stats","fb:thrift_iq","tos","w:sync:app:state","privacy","urn:xmpp:whatsapp:push", "w", "w:b","w:qr","urn:xmpp:whatsapp:account", "encrypt","w:biz","w:mex","urn:xmpp:whatsapp:dirty","md","w:account_defence") or entity.getXmlns() is None :                
+            try:
+                result_dict = await self.sendIqAsync(entity)
+            except Exception as e:
+                self.__logger.warning("Ping failed: %s", e)
+                return
+            self.gotPong(entity.getId())
+            await self.toUpper(ResultIqProtocolEntity.fromProtocolTreeNode(result_dict["result"]))
+        elif entity.getXmlns() in ("fb:graphql","optoutlist","abt","w:auth:key","w:stats","fb:thrift_iq","tos","w:sync:app:state","privacy","urn:xmpp:whatsapp:push", "w", "w:b","w:qr","urn:xmpp:whatsapp:account", "encrypt","w:biz","w:mex","urn:xmpp:whatsapp:dirty","md","w:account_defence") or entity.getXmlns() is None :                
             node =     entity.toProtocolTreeNode()    
             await self.toLower(node)
 
@@ -80,6 +84,9 @@ class YowIqProtocolLayer(YowProtocolLayer):
             elif node.getChild("sync") is not None:
                 await self.toUpper(ResultAppSyncStateIqResponseProtocolEntity.fromProtocolTreeNode(node))
 
+            elif node.getChild("config") is not None:                
+                await self.toUpper(PushGetResultIqProtocolEntity.fromProtocolTreeNode(node))
+
             elif node.getChild("cat") is not None:                
                 await self.toUpper(PushGetCatResultIqProtocolEntity.fromProtocolTreeNode(node))
 
@@ -119,6 +126,8 @@ class YowIqProtocolLayer(YowProtocolLayer):
                 await self.toUpper(DeviceLogoutResultIqProtocolEntity.fromProtocolTreeNode(node))                 
             elif node.getChild("count") is not None:                
                 await self.toUpper(ResultKeyCountIqProtocolEntity.fromProtocolTreeNode(node))      
+            elif node.getChild("privacy") is not None:                
+                await self.toUpper(ResultPrivacyIqProtocolEntity.fromProtocolTreeNode(node))      
             elif node.getChild("picture"):
                 pic=node.getChild("picture")
                 if pic.getAttributeValue("type"):
@@ -127,6 +136,13 @@ class YowIqProtocolLayer(YowProtocolLayer):
                     await self.toUpper(ResultSetPictureIqProtocolEntity.fromProtocolTreeNode(node))                
             elif node.getChild("result") is not None:
                 await self.toUpper(WmexResultIqProtocolEntity.fromProtocolTreeNode(node))           
+            elif node.getChild("reply")  is not None:                
+                await self.toUpper(ResultFbGraphqlFetchPemIqProtocolEntity.fromProtocolTreeNode(node))
+            elif node.getChild("limits") is not None:
+                await self.toUpper(GetBroadcastLimitationResultProtocolEntity.fromProtocolTreeNode(node))
+            elif node.getChild("lists") is not None:
+                await self.toUpper(GetBroadcastListResultProtocolEntity.fromProtocolTreeNode(node))
+
             else:
                 #不知道是啥，打印出来                     
                 self.__logger.info(node)

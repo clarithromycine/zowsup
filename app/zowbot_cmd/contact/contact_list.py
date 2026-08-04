@@ -22,10 +22,13 @@ class Cmd_Contact_List(BotCommand):
             raise ParamsNotEnoughException()
         
         try:
-            query = {
+            
+            #{"queryId":"25273846082242404","variables":{"batch_size":3000,"include_encrypted_metadata_v2":false,"include_lid_info":true,"input":{"query_input":[{"jid":"12366198429@s.whatsapp.net"}],"telemetry":{"context":"REGISTRATION"}}}}</query></iq>
+
+            query = {                
                 "variables": {
                     "batch_size": 3000,
-                    "include_encrypted_metadata_v2": False,
+                    "include_encrypted_metadata_v2": True,
                     "include_lid_info": True,
                     "input": {
                         "query_input": [{"jid": Jid.normalize(params[0])}],
@@ -33,6 +36,8 @@ class Cmd_Contact_List(BotCommand):
                     }
                 }
             }
+
+            print(query)
             entity = WmexQueryIqProtocolEntity(query_name="SelfContactsQuery", query_obj=query)
             result = await self.send_iq_expect(entity, WmexResultIqProtocolEntity)
             return self.success(

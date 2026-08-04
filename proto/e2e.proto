@@ -302,6 +302,12 @@ message Message {
       AI_PSI_METADATA = 28;
       AI_QUERY_FANOUT = 29;
       GROUP_MEMBER_LABEL_CHANGE = 30;
+      AI_MEDIA_COLLECTION_MESSAGE = 31;
+      MESSAGE_UNSCHEDULE = 32;
+      CHAT_THEME_SETTING = 34;
+      AI_METADATA_OPERATION = 35;
+      MARK_AS_VERIFIED_ACTION = 36;
+      COEX_STATE_SYNC = 37;      
 
     }
     // Only present if type == REVOKE
@@ -354,7 +360,20 @@ message Message {
     optional bytes aiPsiMetadata = 25;
     optional AIQueryFanout aiQueryFanout = 26;
     optional MemberLabel memberLabel = 27;    
+    optional AIMediaCollectionMessage aiMediaCollectionMessage = 28;
+    optional uint32 afterReadDuration = 29;
+    optional ChatThemeSetting chatThemeSetting = 30;
+    optional AIMetadataOperation aiMetadataOperation = 31;
+    optional MarkAsVerifiedAction markAsVerifiedAction = 32;
+    optional CoexStateSync coexStateSync = 33;    
   }
+
+  message MarkAsVerifiedAction {
+    optional string userJIDString = 1;
+    optional bool verified = 2;
+    optional bytes verifiedIdentityKey = 3;
+    optional uint64 actionSeq = 4;
+  }  
 
   message MemberLabel {
     optional string label = 1;
@@ -2035,6 +2054,14 @@ message ContextInfo {
     optional string automated_greeting_message_cta_type = 23;
     optional bool wtwa_ad_format = 24;
     optional AdType ad_type = 25;    
+		optional string wtwa_website_url = 26;
+		optional string ad_preview_url = 27;
+		optional bool contains_ctwa_flows_auto_reply = 28;
+		optional int32 agm_thumbnail_strategy = 29;
+		optional int32 agm_title_strategy = 30;
+		optional int32 agm_subtitle_strategy = 31;
+		optional int32 agm_header_interaction_strategy = 32;
+    
 	}
 
   message AdReplyInfo {
@@ -3386,4 +3413,56 @@ message HistorySyncNotification {
       NON_BLOCKING_DATA = 5;
       ON_DEMAND = 6;
   }
+}
+
+message AIMetadataOperation {
+	optional HatchMetadataSync hatchMetadataSync = 1;
+}
+
+message HatchMetadataSync {
+	optional bytes data = 1;
+	optional int64 timestampMS = 2;
+	optional string requestID = 3;
+}
+
+message AIMediaCollectionMessage {
+	optional string collectionID = 1;
+	optional uint32 expectedMediaCount = 2;
+	optional bool hasGlobalCaption = 3;
+}
+
+message ChatStockImageWallpaper {
+	optional string stockImageID = 1;
+	optional float dimLevel = 2;
+}
+
+message ChatSolidColorWallpaper {
+	optional string colorLight = 1;
+	optional string colorDark = 2;
+	optional bool isDoodleEnabled = 3;
+}
+
+message ChatDefaultWallpaper {
+	optional bool isDoodleEnabled = 1;
+}
+
+message ChatCustomImageWallpaper {
+	optional string directPath = 1;
+	optional bytes mediaKey = 2;
+	optional bytes fileEncSHA256 = 3;
+	optional bytes fileSHA256 = 4;
+	optional float dimLevel = 5;
+}
+
+message ChatThemeSetting {
+	oneof wallpaper {
+		ChatDefaultWallpaper defaultWallpaper = 10;
+		ChatSolidColorWallpaper solidColor = 11;
+		ChatStockImageWallpaper stockImage = 12;
+		ChatCustomImageWallpaper customImage = 13;
+	}
+
+	optional int64 settingTimestampMS = 1;
+	optional bool clearTheme = 2;
+	optional string colorSchemeID = 3;
 }

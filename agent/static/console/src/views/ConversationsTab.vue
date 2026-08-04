@@ -7,9 +7,8 @@
           <el-option v-for="b in botIds" :key="b" :value="b" :label="b"/>
         </el-select>
         <el-input v-model="search" placeholder="Search..." size="small" clearable class="left-search"/>
-        <el-button size="small" @click="showAddConv=true" :disabled="!selBot" title="New conversation">＋</el-button>
       </div>
-      <div class="left-list" :class="{ 'left-refreshing': refreshing }">
+      <div class="left-list" v-loading="loading">
         <div
           v-for="c in filteredConvs" :key="c.id"
           class="conv-item"
@@ -51,19 +50,11 @@
         <div class="chat-body" ref="chatBody" @scroll="onChatScroll">
           <div v-for="m in chatMsgs" :key="m.id||m._key" class="mb" :class="m.direction==='incoming'?'mi':(m.direction==='system'||m.content_type==='SYSTEM')?'ms':'mo'">
             <template v-if="m.direction==='system'||m.content_type==='SYSTEM'">
-              <div class="sys-line"><span class="sys-msg">{{ m.content }}</span><span class="sys-time">{{ fmt(m.created_at) }}</span></div>
-              <div v-if="m.note" class="sys-note-bubble">
-                <template v-if="m.note.includes('\n')">
-                  <div class="sys-note-label">{{ m.note_type==='escalation_resolution'?'Resolution':'Reason' }}:</div>
-                  <div class="sys-note-text">{{ m.note }}</div>
-                </template>
-                <template v-else>
-                  <span class="sys-note-label">{{ m.note_type==='escalation_resolution'?'Resolution':'Reason' }}:</span> {{ m.note }}
-                </template>
-              </div>
+              <span class="sys-msg">{{ m.content }}</span>
+              <span class="sys-time">{{ fmt(m.created_at) }}</span>
             </template>
             <template v-else>
-            <img v-if="m.content_type==='IMAGE'&&m.media_url" :src="media(m)" @load="onImgLoad" class="msg-img" @click="openImg(media(m))"/>
+            <img v-if="m.content_type==='IMAGE'&&m.media_url" :src="media(m)" @load="onImgLoad" class="msg-img" @click="window.open(media(m))"/>
             <video v-else-if="m.content_type==='VIDEO'&&m.media_url" :src="media(m)" controls class="msg-video" preload="metadata"/>
             <audio v-else-if="m.content_type==='AUDIO'&&m.media_url" :src="media(m)" controls class="msg-audio" preload="metadata"/>
             <div v-else-if="m.content_type==='DOCUMENT'&&m.media_url">📄 <a :href="media(m)" :download="m.media_file_name||m.content" class="msg-link">{{ m.media_file_name||m.content }}</a><span class="sub"> · {{ fsize(m.media_file_length) }}</span></div>
@@ -81,37 +72,19 @@
       </template>
     </div>
   </div>
-
-  <!-- New Conversation Dialog -->
-  <el-dialog v-model="showAddConv" title="New Conversation" width="360px" :close-on-click-modal="false">
-    <el-form @submit.prevent="addConversation">
-      <el-form-item label="Phone Number">
-        <el-input v-model="addPhone" placeholder="e.g. 8613800138000" :disabled="adding" @keyup.enter="addConversation"/>
-      </el-form-item>
-      <div style="font-size:11px;color:var(--zs-muted);margin-top:-8px;margin-bottom:8px">
-        The phone number will be synced via contact.sync to resolve its WhatsApp ID.
-      </div>
-    </el-form>
-    <template #footer>
-      <el-button size="small" @click="showAddConv=false" :disabled="adding">Cancel</el-button>
-      <el-button size="small" type="primary" @click="addConversation" :loading="adding">Add</el-button>
-    </template>
-  </el-dialog>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { useApi } from '../composables/useApi'
 import { useWebSocket } from '../composables/useWebSocket'
 const { api } = useApi()
 const { connect: wsConnect, close: wsClose, connected: wsLive } = useWebSocket()
 
-const selBot=ref(''),search=ref(''),bots=ref([]),convs=ref([]),refreshing=ref(false),chatId=ref(null),chatMsgs=ref([]),sendText=ref(''),sending=ref(false),escalating=ref(false),escalated=ref(false)
-const showAddConv=ref(false),addPhone=ref(''),adding=ref(false)
+const selBot=ref(''),search=ref(''),bots=ref([]),convs=ref([]),loading=ref(false),chatId=ref(null),chatMsgs=ref([]),sendText=ref(''),sending=ref(false),escalating=ref(false),escalated=ref(false)
 const chatBody=ref(null),msgCount=ref(0),unread=ref(new Set())
 let timer=null,_k=0,_autoScroll=true,_escTimer=null,_autoOpenDone=false
-let _loadPending=null
 
 function scrollBottom(){if(!chatBody.value)return;chatBody.value.scrollTop=0}
 function onChatScroll(){if(!chatBody.value)return;_autoScroll=chatBody.value.scrollTop===0}
@@ -130,7 +103,6 @@ function fsize(b){if(!b)return'';return b>1048576?(b/1048576).toFixed(1)+'MB':(b
 function cico(s){const v=String(s||'').toUpperCase();const m={READ:'✓✓',DELIVERED:'✓✓',RECEIVED:'✓✓',SENT:'✓',SERVER_ACK:'✓',EXECUTED:'⏳',FAILED:'✗',ERROR:'✗','3':'✓','4':'✓✓','5':'✓✓','6':'✗'};return m[v]||'✓'}
 function ccls(s){const v=String(s||'').toUpperCase();const m={READ:'read',DELIVERED:'delivered',RECEIVED:'delivered',SENT:'sent',SERVER_ACK:'sent',EXECUTED:'exec',FAILED:'failed',ERROR:'failed','3':'sent','4':'delivered','5':'read','6':'failed'};return m[v]||'sent'}
 function media(m){return m.conversation_id&&m.id?`/api/conversation/${encodeURIComponent(m.conversation_id)}/message/${m.id}/media`:''}
-function openImg(url){window.open(url)}
 function avatarUrl(c){return `/api/avatar/${encodeURIComponent(c.id)}?v=${c.avatar_id||0}`}
 function onAvatarErr(e){e.target.style.display='none'}
 function onAvatarLoad(e){e.target.style.display=''}
@@ -162,70 +134,8 @@ function updateConvPreview(convId, text, ts){
   convs.value=arr
 }
 
-// Smart merge: diff old vs new list, mutate in-place to keep VNode identity stable
-function mergeConvs(oldList, newList) {
-  const oldMap = new Map(oldList.map(c => [c.id, c]))
-  const result = []
-  for (const newItem of newList) {
-    const oldItem = oldMap.get(newItem.id)
-    if (oldItem) {
-      if (oldItem.last_message !== newItem.last_message ||
-          oldItem.last_message_at !== newItem.last_message_at ||
-          oldItem.message_count !== newItem.message_count ||
-          oldItem.avatar_id !== newItem.avatar_id ||
-          oldItem.notify_name !== newItem.notify_name ||
-          oldItem.updated_at !== newItem.updated_at) {
-        Object.assign(oldItem, newItem)
-      }
-      result.push(oldItem)
-    } else {
-      result.push(newItem)
-    }
-  }
-  return result
-}
-
-// Lightweight deferred sync — used by WS/send paths to avoid hammering the API.
-// updateConvPreview already handles immediate visual feedback; this just keeps
-// the full list eventually consistent without blocking the UI.
-function scheduleRefresh() {
-  if (_loadPending) clearTimeout(_loadPending)
-  _loadPending = setTimeout(() => {
-    _loadPending = null
-    loadListImmediate()
-  }, 2000)
-}
-
-// Do the actual network fetch + merge (no debounce — callers manage timing)
-async function loadListImmediate() {
-  if (!selBot.value) return
-  refreshing.value = true
-  try {
-    const newList = await api('/api/conversation?bot_id=' + selBot.value)
-    if (convs.value.length === 0) {
-      convs.value = newList
-    } else {
-      convs.value = mergeConvs(convs.value, newList)
-    }
-  } catch { /* keep old data on error */ }
-  refreshing.value = false
-  if (!_autoOpenDone && convs.value.length > 0 && !chatId.value) {
-    _autoOpenDone = true
-    openChat(convs.value[0])
-  }
-}
-
-async function loadList() {
-  if (!selBot.value) return
-  // Coalesce rapid successive calls (poll interval, watcher, etc.)
-  if (_loadPending) clearTimeout(_loadPending)
-  _loadPending = setTimeout(() => {
-    _loadPending = null
-    loadListImmediate()
-  }, 80)
-}
-
 async function loadBots(){try{bots.value=await api('/api/listbot')}catch{bots.value=[]};if(!selBot.value&&botIds.value.length)selBot.value=botIds.value[0]}
+async function loadList(){if(!selBot.value)return;loading.value=true;try{convs.value=await api('/api/conversation?bot_id='+selBot.value)}catch{convs.value=[]}loading.value=false;if(!_autoOpenDone&&convs.value.length>0&&!chatId.value){_autoOpenDone=true;openChat(convs.value[0])}}
 
 async function openChat(row){chatId.value=row.id;escalated.value=false;if(unread.value.has(row.id)){unread.value.delete(row.id);unread.value=new Set(unread.value)}try{const d=await api('/api/conversation/'+chatId.value+'?limit=50');chatMsgs.value=(d.messages||[]).filter(m=>m.direction!=='note'||m.content_type==='SYSTEM');msgCount.value=d.message_count||0;_autoScroll=true;connectWs();clearInterval(_escTimer);checkEscalated();_escTimer=setInterval(checkEscalated,60000);nextTick(scrollBottom)}catch{closeChat()}}
 function closeChat(){chatId.value=null;chatMsgs.value=[];escalated.value=false;wsClose();clearInterval(_escTimer)}
@@ -242,49 +152,26 @@ async function checkEscalated(){
 
 async function escalateChat(){
   if(!chatId.value||escalating.value||escalated.value)return
+  escalating.value=true
+  await nextTick()
   try{
-    const {value:reasonDetail}=await ElMessageBox.prompt(
-      'Please describe the reason and context for this escalation (optional):',
-      'Escalate Conversation',
-      {confirmButtonText:'Escalate',cancelButtonText:'Cancel',
-       inputType:'textarea',inputPlaceholder:'e.g. Customer is asking for a refund, needs supervisor approval...'}
-    )
-    escalating.value=true
-    await nextTick()
     await api('/api/escalation',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({bot_id:chatBotId.value,conversation_id:chatId.value,reason:'manual',priority:'normal',escalation_note:(reasonDetail||'').trim()})})
+      body:JSON.stringify({bot_id:chatBotId.value,conversation_id:chatId.value,reason:'manual',priority:'normal'})})
+    await api('/api/conversation/'+chatId.value+'/note',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({content:'⬆ Escalation created'})})
+    insertSysMsg('⬆ Escalation created')
     escalated.value=true
     ElMessage.success('Escalated')
-    // Refresh messages to show the system note with escalation reason
-    try{const d=await api('/api/conversation/'+chatId.value+'?limit=50');chatMsgs.value=(d.messages||[]).filter(m=>m.direction!=='note'||m.content_type==='SYSTEM');msgCount.value=d.message_count||0;_autoScroll=true;nextTick(scrollBottom)}catch{}
-  }catch(e){if(e!=='cancel'&&e!=='close')console.error(e)}finally{escalating.value=false}
+  }catch{}finally{escalating.value=false}
 }
 
 function insertSysMsg(text){
   chatMsgs.value.unshift({_key:'sys'+(_k++),direction:'system',content:text,created_at:Date.now()/1000})
 }
 
-function connectWs(){const url=`/api/bot/${encodeURIComponent(chatBotId.value)}/events?tail=0`;wsConnect(url,{onmessage(e){try{const evt=JSON.parse(e.data);if(evt.type==='message'){const msg=evt.data||{};const mc=chatBotId.value+':'+(msg.lid||msg.from_full||'');const wsText=msg.text||'['+({1:'TEXT',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT'}[msg.type]||'?')+']';updateConvPreview(mc,wsText);if(mc!==chatId.value){if(!unread.value.has(mc)){unread.value.add(mc);unread.value=new Set(unread.value)}scheduleRefresh();return}const m={_key:'ws'+(_k++),direction:msg.from_full?'incoming':'outgoing',content:wsText,content_type:{1:'TEXT',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT'}[msg.type]||'TEXT',created_at:Date.now()/1000,msg_id:msg.msgId||null,id:msg.db_id||null,conversation_id:chatId.value,media_url:msg.media_url||null,media_key:msg.media_key||null,media_file_name:msg.media_file_name||null,media_file_length:msg.media_file_length||null,media_caption:msg.media_caption||null,status:'EXECUTED'};chatMsgs.value.unshift(m);msgCount.value++;if(_autoScroll)nextTick(scrollBottom);scheduleRefresh()}else if(evt.type==='message_status'){const st=evt.data||{};if(!st.msgId)return;const bub=chatMsgs.value.find(m=>m.msg_id===st.msgId);if(bub)bub.status=st.status}else if(evt.type==='event'){const ed=evt.data||{};const ev=String(ed.event||'');if(ev==='8'||ev==='CONTACT_UPDATE'){const d=ed.detail||{};if(d.key==='AVATAR'){scheduleRefresh()}}}}catch{}}})}
+function connectWs(){const url=`/api/bot/${encodeURIComponent(chatBotId.value)}/events?tail=0`;wsConnect(url,{onmessage(e){try{const evt=JSON.parse(e.data);if(evt.type==='message'){const msg=evt.data||{};const mc=chatBotId.value+':'+(msg.lid||msg.from_full||'');const wsText=msg.text||'['+({1:'TEXT',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT'}[msg.type]||'?')+']';updateConvPreview(mc,wsText);if(mc!==chatId.value){if(!unread.value.has(mc)){unread.value.add(mc);unread.value=new Set(unread.value)}loadList();return}const m={_key:'ws'+(_k++),direction:msg.from_full?'incoming':'outgoing',content:wsText,content_type:{1:'TEXT',5:'IMAGE',6:'VIDEO',7:'AUDIO',8:'DOCUMENT'}[msg.type]||'TEXT',created_at:Date.now()/1000,msg_id:msg.msgId||null,id:msg.db_id||null,conversation_id:chatId.value,media_url:msg.media_url||null,media_key:msg.media_key||null,media_file_name:msg.media_file_name||null,media_file_length:msg.media_file_length||null,media_caption:msg.media_caption||null,status:'EXECUTED'};chatMsgs.value.unshift(m);msgCount.value++;if(_autoScroll)nextTick(scrollBottom);loadList()}else if(evt.type==='message_status'){const st=evt.data||{};if(!st.msgId)return;const bub=chatMsgs.value.find(m=>m.msg_id===st.msgId);if(bub)bub.status=st.status}else if(evt.type==='event'){const ed=evt.data||{};const ev=String(ed.event||'');if(ev==='8'||ev==='CONTACT_UPDATE'){const d=ed.detail||{};if(d.key==='AVATAR'){loadList()}}}}catch{}}})}
 
-async function sendMsg(){const t=sendText.value.trim();if(!t)return;sending.value=true;const tmp={_key:'opt'+(_k++),direction:'outgoing',content:t,content_type:'TEXT',created_at:Date.now()/1000,conversation_id:chatId.value,status:'EXECUTED'};chatMsgs.value.unshift(tmp);sendText.value='';msgCount.value++;if(_autoScroll)nextTick(scrollBottom);updateConvPreview(chatId.value,t,Date.now()/1000);try{const msg=await api('/api/conversation/'+chatId.value+'/message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:t})});const idx=chatMsgs.value.indexOf(tmp);if(idx>=0)chatMsgs.value.splice(idx,1,msg);scheduleRefresh()}catch{ElMessage.error('Send failed');tmp.status='FAILED'}sending.value=false}
-
-async function addConversation(){
-  const phone=addPhone.value.trim()
-  if(!phone)return
-  if(!selBot.value){ElMessage.warning('Select a bot first');return}
-  adding.value=true
-  try{
-    const conv=await api('/api/conversation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bot_id:selBot.value,phone_number:phone})})
-    ElMessage.success(`Conversation created: ${conv.notify_name||conv.pn_jid||conv.jid}`)
-    showAddConv.value=false
-    addPhone.value=''
-    await loadListImmediate()
-    // Auto-open the new conversation
-    if(conv.id)openChat(conv)
-  }catch(e){
-    ElMessage.error(e?.detail||e?.message||'Failed to add conversation')
-  }finally{adding.value=false}
-}
+async function sendMsg(){const t=sendText.value.trim();if(!t)return;sending.value=true;const tmp={_key:'opt'+(_k++),direction:'outgoing',content:t,content_type:'TEXT',created_at:Date.now()/1000,conversation_id:chatId.value,status:'EXECUTED'};chatMsgs.value.unshift(tmp);sendText.value='';msgCount.value++;if(_autoScroll)nextTick(scrollBottom);updateConvPreview(chatId.value,t,Date.now()/1000);try{const msg=await api('/api/conversation/'+chatId.value+'/message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:t})});const idx=chatMsgs.value.indexOf(tmp);if(idx>=0)chatMsgs.value.splice(idx,1,msg);loadList()}catch{ElMessage.error('Send failed');tmp.status='FAILED'}sending.value=false}
 
 onMounted(()=>{loadBots();loadList();timer=setInterval(loadList,15000)})
 onUnmounted(()=>{clearInterval(timer);clearInterval(_escTimer);wsClose()})
@@ -302,9 +189,6 @@ watch(selBot,loadList)
 .left-header .el-select { flex: 1; }
 .left-search { width: 140px; flex-shrink: 0; }
 .left-list { flex: 1; overflow-y: auto; }
-.left-refresh-bar { display: flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 11px; color: var(--zs-muted); background: #f0f9ff; border-bottom: 1px solid #e0f2fe; }
-.ref-dot { width: 6px; height: 6px; border-radius: 50%; background: #0ea5e9; animation: ref-pulse 1.2s ease-in-out infinite; }
-@keyframes ref-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 .conv-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background .12s; }
 .conv-item:hover { background: #f8fafc; }
 .conv-item.active { background: #eff6ff; border-left: 3px solid var(--zs-accent); padding-left: 11px; }
@@ -338,9 +222,6 @@ watch(selBot,loadList)
 .ms { background: transparent; align-self: center; max-width: 100%; box-shadow: none; padding: 2px 0; text-align: center; }
 .sys-msg { font-size: 11px; color: #94a3b8; }
 .sys-time { font-size: 10px; color: #c0c8d4; margin-left: 8px; }
-.sys-note-bubble { display: block; max-width: 100%; margin: 4px 0 0; padding: 6px 12px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; color: #475569; white-space: pre-wrap; word-break: break-word; text-align: left; }
-.sys-note-label { font-weight: 600; color: #64748b; }
-.sys-note-text { white-space: pre-wrap; }
 .msg-img { max-width: 240px; max-height: 240px; border-radius: 8px; cursor: pointer; display: block; }
 .msg-video { max-width: 300px; max-height: 240px; border-radius: 8px; }
 .msg-audio { max-width: 280px; }

@@ -47,8 +47,13 @@ class WmexQueryIqProtocolEntity(IqProtocolEntity):
         node = super().toProtocolTreeNode()     
         WmexResultIqProtocolEntity.idNameMap[node.getAttributeValue("id")] = self.query_name   
         query = ProtocolTreeNode("query",{"query_id":self.query_id})
-        self.query_obj["queryId"]=self.query_id
-        query.setData(json.dumps(self.query_obj).encode())
+        # Ensure queryId is the first key (matches real device wire format)
+        qid = self.query_id
+        self.query_obj.pop("queryId", None)
+        ordered = {"queryId": qid}
+        ordered.update(self.query_obj)
+        # Compact JSON: no spaces after : and , (matches real device)
+        query.setData(json.dumps(ordered, separators=(",", ":")).encode())
         flow_id = ProtocolTreeNode("flow_id")
         flow_id.setData(self.query_id.encode())
         trace = ProtocolTreeNode("trace")

@@ -13,11 +13,12 @@ from axolotl.ecc.djbec import DjbECPrivateKey, DjbECPublicKey
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from Crypto.Random import get_random_bytes
 
+from core.layers.axolotl.props import PROP_IDENTITY_AUTOTRUST
 from proto import wa_struct_pb2
 from core.common import YowConstants
 from core.common.tools import Jid, WATools
 from core.config.v1.config import Config
-from core.layers import YowLayerEvent
+from core.layers import YowLayerEvent, IqErrorException
 from core.layers.network.layer import YowNetworkLayer
 from core.layers.axolotl.protocolentities.iq_key_get import GetKeysIqProtocolEntity
 from core.layers.protocol_appstate.protocolentities.attributes import *
@@ -59,6 +60,123 @@ class PairingManager:
         self.status = None  # e.g. "WAIT_PAIRINGCODE"
         self.code = None  # pairing code input
         self.companion_hello_entity = None
+        self.wa_fbid = None  # Facebook ID from CanonicalEntCredentials
+        self.canonical_password = None  # Stored password from WWWCreateUser
+
+        # Load canonical credentials from profile config if available
+        self._load_fbinfo_from_config()
+
+    def _load_fbinfo_from_config(self):
+        """Load canonical credentials from profile config on startup."""
+        try:
+            profile = self.layer.getStack().getProp("profile") if self.layer.getStack() else None
+            if profile and profile.config:
+                cfg = profile.config
+                if cfg.fbibnfo :
+                    self.wa_fbid = str(cfg.fbibnfo["fb_id"])
+                    self.layer._fbid = self.wa_fbid
+                    logger.info(f"Loaded canonical credentials from config (fb_id={self.wa_fbid})")
+        except Exception as e:
+            logger.debug(f"No canonical credentials in config: {e}")
+
+    # ── Ensure Canonical Ent Credentials ───────────────────────────────────
+
+    async def ensure_canonical_credentials(self):
+        """Ensure we have canonical fb_id. Cache in memory/config, or fetch via WWWTriggerAcountRecovery."""
+        # Step 1: Check in-memory cache
+        if self.wa_fbid:
+            self.layer.logger.info(f"Using cached canonical fb_id={self.wa_fbid}")
+            return {"fb_id": self.wa_fbid}
+
+        # Step 2: Check profile config
+        profile = self.layer.getStack().getProp("profile")
+        if profile and profile.config and profile.config.fbinfo:
+            self.wa_fbid = str(profile.config.fbinfo["fb_id"])
+            self.layer._fbid = self.wa_fbid
+            self.layer.logger.info(f"Loaded canonical fb_id from config ({self.wa_fbid})")
+            return {"fb_id": self.wa_fbid}
+
+        # Step 3: Call WWWTriggerAcountRecovery
+        from app.layer.canonical_credentials import trigger_account_recovery
+
+        self.layer.logger.info("Requesting canonical fbid via WWWTriggerAcountRecovery...")
+        credentials = await trigger_account_recovery(self.layer)
+        if credentials:
+            self.wa_fbid = credentials["fb_id"]
+            self.layer._fbid = self.wa_fbid
+            self.layer.logger.info(f"Canonical fbid obtained: {self.wa_fbid}")
+            if profile and profile.config:
+                profile.config.fbinfo["fb_id"] = self.wa_fbid
+                profile.write_config()
+            return credentials
+
+        self.layer.logger.error("Failed to obtain canonical fbid")
+        return None
+
+    async def _send_deferred_nonce_response(self, companion_jid, nonce, fbid):
+        """Send PeerDataOperation nonce response after session is established.
+
+        Waits for the axolotl session to be created (by polling session_exists),
+        then sends the PeerDataOperation response with nonce + waFbid.
+        """
+        import asyncio
+
+        # Wait for session to be established (max 10 seconds)
+        for i in range(20):
+            try:
+                # Check if session exists by looking at the axolotl store
+                phone, _, device = WATools.jidDecode(companion_jid)
+                username = f"{phone}:{device}"
+                if self.layer.db and self.layer.db._store.sessionStore:
+                    if self.layer.db._store.sessionStore.loadSession(username, 1):
+                        break
+            except Exception:
+                pass
+            await asyncio.sleep(0.5)
+
+        try:
+            from proto.e2e_pb2 import Message as ProtoMessage
+            from core.layers.protocol_messages.protocolentities import (
+                ProtocolMessageProtocolEntity,
+            )
+            from core.layers.protocol_messages.protocolentities.attributes import (
+                ProtocolAttributes, MessageMetaAttributes,
+            )
+
+            self.layer.logger.info(
+                f"Sending PeerDataOperation nonce response to {companion_jid} "
+                f"(session established)"
+            )
+
+            resp_msg = ProtoMessage()
+            resp_msg.protocol_message.type = \
+                ProtoMessage.ProtocolMessage.PEER_DATA_OPERATION_REQUEST_RESPONSE_MESSAGE
+            pr = resp_msg.protocol_message.peer_data_operation_request_response_message
+            result = pr.peerDataOperationResult.add()
+            resp = result.companionCanonicalUserNonceFetchRequestResponse
+            resp.nonce = nonce
+            if fbid:
+                resp.waFbid = fbid
+            resp.forceRefresh = False
+
+            resp_entity = ProtocolMessageProtocolEntity(
+                protocol_attr=ProtocolAttributes(
+                    type=ProtocolAttributes.TYPE_PEER_DATA_OPERATION_REQUEST_RESPONSE_MESSAGE,
+                    peer_data_operation_request_response_message=pr,
+                ),
+                message_meta_attributes=MessageMetaAttributes(
+                    recipient=companion_jid, category="peer"
+                ),
+            )
+            resp_entity.raw = resp_msg.SerializeToString()
+            await self.layer.toLower(resp_entity)
+            self.layer.logger.info("PeerDataOperation nonce response sent to companion")
+
+            # Clear stored values
+            self.layer.getStack().setProp("pair-companion-nonce", None)
+            self.layer.getStack().setProp("pair-companion-fbid", None)
+        except Exception as e:
+            self.layer.logger.warning(f"Failed to send deferred PeerDataOp response: {e}")
 
     # ── QR code display task ─────────────────────────────────────────────
 
@@ -153,20 +271,12 @@ class PairingManager:
     async def handle_pair_iq(self, entity):
         """Handle MultiDevicePairIqProtocolEntity — dispatch QR vs LinkCode."""
 
-        def on_success(entity, original_iq_entity):
-            self.layer.logger.info("Pairing Start Success")
-
-        def on_error(entity, original_iq):
-            self.layer.logger.error(
-                f"Pairing Start Fail with code {entity.code} - {entity.text} "
-            )
-
         if self.layer.getProp("botType") == ZowBotType.TYPE_REG_COMPANION_SCANQR:
             logger.info("QRCode Pairing")
             ack = IqProtocolEntity(
                 to=YowConstants.WHATSAPP_SERVER, _type="result", _id=entity.getId()
             )
-            await self.layer._sendIq(ack)
+            await self.layer.sendIqFireAndForget(ack)
             self.layer.setProp("refs", entity.refs)
             # Start QR display asyncio task
             self.layer._qrTask = asyncio.ensure_future(self._run_qr_display(20))
@@ -177,7 +287,7 @@ class PairingManager:
             ack = IqProtocolEntity(
                 to=YowConstants.WHATSAPP_SERVER, _type="result", _id=entity.getId()
             )
-            await self.layer._sendIq(ack)
+            await self.layer.sendIqFireAndForget(ack)
             linkCodePairingWrappedCompanionEphemeralPub = Utils.link_code_encrypt(
                 self.layer.bot.pairLinkCode,
                 self.layer.getProp("reg_info")["keypair"].public.data,
@@ -192,7 +302,14 @@ class PairingManager:
                 linkCodePairingWrappedCompanionEphemeralPub=linkCodePairingWrappedCompanionEphemeralPub,
                 companionServerAuthKeyPub=companionServerAuthKeyPub,
             )
-            await self.layer._sendIq(entity, on_success, on_error)
+            try:
+                await self.layer.sendIqAsync(entity)
+            except IqErrorException as e:
+                self.layer.logger.error(
+                    f"Pairing Start Fail with code {e.error_node.code} - {e.error_node.text} "
+                )
+            else:
+                self.layer.logger.info("Pairing Start Success")
             return
 
     # ── Pair Success IQ (sign device + gen profile) ─────────────────────────
@@ -204,30 +321,64 @@ class PairingManager:
         self.layer.setProp("refs", None)
         self.layer.setProp("jid", jid)
         self.layer.setProp("botType", ZowBotType.TYPE_RUN_SINGLETON)
-        p1 = wa_struct_pb2.ADVSignedDeviceIdentityHMAC()
-        p1.ParseFromString(entity.device_identity)
-        p2 = wa_struct_pb2.ADVSignedDeviceIdentity()
-        p2.ParseFromString(p1.details)
-        p3 = wa_struct_pb2.ADVDeviceIdentity()
-        p3.ParseFromString(p2.details)
-        identity = self.layer.getProp("reg_info")["identity"]
-        buffer = (
-            b"\x06\x01"
-            + p2.details
-            + identity.publicKey.serialize()[1:]
-            + p2.account_signature_key
+        # Unwrap the device identity chain:
+        #   entity.device_identity (bytes) -> ADVSignedDeviceIdentityHMAC
+        #       -> details -> ADVSignedDeviceIdentity
+        #       -> details -> ADVDeviceIdentity
+        device_identity_hmac = wa_struct_pb2.ADVSignedDeviceIdentityHMAC()
+        device_identity_hmac.ParseFromString(entity.device_identity)
+
+        signed_device_identity = wa_struct_pb2.ADVSignedDeviceIdentity()
+        signed_device_identity.ParseFromString(device_identity_hmac.details)
+
+        device_identity_meta = wa_struct_pb2.ADVDeviceIdentity()
+        device_identity_meta.ParseFromString(signed_device_identity.details)
+
+        self.layer.logger.info(
+            f"pair-success device-identity: raw_id={device_identity_meta.raw_id} "
+            f"ts={device_identity_meta.timestamp} "
+            f"key_index={device_identity_meta.key_index} "
+            f"account_type={device_identity_meta.account_type} "
+            f"device_type={device_identity_meta.device_type} "
+            f"hmac_account_type={device_identity_hmac.account_type} "
+            f"account_sig_len={len(signed_device_identity.account_signature)} "
+            f"device_sig_len={len(signed_device_identity.device_signature)}"
         )
-        devicesign = Curve.calculateSignature(identity.privateKey, buffer)
-        p4 = wa_struct_pb2.ADVSignedDeviceIdentity()
-        p4.account_signature_key = p2.account_signature_key
-        p4.account_signature = p2.account_signature
-        p4.details = p2.details
-        p4.device_signature = devicesign
-        signEntity = MultiDevicePairSignIqProtocolEntity(
-            entity.getId(), p3.key_index, p4.SerializeToString()
+
+        reg_identity = self.layer.getProp("reg_info")["identity"]
+        # Device Signature (WhatsApp docs):
+        #   Dsignature = SIGN(Icompanion, DEVICE_SIGNATURE_PREFIX || Lmetadata || Icompanion || Iprimary)
+        #   DEVICE_SIGNATURE_PREFIX = 0x0606 if Cloud API (HOSTED), else 0x0601
+        is_hosted = (
+            device_identity_hmac.account_type == 1
+            or device_identity_meta.account_type == 1
         )
-        await self.layer._sendIq(signEntity)
-        self.gen_profile(p4)
+        signature_prefix = b"\x06\x06" if is_hosted else b"\x06\x01"
+        signature_buffer = (
+            signature_prefix
+            + signed_device_identity.details
+            + reg_identity.publicKey.serialize()[1:]
+            + signed_device_identity.account_signature_key
+        )
+        device_signature = Curve.calculateSignature(
+            reg_identity.privateKey, signature_buffer
+        )
+
+        companion_signed_identity = wa_struct_pb2.ADVSignedDeviceIdentity()
+        companion_signed_identity.account_signature_key = (
+            signed_device_identity.account_signature_key
+        )
+        companion_signed_identity.account_signature = signed_device_identity.account_signature
+        companion_signed_identity.details = signed_device_identity.details
+        companion_signed_identity.device_signature = device_signature
+
+        sign_entity = MultiDevicePairSignIqProtocolEntity(
+            entity.getId(),
+            device_identity_meta.key_index,
+            companion_signed_identity.SerializeToString(),
+        )
+        await self.layer.sendIqFireAndForget(sign_entity)
+        self.gen_profile(companion_signed_identity)
         return
 
     # ── LinkCode notification dispatch ──────────────────────────────────────
@@ -355,51 +506,68 @@ class PairingManager:
         )
         await self.layer.resetSync([], {})
         profile = self.layer.getProp("profile")
-        ref, pubKey, deviceIdentity, keyIndexList = Utils.generateMultiDeviceParams(
-            ref,
-            companionServerAuthKeyPub,
-            companionIdentityPublic,
-            advSecretPublicKey,
-            profile,
-        )
+        params_v2 = Utils.generateMultiDeviceParams(
+            ref=ref,
+            companion_noise_pub=companionServerAuthKeyPub,
+            companion_identity_pub=companionIdentityPublic,
+            adv_secret=advSecretPublicKey,
+            account_type=0,
+            profile=profile)
+        
         pair_entity = MultiDevicePairDeviceIqProtocolEntity(
             ref=ref,
-            pubKey=pubKey,
-            deviceIdentity=deviceIdentity,
-            keyIndexList=keyIndexList,
+            pubKey=params_v2["noise_pub"],
+            deviceIdentity=params_v2["device_identity"],
+            keyIndexList=params_v2["key_index_list"],
+            keyIndexTs=params_v2["key_index_ts"]
         )
-
-        def on_pair_device_success(entity, original_iq_entity):
-            companionJid = entity.deviceJid
-            deviceIdx = int(companionJid.split("@")[0].split(":")[1])
-            profile.config.add_device_to_list(deviceIdx)
-            profile.write_config(profile.config)
-            self.layer.getStack().setProp("pair-companion-jid", companionJid)
-
-        def on_pair_device_error(entity, original_iq):
+        
+        try:
+            result_dict = await self.layer.sendIqAsync(pair_entity)
+        except IqErrorException as e:
             logger.error("pair device error")
             self.layer.bot.quit()
+            return
 
-        await self.layer._sendIq(
-            pair_entity, on_pair_device_success, on_pair_device_error
-        )
+        result_entity = result_dict["result"]
+        companionJid = result_entity.deviceJid
+        deviceIdx = int(companionJid.split("@")[0].split(":")[1])
+        profile.config.add_device_to_list(deviceIdx)
+        profile.write_config(profile.config)
+        self.layer.getStack().setProp("pair-companion-jid", companionJid)
 
     # ── Account Sync Notification (companion history sync chain) ────────────
 
     async def handle_account_sync_notification(self, entity):
         """Handle AccountSyncNotification — initiate companion history sync chain."""
         self.layer.logger.info("Notification: Received a AccountSync Notification")
-        companionJid = self.layer.getStack().getProp("pair-companion-jid")
+        
+        companionJid = getattr(entity, 'companion_jid', None)
         if companionJid is None:
+            self.layer.logger.warning("handle_account_sync: no companion LID JID found in notification")
             return
+                
+        self.layer.logger.info(f"handle_account_sync: companionJid={companionJid}")
+        self.layer.getStack().setProp("pair-companion-jid", companionJid)
 
-        layer = self.layer  # capture for closures
+        layer = self.layer  
 
         get_keys_entity = GetKeysIqProtocolEntity(
             [companionJid], _id=layer.bot.idType
         )
 
-        async def on_get_encrypt_success(entity, original_iq_entity):
+        async def on_get_encrypt_success(keys_entity):
+
+            resultJids = keys_entity.getJids()                   
+            for jid in resultJids:     
+                preKeyBundle = keys_entity.getPreKeyBundleFor(jid)
+                try:               
+                    logger.info("CREATE SESSION SUCCESS")
+                    self.manager.create_session(jid, preKeyBundle,
+                                                autotrust=self.getProp(PROP_IDENTITY_AUTOTRUST, False))                    
+                except Exception as e:
+                    logger.warning("get key exception")            
+
             # Send initial security notification
             sec_entity = ProtocolMessageProtocolEntity(
                 protocol_attr=ProtocolAttributes(
@@ -415,7 +583,7 @@ class PairingManager:
             await layer.toLower(sec_entity)
 
             # Generate and share app state sync keys
-            sync_keys = layer.generateAppStateSyncKeys(10)
+            sync_keys = layer.generateAppStateSyncKeys(1)
             if layer.db:
                 layer.db._store.addAppStateKeys(sync_keys)
 
@@ -431,9 +599,30 @@ class PairingManager:
                 ),
             )
             await layer.toLower(key_share_entity)
+
+            pdorm_nonce = layer.getStack().getProp("pair-companion-nonce")
+            pdorm_fbid = layer.getStack().getProp("pair-companion-fbid")
+            if pdorm_nonce:
+                pdorm_entity = ProtocolMessageProtocolEntity(
+                    protocol_attr=ProtocolAttributes(
+                        type = ProtocolAttributes.TYPE_PEER_DATA_OPERATION_REQUEST_RESPONSE_MESSAGE,
+                        peer_data_operation_request_response_message=PeerDataOperationRequestResponseMessageAttribute(
+                            nonce=pdorm_nonce,
+                            waFbid=pdorm_fbid,
+                            forceRefresh=False
+                        )
+                    ),
+                    message_meta_attributes=MessageMetaAttributes(
+                        recipient=companionJid, category="peer"
+                    ),                
+                )
+                await layer.toLower(pdorm_entity)
+            else:
+                logger.warning("handle_account_sync: pair-companion-nonce is None, skipping PDORM")
+
             await asyncio.sleep(3)
 
-            async def on_get_conn_success(conn_entity, original_iq_entity):
+            async def on_get_conn_success(conn_entity):
                 hs = HistorySync(conn_entity, companionJid)
 
                 et = hs.createNonBlockingDataMessage()
@@ -487,9 +676,9 @@ class PairingManager:
                         contactAction=SyncActionContactActionAttribute(
                             fullName="test user",
                             firstName="test",
-                            lidJid="8618502060000@s.whatsapp.net",
+                            lidJid="158455033810989@lid",
                         )
-                    ).setArgs(["8618502060000@s.whatsapp.net"])
+                    ).setArgs(["158455033810989@lid"])
                 )
 
                 state2 = HashState("critical_unblock_low", 0)
@@ -507,15 +696,18 @@ class PairingManager:
                 )
                 await layer.toLower(app_sync_entity)
 
-            def on_get_conn_error(entity, original_iq_entity):
-                layer.logger.error("get conn error")
-
             conniq = RequestMediaConnIqProtocolEntity()
-            await layer._sendIq(conniq, on_get_conn_success, on_get_conn_error)
+            try:
+                conn_result = await layer.sendIqAsync(conniq)
+            except Exception as e:
+                layer.logger.error("get conn error: %s", e)
+            else:
+                await on_get_conn_success(conn_result["result"])
 
-        def on_get_encrypt_error(entity, on_get_encrypt_error):
-            layer.logger.error("error get encrypt")
-
-        await layer._sendIq(
-            get_keys_entity, on_get_encrypt_success, on_get_encrypt_error
-        )
+        await asyncio.sleep(3)
+        try:
+            keys_result = await layer.sendIqAsync(get_keys_entity)
+        except Exception as e:
+            layer.logger.error("error get encrypt: %s", e)
+        else:
+            await on_get_encrypt_success(keys_result["result"])

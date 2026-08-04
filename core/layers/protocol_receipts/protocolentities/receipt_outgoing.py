@@ -22,7 +22,7 @@ class OutgoingReceiptProtocolEntity(ReceiptProtocolEntity):
     '''
 
 
-    def __init__(self, messageIds, to, read = False, participant = None,recipient=None, callId = None,view=False,serverIds=None,histSync=None,peerMsg=None) -> None:
+    def __init__(self, messageIds, to, read = False, participant = None,recipient=None, callId = None, callCreator=None, view=False,serverIds=None,histSync=None,peerMsg=None) -> None:
         if type(messageIds) in (list, tuple):
             if len(messageIds) > 1:
                 receiptId = self._generateId()
@@ -39,14 +39,15 @@ class OutgoingReceiptProtocolEntity(ReceiptProtocolEntity):
                 serverIds = [serverIds]
 
         super().__init__(receiptId)
-        self.setOutgoingData(messageIds, to, read, participant,recipient, callId,view,serverIds,histSync,peerMsg)
+        self.setOutgoingData(messageIds, to, read, participant,recipient, callId, callCreator, view,serverIds,histSync,peerMsg)
 
-    def setOutgoingData(self, messageIds, to, read, participant,recipient=None, callId=None,view=None, serverIds=None,histSync=None,peerMsg=None) -> Any:
+    def setOutgoingData(self, messageIds, to, read, participant,recipient=None, callId=None, callCreator=None, view=None, serverIds=None,histSync=None,peerMsg=None) -> Any:
         self.messageIds = messageIds
         self.to = to
         self.read = read
         self.participant = participant
         self.callId = callId
+        self.callCreator = callCreator
         self.view = view
         self.serverIds = serverIds
         self.recipient = recipient
@@ -77,7 +78,10 @@ class OutgoingReceiptProtocolEntity(ReceiptProtocolEntity):
             node.setAttribute("recipient", self.recipient)
 
         if self.callId:
-            offer = ProtocolTreeNode("offer", {"call-id": self.callId})
+            offer_attrs = {"call-id": self.callId}
+            if self.callCreator:
+                offer_attrs["call-creator"] = self.callCreator
+            offer = ProtocolTreeNode("offer", offer_attrs)
             node.addChild(offer)
 
         if self.to:

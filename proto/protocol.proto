@@ -105,7 +105,22 @@ enum MutationProps {
 	AI_THREAD_RENAME_ACTION = 76;
 	INTERACTIVE_MESSAGE_ACTION = 77;
 	SETTINGS_SYNC_ACTION = 78;
-
+	OUT_CONTACT_ACTION = 79;
+	NCT_SALT_SYNC_ACTION = 80;
+	BUSINESS_BROADCAST_CAMPAIGN_ACTION = 81;
+	BUSINESS_BROADCAST_INSIGHTS_ACTION = 82;
+	CUSTOMER_DATA_ACTION = 83;
+	SUBSCRIPTIONS_SYNC_V2_ACTION = 84;
+	THREAD_PIN_ACTION = 85;
+	AUTO_ORGANIZE_BUSINESS_CHAT_SETTING = 86;
+	BIZ_AI_SETTINGS_NUDGE_ACTION = 87;
+	COEX_V2_VERSION_ACTION = 88;
+	WASA_ROOT_SECRET_ACTION = 89;
+	BUBBLE_LOCK_MESSAGE_ACTION = 90;
+	LABEL_SUBLIST_ACTION = 91;
+	SHARE_OWN_PN = 10001;
+	BUSINESS_BROADCAST_ACTION = 10002;
+	AI_THREAD_DELETE_ACTION = 10003;
 }
 
 
@@ -266,6 +281,148 @@ message SyncActionValue {
 	optional AiThreadRenameAction aiThreadRenameAction = 76;
 	optional InteractiveMessageAction interactiveMessageAction = 77;
 	optional SettingsSyncAction settingsSyncAction = 78;    
+	optional OutContactAction outContactAction = 79;
+	optional NctSaltSyncAction nctSaltSyncAction = 80;
+	optional BusinessBroadcastCampaignAction businessBroadcastCampaignAction = 81;
+	optional BusinessBroadcastInsightsAction businessBroadcastInsightsAction = 82;
+	optional CustomerDataAction customerDataAction = 83;
+	optional SubscriptionsSyncV2Action subscriptionsSyncV2Action = 84;
+	optional ThreadPinAction threadPinAction = 85;
+	optional AutoOrganizeBusinessChatSetting autoOrganizeBusinessChatSetting = 86;
+	optional BizAISettingsNudgeAction bizAiSettingsNudgeAction = 87;
+	optional CoexV2VersionAction coexV2VersionAction = 88;
+	optional WASARootSecretAction wasaRootSecretAction = 89;
+	optional BubbleLockMessageAction bubbleLockMessageAction = 90;
+	optional LabelSublistAction labelSublistAction = 91;
+
+    message LabelSublistAction {
+        optional int32 subListID = 1;
+    }
+
+    message BubbleLockMessageAction {
+        optional bool locked = 1;
+    }
+
+    message WASARootSecretAction {
+        message RootSecretEntry {
+            enum Status {
+                INACTIVE = 0;
+                ACTIVE = 1;
+            }
+
+            optional string ID = 1;
+            optional bytes rootSecret = 2;
+            optional int64 epoch = 3;
+            optional Status status = 4;
+        }
+
+        repeated RootSecretEntry secrets = 1;
+    }
+
+    message CoexV2VersionAction {
+        optional uint64 version = 1;
+    }
+
+    message BizAISettingsNudgeAction {
+        enum BizAISettingsCategory {
+            UNKNOWN = 0;
+            INSTRUCTIONS = 1;
+            RESPONSE_SETTINGS = 2;
+            EXAMPLE_RESPONSES = 3;
+            KNOWLEDGE = 4;
+            LEAD_GEN = 5;
+            HANDOFF_REMOVAL_TIMING = 6;
+        }
+
+        optional BizAISettingsCategory category = 1;
+        optional int64 version = 2;
+        optional int64 updatedAtMS = 3;
+    }
+
+    message AutoOrganizeBusinessChatSetting {
+        optional bool autoOrganize = 1;
+    }
+
+    message ThreadPinAction {
+        optional bool pinned = 1;
+    }
+
+    message SubscriptionsSyncV2Action {
+        message PaidFeature {
+            optional string name = 1;
+            optional bool enabled = 2;
+            optional int32 limit = 3;
+            optional int64 expirationTime = 4;
+        }
+
+        message SubscriptionInfo {
+            optional string ID = 1;
+            optional int32 tier = 2;
+            optional string status = 3;
+            optional int64 startTime = 4;
+            optional int64 endTime = 5;
+            optional bool isPlatformChanged = 6;
+            optional string source = 7;
+            optional int64 creationTime = 8;
+        }
+
+        repeated SubscriptionInfo subscriptions = 1;
+        repeated PaidFeature paidFeature = 2;
+    }
+
+    message CustomerDataAction {
+        optional string chatJID = 1;
+        optional int32 contactType = 2;
+        optional string email = 3;
+        optional string altPhoneNumbers = 4;
+        optional int64 birthday = 5;
+        optional string address = 6;
+        optional int32 acquisitionSource = 7;
+        optional int32 leadStage = 8;
+        optional int64 lastOrder = 9;
+        optional int64 createdAt = 10;
+        optional int64 modifiedAt = 11;
+    }
+
+    message OutContactAction {
+        optional string fullName = 1;
+        optional string firstName = 2;
+    
+    }
+
+    message NctSaltSyncAction {
+        optional bytes salt = 1;
+    }
+
+    message BusinessBroadcastCampaignAction {
+
+        enum BusinessBroadcastCampaignStatus {
+            DRAFT = 1;
+            SCHEDULED = 2;
+            PROCESSING = 3;
+            FAILED = 4;
+            SENT = 5;
+        }
+        optional int32 deviceID = 1;
+        optional string adID = 2;
+        optional string name = 3;
+        optional string msgID = 4;
+        optional string broadcastJID = 5;
+        optional int32 reservedQuota = 6;
+        optional int64 scheduledTimestamp = 7;
+        optional int64 createTimestamp = 8;
+        optional BusinessBroadcastCampaignStatus status = 9;
+    }
+
+    message BusinessBroadcastInsightsAction {
+        optional int32 recipientCount = 1;
+        optional int32 deliveredCount = 2;
+        optional int32 readCount = 3;
+        optional int32 repliedCount = 4;
+        optional int32 quickReplyCount = 5;
+    }
+
+
 
 
     message SettingsSyncAction {
@@ -765,6 +922,22 @@ message SyncdMutation {
 
 message SyncdMutations {
     repeated SyncdMutation mutations = 1;
+}
+
+message CoexStateSync {
+	message CollectionMutations {
+		optional string collection = 1;
+		repeated Mutation mutations = 2;
+	}
+
+	message Mutation {
+		optional SyncdIndex index = 1;
+		optional SyncdValue value = 2;
+		optional uint64 dirtyVersion = 3;
+		optional SyncdMutation.SyncdOperation operation = 4;
+	}
+
+	repeated CollectionMutations collectionMutations = 1;
 }
 
 message SyncdPatch {

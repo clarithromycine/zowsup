@@ -1,4 +1,4 @@
-from ...layers import YowProtocolLayer
+from ...layers import YowProtocolLayer, IqErrorException
 from typing import Optional, Any, List, Dict, Union
 from .protocolentities import ImageDownloadableMediaMessageProtocolEntity
 from .protocolentities import AudioDownloadableMediaMessageProtocolEntity
@@ -105,16 +105,15 @@ class YowMediaProtocolLayer(YowProtocolLayer):
         """
         if entity.getType() == IqProtocolEntity.TYPE_SET and entity.getXmlns() == "w:m":
             #media conn!
-            await self._sendIq(entity, self.onRequestMediaConnSuccess, self.onRequestMediaConnError)
+            try:
+                result_dict = await self.sendIqAsync(entity)
+            except IqErrorException as e:
+                await self.toUpper(ErrorIqProtocolEntity.fromProtocolTreeNode(e.error_node))
+                return
+            await self.toUpper(ResultRequestUploadIqProtocolEntity.fromProtocolTreeNode(result_dict["result"]))
 
     def recvIq(self, node) -> Any:
         pass        
         """
         :type node: ProtocolTreeNode
         """
-
-    async def onRequestMediaConnSuccess(self, resultNode, requestUploadEntity) -> Any:
-        await self.toUpper(ResultRequestUploadIqProtocolEntity.fromProtocolTreeNode(resultNode))
-
-    async def onRequestMediaConnError(self, errorNode, requestUploadEntity) -> Any:
-        await self.toUpper(ErrorIqProtocolEntity.fromProtocolTreeNode(errorNode))

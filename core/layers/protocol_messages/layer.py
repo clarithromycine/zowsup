@@ -34,8 +34,14 @@ class YowMessagesProtocolLayer(YowProtocolLayer):
                             view=True,
                             serverIds=node["server_id"]
                         ).toProtocolTreeNode())    
-            return               
-         
+            return           
+
+
+        unavailable = node.getChild("unavailable")    
+        if unavailable is not None:
+            await self.toLower(MessageProtocolEntity.fromProtocolTreeNode(node).ack().toProtocolTreeNode())
+            return 
+
         protoNode = node.getChild("proto")                                
         if protoNode is None :
             return

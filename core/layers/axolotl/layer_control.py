@@ -1,6 +1,6 @@
 from .layer_base import AxolotlBaseLayer
 from typing import Optional, Any, List, Dict, Union
-from ...layers import YowLayerEvent, EventCallback
+from ...layers import YowLayerEvent, EventCallback, IqErrorException
 from ...layers.network.layer import YowNetworkLayer
 from ...layers.axolotl.protocolentities import *
 from ...layers.auth.layer_authentication import YowAuthenticationProtocolLayer
@@ -14,6 +14,7 @@ from axolotl.ecc.curve import Curve
 import logging
 import binascii
 import base64
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class AxolotlControlLayer(AxolotlBaseLayer):
             protocoltreenode["id"], "notification", protocoltreenode["type"], protocoltreenode["from"]
         )
         await self.toLower(ack.toProtocolTreeNode())
-        await self.getKeysFor([entity.getFrom(True)], resultClbk=lambda _,__: None, reason="identity")
+        await self.getKeysFor([entity.getFrom(True)], reason="identity")
 
     async def onRequestKeysEncryptNotification(self, protocolTreeNode) -> Any:
         entity = RequestKeysEncryptNotification.fromProtocolTreeNode(protocolTreeNode)
@@ -127,8 +128,14 @@ class AxolotlControlLayer(AxolotlBaseLayer):
             Curve.DJB_TYPE,
             self.adjustId(self.manager.registration_id,byte_count=4) 
         )
-        onResult = lambda _, __: self.on_keys_flushed(prekeys, reboot_connection=reboot_connection)
-        await self._sendIq(setKeysIq, onResult, self.onSentKeysError)            
+        try:
+            await self.sendIqAsync(setKeysIq)
+        except IqErrorException as e:
+            await self.onSentKeysError(e.error_node, setKeysIq)
+        except asyncio.TimeoutError:
+            logger.info("Set keys request timed out")
+        else:
+            await self.on_keys_flushed(prekeys, reboot_connection=reboot_connection)
 
     async def on_keys_flushed(self, prekeys, reboot_connection) -> Any:
         self.manager.set_prekeys_as_sent(prekeys)        

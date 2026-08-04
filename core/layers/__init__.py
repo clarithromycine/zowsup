@@ -30,6 +30,14 @@ class EventCallback:
         return fn
 
 
+class IqErrorException(Exception):
+    """Raised when an IQ response is an error stanza; carries the error node."""
+
+    def __init__(self, error_node: Any) -> None:
+        self.error_node = error_node
+        super().__init__("IQ Error: {}".format(error_node))
+
+
 class YowLayer:
     __upper: Optional['YowLayer'] = None
     __lower: Optional['YowLayer'] = None
@@ -156,8 +164,13 @@ class YowProtocolLayer(YowLayer):
         raise ValueError("Unimplemented notification type {} ".format(node))
 
 
-    async def _sendIq(self, iqEntity: Any, onSuccess: Optional[Callable] = None, onError: Optional[Callable] = None) -> None:
-        self.iqRegistry[iqEntity.getId()] = (iqEntity, onSuccess, onError)
+    async def sendIqFireAndForget(self, iqEntity: Any) -> None:
+        """Send an IQ without waiting for / acting on its response.
+
+        The entity is still registered so the eventual response is consumed by the
+        registry instead of being re-dispatched elsewhere.
+        """
+        self.iqRegistry[iqEntity.getId()] = (iqEntity, None, None)
         await self.toLower(iqEntity.toProtocolTreeNode())
 
     async def processIqRegistry(self, protocolTreeNode: Any) -> bool:
@@ -178,6 +191,31 @@ class YowProtocolLayer(YowLayer):
                 return True
 
         return False
+
+    async def sendIqAsync(self, iqEntity: Any, timeout: int = 30) -> dict:
+        """Send an IQ entity and await its response (Future-based, no callbacks).
+
+        Returns:
+            dict: {"result": entity_result, "original_iq": original_iq}
+        Raises:
+            asyncio.TimeoutError: if no response within ``timeout`` seconds.
+            IqErrorException: if the peer responds with an IQ error stanza.
+        """
+        stack = self.getStack()
+        loop = stack.getLoop() if stack is not None else None
+        future = loop.create_future() if loop else asyncio.Future()
+
+        async def on_success(entity_result: Any, original_iq: Any) -> None:
+            if not future.done():
+                future.set_result({"result": entity_result, "original_iq": original_iq})
+
+        async def on_error(entity_error: Any, original_iq: Any) -> None:
+            if not future.done():
+                future.set_exception(IqErrorException(entity_error))
+
+        self.iqRegistry[iqEntity.getId()] = (iqEntity, on_success, on_error)
+        await self.toLower(iqEntity.toProtocolTreeNode())
+        return await asyncio.wait_for(future, timeout=timeout)
 
 class YowParallelLayer(YowLayer):
     def __init__(self, sublayers: Optional[list] = None) -> None:

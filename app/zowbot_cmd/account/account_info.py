@@ -3,7 +3,7 @@
 from typing import Any, Optional, Dict, List, Tuple, Union, Callable
 import logging
 from app.zowbot_cmd.base import BotCommand
-from core.layers.protocol_iq.protocolentities import AccountInfoIqProtocolEntity, AccountInfoResultIqProtocolEntity
+from core.layers.protocol_iq.protocolentities import AccountInfoIqProtocolEntity, AccountInfoResultIqProtocolEntity,ResultIqProtocolEntity
 
 logger = logging.getLogger(__name__)
 

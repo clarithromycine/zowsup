@@ -96,11 +96,13 @@ class ArgoBlockData:
                             #raise DataException(-4,"INDEX ERROR")
 
                     elif isinstance(block, LengthBlock):
-                        length = block.length                        
-                        obj = self.block.reader.readBytes(length)
+                        
+                        length = block.length              
+                        obj = self.block.reader.readBytes(length)                        
                         decoded_str = obj.decode('utf-8')  # Assuming UTF-8 encoding
-                        self.block.cache.append(decoded_str)
+                        self.block.cache.append(decoded_str)                        
                         return decoded_str
+
                     
             elif isinstance(self.block, InlineBlock):
                 block = reader.readBlock()

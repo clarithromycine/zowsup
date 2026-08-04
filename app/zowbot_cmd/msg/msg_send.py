@@ -50,8 +50,7 @@ class Cmd_Msg_Send(BotSendCommand):
             await self.assureContactsAndSend(
                 params,
                 options,
-                send_func=self.sendMsgDirect,
-                redo_func=self.execute
+                send_func=self.sendMsgDirect
             )
             return "JUSTWAIT"
         else:
@@ -62,8 +61,7 @@ class Cmd_Msg_Send(BotSendCommand):
             await self.assureContactsAndSend(
                 params,
                 options,
-                send_func=self.sendMsgDirect,
-                redo_func=self.execute
+                send_func=self.sendMsgDirect
             )
             
             # Wait for message ID callback

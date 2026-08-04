@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 class Config(config.Config):
     def __init__(self, phone: Optional[Any] = None, cc: Optional[Any] = None, login: Optional[Any] = None, pushname: Optional[Any] = None, id: Optional[Any] = None, mcc: Optional[Any] = None, mnc: Optional[Any] = None, sim_mcc: Optional[Any] = None, sim_mnc: Optional[Any] = None, client_static_keypair: Optional[Any] = None, server_static_public: Optional[Any] = None, expid: Optional[Any] = None, fdid: Optional[Any] = None, edge_routing_info: Optional[Any] = None, chat_dns_domain: Optional[Any] = None, device: Optional[Any] = None, device_identity: Optional[Any] = None, device_list: Optional[Any] = None, # 主号专用，记录其它companion的index_id数组
-            lid: Optional[Any] = None, platform: Optional[Any] = None, os_name: Optional[Any] = None, os_version: Optional[Any] = None, manufacturer: Optional[Any] = None, device_name: Optional[Any] = None, device_model_type: Optional[Any] = None, c2dm_reg_id: Optional[Any] = None, fcm_creds: Optional[Any] = None, fcm_cat: Optional[Any] = None, aid: Optional[Any] = None, ge: Optional[Any] = None, ga: Optional[Any] = None, gp: Optional[Any] = None) -> None:
+            lid: Optional[Any] = None, platform: Optional[Any] = None, os_name: Optional[Any] = None, os_version: Optional[Any] = None, manufacturer: Optional[Any] = None, device_name: Optional[Any] = None, device_model_type: Optional[Any] = None, c2dm_reg_id: Optional[Any] = None, fcm_creds: Optional[Any] = None, fcm_cat: Optional[Any] = None, aid: Optional[Any] = None, ge: Optional[Any] = None, ga: Optional[Any] = None, gp: Optional[Any] = None, fbinfo: Optional[Any] = None) -> None:
         super().__init__(1)
 
         self._phone = str(phone) if phone is not None else None  # type: str
@@ -45,6 +45,8 @@ class Config(config.Config):
         self._ge = ge
         self._ga = ga
         self._gp = gp
+        self._fbinfo = fbinfo
+
 
     def __str__(self) -> str:
         from ...config.v1.serialize import ConfigSerialize
@@ -330,3 +332,12 @@ class Config(config.Config):
     @lid.setter
     def lid(self,value):
         self._lid = value
+
+    @property
+    def fbinfo(self) -> Any:
+        return self._fbinfo
+
+    @fbinfo.setter
+    def fbinfo(self,value):
+        self._fbinfo= value
+        
