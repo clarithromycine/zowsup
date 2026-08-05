@@ -20,7 +20,6 @@ from ..layers.protocol_iq                 import YowIqProtocolLayer
 from ..layers.protocol_contacts           import YowContactsIqProtocolLayer
 from ..layers.protocol_devices            import YowDevicesIqProtocolLayer
 from ..layers.protocol_chatstate          import YowChatstateProtocolLayer
-from ..layers.protocol_privacy            import YowPrivacyProtocolLayer
 from ..layers.protocol_profiles           import YowProfilesProtocolLayer
 from ..layers.protocol_calls import YowCallsProtocolLayer
 from ..common.constants import YowConstants
@@ -64,32 +63,25 @@ class YowStackBuilder:
         return YowStack(self.layers, reversed = False, props = self._props)
 
     @staticmethod
-    def getDefaultLayers(groups: bool = True, media: bool = True, privacy: bool = True, profiles: bool = True) -> tuple:
+    def getDefaultLayers(groups: bool = True, media: bool = True, profiles: bool = True) -> tuple:
         coreLayers = YowStackBuilder.getCoreLayers()
-        protocolLayers = YowStackBuilder.getProtocolLayers(groups = groups, media=media, privacy=privacy, profiles=profiles)
-
+        protocolLayers = YowStackBuilder.getProtocolLayers(groups = groups, media=media, profiles=profiles)
         allLayers = coreLayers
         allLayers += (AxolotlControlLayer,)
         allLayers += (YowParallelLayer((AxolotlSendLayer, AxolotlReceivelayer)),)
-
-        allLayers += (YowParallelLayer(protocolLayers),)
-                
-        
+        allLayers += (YowParallelLayer(protocolLayers),)                        
         return allLayers
 
     @staticmethod
-    def getDefaultStack(layer: Optional[YowLayer] = None, axolotl: bool = False, groups: bool = True, media: bool = True, privacy: bool = True, profiles: bool = True) -> 'YowStack':
+    def getDefaultStack(layer: Optional[YowLayer] = None, axolotl: bool = False, groups: bool = True, media: bool = True, profiles: bool = True) -> 'YowStack':
         """
         :param layer: An optional layer to put on top of default stack
         :param axolotl: E2E encryption enabled/ disabled
         :return: YowStack
         """
-
-        allLayers = YowStackBuilder.getDefaultLayers(axolotl, groups = groups, media=media,privacy=privacy, profiles=profiles)
+        allLayers = YowStackBuilder.getDefaultLayers(axolotl, groups = groups, media=media,profiles=profiles)
         if layer:
             allLayers = allLayers + (layer,)
-
-
         return YowStack(allLayers, reversed = False)
 
     @staticmethod
@@ -103,7 +95,7 @@ class YowStackBuilder:
         )[::-1]
 
     @staticmethod
-    def getProtocolLayers(groups: bool = True, media: bool = True, privacy: bool = True, profiles: bool = True) -> tuple:
+    def getProtocolLayers(groups: bool = True, media: bool = True, profiles: bool = True) -> tuple:
         layers = YOWSUP_PROTOCOL_LAYERS_BASIC
         if groups:
             layers += (YowGroupsProtocolLayer,)
@@ -111,8 +103,6 @@ class YowStackBuilder:
             layers += (YowMediaProtocolLayer, )
         if profiles:
             layers += (YowProfilesProtocolLayer, )
-        if privacy:
-            layers += (YowPrivacyProtocolLayer, )            
         return layers
 
 class YowStack:
@@ -125,7 +115,6 @@ class YowStack:
         self._loop: Optional[asyncio.AbstractEventLoop] = None        
         self.setProp(YowNetworkLayer.PROP_ENDPOINT, YowConstants.ENDPOINTS[random.randint(0,len(YowConstants.ENDPOINTS)-1)])
         self._construct()
-
 
     def getLayerInterface(self, YowLayerClass: type) -> Optional['YowLayerInterface']:
         for inst in self.__stackInstances:

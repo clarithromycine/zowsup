@@ -58,10 +58,13 @@ class AxolotlControlLayer(AxolotlBaseLayer):
         if self.getProp("HC_MODE",False) or self.getProp("TRANSFER6_MODE",False):
             pass
         else:
-            await self.flush_keys(
+            # Non-blocking: this handler runs inside the socket read-loop / receive chain,
+            # so awaiting flush_keys (sendIqAsync with 30s timeout) would stall the whole
+            # pipeline and the SetKeys IQ result could never be processed in time.
+            asyncio.ensure_future(self.flush_keys(
                 self.manager.generate_signed_prekey(),
                 self.manager.level_prekeys(force=True)
-            )
+            ))
 
     @EventCallback(YowNetworkLayer.EVENT_STATE_CONNECTED)
     def on_connected(self, yowLayerEvent) -> Any:
@@ -91,11 +94,16 @@ class AxolotlControlLayer(AxolotlBaseLayer):
             
             self._unsent_prekeys.extend(self.manager.load_unsent_prekeys())  
             logger.debug("SHOULD FLUSH KEYS %d NOW!!" % len(self._unsent_prekeys))
-            await self.flush_keys(
+            # Schedule in background instead of awaiting: this handler runs inside the
+            # socket read-loop / receive chain (dispatched via broadcastEvent from the
+            # auth layer's handleSuccess), so awaiting flush_keys (sendIqAsync, 30s
+            # timeout) would stall the pipeline and the SetKeys result could never be
+            # processed in time — it always timed out and login was delayed 30s.
+            asyncio.ensure_future(self.flush_keys(
                 self.manager.load_latest_signed_prekey(generate=True),
                 self._unsent_prekeys[:], 
                 reboot_connection=True
-            )
+            ))
             self._unsent_prekeys = []                    
 
         

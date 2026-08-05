@@ -16,7 +16,6 @@ from ..layers.protocol_notifications      import YowNotificationsProtocolLayer
 from ..layers.protocol_iq                 import YowIqProtocolLayer
 from ..layers.protocol_contacts           import YowContactsIqProtocolLayer
 from ..layers.protocol_chatstate          import YowChatstateProtocolLayer
-from ..layers.protocol_privacy            import YowPrivacyProtocolLayer
 from ..layers.protocol_profiles           import YowProfilesProtocolLayer
 from ..layers.protocol_calls              import YowCallsProtocolLayer
 from ..layers.noise.layer                 import YowNoiseLayer
@@ -45,7 +44,7 @@ YOWSUP_PROTOCOL_LAYERS_GROUPS = (YowGroupsProtocolLayer,) + YOWSUP_PROTOCOL_LAYE
 YOWSUP_PROTOCOL_LAYERS_MEDIA  = (YowMediaProtocolLayer,) + YOWSUP_PROTOCOL_LAYERS_BASIC
 YOWSUP_PROTOCOL_LAYERS_PROFILES  = (YowProfilesProtocolLayer,) + YOWSUP_PROTOCOL_LAYERS_BASIC
 YOWSUP_PROTOCOL_LAYERS_CALLS  = (YowCallsProtocolLayer,) + YOWSUP_PROTOCOL_LAYERS_BASIC
-YOWSUP_PROTOCOL_LAYERS_FULL = (YowGroupsProtocolLayer, YowMediaProtocolLayer, YowPrivacyProtocolLayer, YowProfilesProtocolLayer, YowCallsProtocolLayer)\
+YOWSUP_PROTOCOL_LAYERS_FULL = (YowGroupsProtocolLayer, YowMediaProtocolLayer, YowProfilesProtocolLayer, YowCallsProtocolLayer)\
                               + YOWSUP_PROTOCOL_LAYERS_BASIC
 
 
